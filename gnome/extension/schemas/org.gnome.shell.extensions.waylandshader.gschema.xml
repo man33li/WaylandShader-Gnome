@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.waylandshader" path="/org/gnome/shell/extensions/waylandshader/">
+    <key name="configuration" type="s">
+      <default>''</default>
+      <summary>WaylandShader monitor profiles and preset settings</summary>
+      <description>Versioned native-backend JSON. Independent of the KWin configuration; updated by the WaylandShader GNOME controller.</description>
+    </key>
+  </schema>
+</schemalist>

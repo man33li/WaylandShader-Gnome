@@ -1,3 +1,4 @@
+#include "controller_backend.h"
 #include "controller_client.h"
 
 #include <QApplication>
@@ -63,10 +64,12 @@ class SettingsWindow : public QWidget {
 public:
     SettingsWindow()
     {
-        setWindowTitle(QStringLiteral("WaylandShader — KWin Desktop Effects"));
+        setWindowTitle(QStringLiteral("WaylandShader — %1 Desktop Effects").arg(ControllerBackend::compositor));
         resize(740, 620);
         auto* layout = new QVBoxLayout(this);
-        auto* intro = new QLabel(QStringLiteral("Native desktop shader and color effects for KDE Plasma / KWin"), this);
+        auto* intro = new QLabel(QStringLiteral("Native desktop shader and color effects for %1")
+                                     .arg(ControllerBackend::desktopEnvironment),
+            this);
         layout->addWidget(intro);
         auto* presetRow = new QHBoxLayout;
         m_preset = new QLineEdit(this);
@@ -130,7 +133,7 @@ public:
         colorRow->addWidget(saturationLabel);
         colorRow->addWidget(m_saturation, 1);
         layout->addLayout(colorRow);
-        m_summary = new QLabel(QStringLiteral("Connecting to KWin…"), this);
+        m_summary = new QLabel(QStringLiteral("Connecting to %1…").arg(ControllerBackend::compositor), this);
         m_summary->setWordWrap(true);
         m_summary->setTextInteractionFlags(Qt::TextSelectableByMouse);
         m_summary->setTextFormat(Qt::PlainText);
@@ -558,9 +561,9 @@ private:
 int main(int argc, char** argv)
 {
     QApplication application(argc, argv);
-    QCoreApplication::setApplicationName(QStringLiteral("waylandshader-controller"));
+    QCoreApplication::setApplicationName(ControllerBackend::controllerName);
     QCoreApplication::setOrganizationName(QStringLiteral("WaylandShader"));
-    QGuiApplication::setDesktopFileName(QStringLiteral("org.waylandshader.Controller"));
+    QGuiApplication::setDesktopFileName(ControllerBackend::desktopFile);
     SettingsWindow window;
     window.show();
     return application.exec();

@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
+#include <QVariantMap>
 #include <QVector>
 #include <functional>
 
@@ -60,7 +61,7 @@ public:
     explicit ControllerClient(QObject* parent = nullptr);
     const ControllerStatus& status() const { return m_status; }
     bool hasStatus() const { return m_hasStatus; }
-    void ensureAvailable(bool allowEffectLoad, Reply reply);
+    void ensureAvailable(bool allowActivation, Reply reply);
     void requestStatus(Reply reply);
     void loadPreset(const QString& absolutePath, Reply reply);
     void setEnabled(bool enabled, Reply reply);
@@ -73,21 +74,25 @@ public:
 signals:
     void statusChanged(const WaylandShader::ControllerStatus& status);
     void transportError(const WaylandShader::ControllerError& error);
+    void extensionStateChanged(const QVariantMap& state);
 
 private slots:
     void receiveStatus(const QString& json);
+    void receiveExtensionState(const QString& uuid, const QVariantMap& state);
 
 private:
     using MessageReply = std::function<void(const QDBusMessage&)>;
     void call(const QString& path, const QString& interface, const QString& method,
         const QVariantList& arguments, MessageReply reply);
     void mutation(const QString& method, const QVariantList& arguments, Reply reply);
+    void requestActivatedStatus(Reply reply);
     ControllerError acceptStatus(const QDBusMessage& message);
     ControllerError acceptJson(const QString& json);
     QDBusConnection m_bus;
     ControllerStatus m_status;
     bool m_hasStatus = false;
     bool m_subscribed = false;
+    quint64 m_interfaceGeneration = 0;
 };
 
 } // namespace WaylandShader

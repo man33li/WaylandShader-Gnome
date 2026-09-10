@@ -1,6 +1,6 @@
 # WaylandShader TODO
 
-Current implementation: native KWin 6.6, with one shared Slang preset, independent monitor selection, and per-monitor gamma/saturation controls.
+Current implementations: native KWin 6.6 and GNOME 50, with one shared Slang preset, independent monitor selection, and per-monitor gamma/saturation controls.
 
 ## Install and verify the KWin update
 
@@ -10,13 +10,14 @@ Current implementation: native KWin 6.6, with one shared Slang preset, independe
 
 ## Native backends
 
-- [ ] **niri — recommended next:** implement and test native compositor integration on the CachyOS/niri laptop. This requires a backend, not just different packaging.
-- [ ] **GNOME:** implement native GNOME Shell/Mutter integration.
+- [ ] **niri:** continue native-backend development and validation on CachyOS in the separate `niri-backend` branch.
+- [x] **GNOME:** implement native GNOME Shell/Mutter integration, separate packaging, GUI/CLI controls, and isolated native rendering verification.
 - [ ] **COSMIC:** implement native COSMIC compositor integration.
 
 ## Further validation
 
-- [ ] Validate HDR and wide-gamut behavior. The current shader pipeline is SDR sRGB, not HDR-preserving.
+- [ ] Validate physical HDR and wide-gamut behavior. KWin uses SDR sRGB; GNOME preserves HDR headroom and passes a synthetic PQ identity check, but hardware/preset compatibility remains unvalidated.
 - [ ] Validate physical monitor rotation.
 - [ ] Measure latency on physical displays with representative shader presets.
 - [ ] Measure idle and active power consumption with representative shader presets.
+- [ ] Validate GNOME installation, physical monitor hotplug/scaling, lock/unlock, and native-module upgrades across fresh logins on GLF-OS.

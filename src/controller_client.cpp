@@ -1,20 +1,22 @@
 #include "controller_client.h"
+#include "controller_backend.h"
 
 #include <QDBusError>
 #include <QDBusPendingCallWatcher>
+#include <QDBusReply>
 #include <QDBusServiceWatcher>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
+#include <QPointer>
 #include <QSet>
+#include <QTimer>
 #include <cmath>
 #include <utility>
 
 namespace WaylandShader {
 namespace {
-    const QString service = QStringLiteral("org.kde.KWin");
-    const QString effectPath = QStringLiteral("/WaylandShader");
-    const QString effectInterface = QStringLiteral("org.waylandshader.Effect");
+    using namespace ControllerBackend;
 
     ControllerError messageError(const QDBusMessage& message)
     {
@@ -29,7 +31,7 @@ namespace {
             : error.name().startsWith(QStringLiteral("org.waylandshader.Error."))
             ? ControllerError::Rejected
             : ControllerError::Transport;
-        return { kind, error.name() + QStringLiteral(": ") + error.message() };
+        return { kind, error.name() + QStringLiteral(": ") + error.message() + (unavailable ? installationHint : QString()) };
     }
 
     bool isMissingEffect(const QDBusMessage& message)
@@ -47,19 +49,14 @@ namespace {
         }
         if (message.type() != QDBusMessage::ReplyMessage || message.arguments().size() != 1
             || message.arguments().front().metaType().id() != QMetaType::Bool) {
-            return { ControllerError::Protocol, QStringLiteral("KWin returned a malformed boolean reply.") };
+            return { ControllerError::Protocol, compositor + QStringLiteral(" returned a malformed boolean reply.") };
         }
         if (!message.arguments().front().toBool()) {
-            return { ControllerError::Rejected, QStringLiteral("KWin rejected the request (returned false).") };
+            return { ControllerError::Rejected, compositor + QStringLiteral(" rejected the request (returned false).") };
         }
         return {};
     }
 
-    QString installationHint()
-    {
-        return QStringLiteral(" Install the WaylandShader native plugin built for this KWin version; "
-                              "on NixOS, a new login may be required. KWin will not be restarted.");
-    }
 } // namespace
 
 ControllerClient::ControllerClient(QObject* parent)
@@ -68,14 +65,23 @@ ControllerClient::ControllerClient(QObject* parent)
 {
     m_subscribed = m_bus.connect(service, effectPath, effectInterface, QStringLiteral("statusChanged"),
         this, SLOT(receiveStatus(QString)));
+    if constexpr (watchExtensionLifecycle) {
+        // The extension object can disappear while GNOME Shell retains its bus name.
+        m_subscribed = m_bus.connect(service, activationPath, activationInterface,
+                           QStringLiteral("ExtensionStateChanged"),
+                           this, SLOT(receiveExtensionState(QString, QVariantMap)))
+            && m_subscribed;
+    }
     auto* watcher = new QDBusServiceWatcher(service, m_bus,
         QDBusServiceWatcher::WatchForOwnerChange, this);
     connect(watcher, &QDBusServiceWatcher::serviceOwnerChanged, this,
         [this](const QString&, const QString& oldOwner, const QString& newOwner) {
             if (!oldOwner.isEmpty() && oldOwner != newOwner) {
+                ++m_interfaceGeneration;
                 m_hasStatus = false;
                 emit transportError({ ControllerError::Unavailable,
-                    QStringLiteral("The KWin D-Bus service disappeared or restarted. Reconnect to continue.") });
+                    QStringLiteral("The %1 D-Bus service disappeared or restarted. Reconnect to continue.").arg(compositor)
+                        + installationHint });
             }
         });
 }
@@ -87,14 +93,28 @@ void ControllerClient::call(const QString& path, const QString& interface, const
     message.setArguments(arguments);
     auto* watcher = new QDBusPendingCallWatcher(m_bus.asyncCall(message, 10000), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this,
-        [watcher, reply = std::move(reply)]() {
+        [this, watcher, path, generation = m_interfaceGeneration, reply = std::move(reply)]() {
             const auto result = watcher->reply();
             watcher->deleteLater();
+            if (path == effectPath && generation != m_interfaceGeneration) {
+                reply(QDBusMessage::createError(QDBusError::UnknownObject,
+                    QStringLiteral("The WaylandShader control interface changed during the request. Reconnect to continue.")));
+                return;
+            }
+            if (path == effectPath) {
+                const auto error = messageError(result);
+                if (error.kind == ControllerError::Unavailable) {
+                    const bool hadStatus = m_hasStatus;
+                    m_hasStatus = false;
+                    if (hadStatus)
+                        emit transportError(error);
+                }
+            }
             reply(result);
         });
 }
 
-void ControllerClient::ensureAvailable(bool allowEffectLoad, Reply reply)
+void ControllerClient::ensureAvailable(bool allowActivation, Reply reply)
 {
     if (!m_bus.isConnected() || !m_subscribed) {
         reply({ ControllerError::Unavailable,
@@ -102,37 +122,95 @@ void ControllerClient::ensureAvailable(bool allowEffectLoad, Reply reply)
         return;
     }
     call(effectPath, effectInterface, QStringLiteral("status"), {},
-        [this, allowEffectLoad, reply = std::move(reply)](const QDBusMessage& message) {
+        [this, allowActivation, reply = std::move(reply)](const QDBusMessage& message) {
             if (!isMissingEffect(message)) {
                 reply(acceptStatus(message));
                 return;
             }
-            if (!allowEffectLoad) {
+            if (!allowActivation) {
                 reply({ ControllerError::Unavailable,
-                    QStringLiteral("The WaylandShader KWin effect is not loaded.") + installationHint()
-                        + QStringLiteral(" Use the settings window or a mutation command to load it.") });
+                    QStringLiteral("The %1 is not available.").arg(effectDescription) + installationHint
+                        + QStringLiteral(" Use the settings window or a mutation command to activate it.") });
                 return;
             }
-            call(QStringLiteral("/Effects"), QStringLiteral("org.kde.kwin.Effects"),
-                QStringLiteral("loadEffect"), { QStringLiteral("waylandshader") },
+            call(activationPath, activationInterface, activationMethod, { activationArgument },
                 [this, reply](const QDBusMessage& loaded) {
                     if (auto error = booleanReply(loaded)) {
-                        error.message = QStringLiteral("Could not load the WaylandShader KWin effect: ")
-                            + error.message + installationHint();
+                        error.message = QStringLiteral("Could not activate the %1: ").arg(effectDescription)
+                            + error.message;
+                        if (error.kind != ControllerError::Unavailable)
+                            error.message += installationHint;
                         if (error.kind == ControllerError::Rejected) {
                             error.kind = ControllerError::Unavailable;
                         }
                         reply(error);
                         return;
                     }
-                    requestStatus([reply](const ControllerError& error) {
+                    requestActivatedStatus([reply](const ControllerError& error) {
                         if (error) {
-                            reply({ error.kind, QStringLiteral("The effect was requested but its control interface is unavailable: ") + error.message + installationHint() });
+                            reply({ error.kind, QStringLiteral("The effect was requested but its control interface is unavailable: ") + error.message });
                         } else {
                             reply({});
                         }
                     });
                 });
+        });
+}
+
+void ControllerClient::requestActivatedStatus(Reply reply)
+{
+    if constexpr (!watchExtensionLifecycle) {
+        requestStatus(std::move(reply));
+        return;
+    }
+
+    // EnableExtension acknowledges a settings change, not completion of async enable().
+    // Subscribe before the snapshot so activation cannot be missed between the two.
+    auto* timer = new QTimer(this);
+    const auto complete = [this, guard = QPointer<QTimer>(timer), reply = std::move(reply)](const ControllerError& error) {
+        if (!guard || !guard->isActive())
+            return;
+        guard->stop();
+        guard->deleteLater();
+        if (error)
+            reply(error);
+        else
+            requestStatus(reply);
+    };
+    const auto inspect = [complete](const QVariantMap& info) {
+        bool valid = false;
+        const auto state = info.value(QStringLiteral("state")).toUInt(&valid);
+        if (!valid) {
+            complete({ ControllerError::Protocol, QStringLiteral("GNOME Shell returned extension information without a valid state.") });
+        } else if (state == 1) { // ACTIVE
+            complete({});
+        } else if (state != 2 && state != 6 && state != 8) { // INACTIVE during import, INITIALIZED, or ACTIVATING: wait.
+            complete({ ControllerError::Unavailable,
+                QStringLiteral("The %1 could not become active (state %2): %3")
+                        .arg(effectDescription)
+                        .arg(state)
+                        .arg(info.value(QStringLiteral("error")).toString())
+                    + installationHint });
+        }
+    };
+    connect(this, &ControllerClient::extensionStateChanged, timer, inspect);
+    connect(timer, &QTimer::timeout, timer, [complete] {
+        complete({ ControllerError::Unavailable,
+            QStringLiteral("Timed out waiting for the WaylandShader GNOME extension to activate.") + installationHint });
+    });
+    timer->start(10000);
+    call(activationPath, activationInterface, QStringLiteral("GetExtensionInfo"), { activationArgument },
+        [complete, inspect](const QDBusMessage& message) {
+            if (const auto error = messageError(message)) {
+                complete(error);
+                return;
+            }
+            const QDBusReply<QVariantMap> info(message);
+            if (!info.isValid()) {
+                complete({ ControllerError::Protocol, QStringLiteral("GNOME Shell returned malformed extension information.") });
+                return;
+            }
+            inspect(info.value());
         });
 }
 
@@ -143,7 +221,7 @@ ControllerError ControllerClient::acceptStatus(const QDBusMessage& message)
     }
     if (message.type() != QDBusMessage::ReplyMessage || message.arguments().size() != 1
         || message.arguments().front().metaType().id() != QMetaType::QString) {
-        return { ControllerError::Protocol, QStringLiteral("KWin returned a malformed status reply (expected JSON string).") };
+        return { ControllerError::Protocol, compositor + QStringLiteral(" returned a malformed status reply (expected JSON string).") };
     }
     return acceptJson(message.arguments().front().toString());
 }
@@ -268,6 +346,24 @@ void ControllerClient::receiveStatus(const QString& json)
     if (const auto error = acceptJson(json)) {
         m_hasStatus = false;
         emit transportError(error);
+    }
+}
+
+void ControllerClient::receiveExtensionState(const QString& uuid, const QVariantMap& state)
+{
+    if (uuid != activationArgument || !state.contains(QStringLiteral("state")))
+        return;
+    emit extensionStateChanged(state);
+    if (state.value(QStringLiteral("state")).toUInt() == 1)
+        return;
+    ++m_interfaceGeneration;
+    const bool hadStatus = m_hasStatus;
+    m_hasStatus = false;
+    if (hadStatus) {
+        emit transportError({ ControllerError::Unavailable,
+            QStringLiteral("The %1 was disabled or became unavailable. Use Reconnect / refresh to activate it.")
+                    .arg(effectDescription)
+                + installationHint });
     }
 }
 

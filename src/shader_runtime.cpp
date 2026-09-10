@@ -216,7 +216,7 @@ struct ShaderRuntime::Impl {
             return false;
         }
         if (hostApi != EGL_OPENGL_API) {
-            error = QStringLiteral("WaylandShader requires KWin's desktop OpenGL EGL renderer, not OpenGL ES");
+            error = QStringLiteral("WaylandShader requires a desktop OpenGL EGL renderer, not OpenGL ES");
             return false;
         }
         const EGLenum previousApi = eglQueryAPI();
@@ -225,7 +225,7 @@ struct ShaderRuntime::Impl {
             return false;
         }
 
-        // KWin's GBM EGL display commonly has no pbuffer configs. Prefer
+        // GBM EGL displays commonly have no pbuffer configs. Prefer
         // surfaceless rendering; retain a tiny pbuffer for older EGL displays.
         surfaceless = epoxy_egl_version(display) >= 15
             || epoxy_has_egl_extension(display, "EGL_KHR_surfaceless_context");
@@ -241,7 +241,7 @@ struct ShaderRuntime::Impl {
             error = eglError("eglChooseConfig(OpenGL)");
         } else if (count == 0) {
             ok = false;
-            error = QStringLiteral("KWin's EGL display has no suitable OpenGL %1 config")
+            error = QStringLiteral("The compositor's EGL display has no suitable OpenGL %1 config")
                         .arg(surfaceless ? QStringLiteral("surfaceless") : QStringLiteral("pbuffer"));
         } else {
             // Prefer DSA-capable contexts, but retain librashader's GLSL 330
@@ -523,11 +523,11 @@ bool ShaderRuntime::render(uintptr_t outputId, const ShaderFrame& frame, QString
     }
     if (eglGetCurrentDisplay() != d->display || eglGetCurrentContext() != d->hostContext
         || eglQueryAPI() != EGL_OPENGL_API) {
-        error = QStringLiteral("Shader rendering must run with the original KWin OpenGL EGL context current");
+        error = QStringLiteral("Shader rendering must run with the original compositor OpenGL EGL context current");
         return false;
     }
 
-    // These host operations change no GL bindings or state tracked by KWin.
+    // These host operations change no GL bindings or state tracked by the compositor.
     GLsync incoming = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     if (!incoming) {
         error = QStringLiteral("Could not create the compositor-to-shader GPU fence");

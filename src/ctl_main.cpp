@@ -1,3 +1,4 @@
+#include "controller_backend.h"
 #include "controller_client.h"
 
 #include <QCommandLineParser>
@@ -16,11 +17,11 @@ using namespace WaylandShader;
 int main(int argc, char** argv)
 {
     QCoreApplication application(argc, argv);
-    QCoreApplication::setApplicationName(QStringLiteral("waylandshaderctl"));
+    QCoreApplication::setApplicationName(ControllerBackend::cliName);
     QCoreApplication::setOrganizationName(QStringLiteral("WaylandShader"));
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral(
-        "Control the native WaylandShader KWin effect over the session D-Bus.\n"
+        "Control the native %5 over the session D-Bus.\n"
         "Commands:\n"
         "  status                         Print complete JSON status (does not load the effect)\n"
         "  parameters                     Print declared parameters as JSON (does not load the effect)\n"
@@ -38,13 +39,14 @@ int main(int argc, char** argv)
         "Master disable bypasses both presets and color adjustments on all monitors.\n"
         "Monitor controls preserve other settings and never enable the master switch.\n"
         "Color adjustments work without a preset; shader and color switches are independent.\n"
-        "Mutation commands may load only the waylandshader KWin effect.\n"
+        "%6\n"
         "Exit codes: 0 success, 1 rejected/shader failure, 2 usage error,\n"
         "3 unavailable/transport/protocol error, 4 timeout (operation may still finish).")
             .arg(OutputSettings::MinimumGamma)
             .arg(OutputSettings::MaximumGamma)
             .arg(OutputSettings::MinimumSaturation)
-            .arg(OutputSettings::MaximumSaturation));
+            .arg(OutputSettings::MaximumSaturation)
+            .arg(ControllerBackend::effectDescription, ControllerBackend::activationHint));
     parser.addHelpOption();
     const QCommandLineOption timeoutOption(QStringLiteral("timeout"),
         QStringLiteral("Overall deadline in seconds, including asynchronous compilation (1–3600)."),
@@ -62,7 +64,7 @@ int main(int argc, char** argv)
         return 0;
     }
     const auto usageError = [](const QString& message) {
-        QTextStream(stderr) << message << "\nUse waylandshaderctl --help for usage.\n";
+        QTextStream(stderr) << message << "\nUse " << ControllerBackend::cliName << " --help for usage.\n";
         return 2;
     };
     const auto arguments = parser.positionalArguments();
@@ -181,7 +183,7 @@ int main(int argc, char** argv)
     QObject::connect(&client, &ControllerClient::transportError, &application,
         [&](const ControllerError& error) { fail(error); });
     QObject::connect(&deadline, &QTimer::timeout, &application, [&] {
-        finish(4, loadInProgress ? QStringLiteral("Timed out waiting for shader loading. The request was not cancelled and may still finish; use status to check.") : QStringLiteral("Timed out waiting for KWin. A mutation may still finish; use status to check."));
+        finish(4, loadInProgress ? QStringLiteral("Timed out waiting for shader loading. The request was not cancelled and may still finish; use status to check.") : QStringLiteral("Timed out waiting for %1. A mutation may still finish; use status to check.").arg(ControllerBackend::compositor));
     });
     QTimer::singleShot(0, &application, [&] {
         deadline.start(timeoutSeconds * 1000);

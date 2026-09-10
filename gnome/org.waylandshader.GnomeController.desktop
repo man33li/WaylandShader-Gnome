@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=WaylandShader (GNOME)
+Comment=Configure native GNOME desktop shaders, gamma and saturation
+Exec=waylandshader-gnome-controller
+Icon=preferences-desktop-display
+Terminal=false
+Categories=Settings;DesktopSettings;
+OnlyShowIn=GNOME;
+StartupNotify=true

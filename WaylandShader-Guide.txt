@@ -1,10 +1,13 @@
 WaylandShader — native RetroArch shaders for Wayland
 ===================================================
 
-Implemented backend: KDE Plasma / KWin 6.6, using desktop OpenGL/EGL and
-librashader. This is an in-place compositor effect, not a Wine application,
-screen-capture viewer, or overlay window. niri, COSMIC, and GNOME remain target
-desktops; their native integrations are not implemented here.
+This guide documents the KDE Plasma / KWin 6.6 backend, using desktop
+OpenGL/EGL and librashader. It is an in-place compositor effect, not a Wine
+application, screen-capture viewer, or overlay window.
+
+A separate native GNOME 50 backend is implemented in gnome/. See the
+"GNOME 50 backend" section of README.md for its package, extension, and controls.
+niri development continues on its own branch; COSMIC is not implemented here.
 
 What works
 ----------
@@ -192,9 +195,9 @@ D-Bus replies. Checks included:
 Limits and risks
 ----------------
 
-* Only KDE Plasma/KWin 6.6 is implemented. This does not add support to niri,
-  COSMIC, or GNOME, and it does not implement per-window or selected-region
-  processing.
+* These installation instructions target only the KWin 6.6 plugin. GNOME 50
+  has a separate package in gnome/. Neither backend implements per-window
+  or selected-region processing.
 * Shaders alter pixels, not input hit-testing. A curved or geometrically warped
   desktop still uses the application's original mouse coordinates. Prefer
   non-warping shaders for precise desktop interaction.
@@ -236,11 +239,11 @@ universal, and does not supply generic foreign-window tracking. The relevant
 new capture family is ext-image-copy-capture; there is no universal
 "ext-screencopy" or "ext-layer-shell" solution.
 
-For future in-place integrations: niri and COSMIC need compositor-specific
-rendering changes or suitable upstream hooks for persistent preset processing.
-GNOME needs a Shell/Mutter integration; a single Clutter/Cogl GLSL snippet is
-not equivalent to a complete RetroArch multipass preset runtime. Those are
-separate native backends, not hidden portability supplied by this KWin plugin.
+niri development continues separately, and COSMIC still needs its own native
+rendering integration. The GNOME 50 backend in gnome/ combines a native
+Clutter/Cogl stage effect with the complete librashader preset runtime; it is
+not a single-snippet approximation. These are separate native backends, not
+hidden portability supplied by the KWin plugin.
 
 Primary references
 ------------------
