@@ -4,7 +4,7 @@ Native RetroArch Slang shader effects for the Wayland desktop, with per-monitor 
 
 WaylandShader processes the desktop **inside the compositor**. It is not a Wine application, a screen-capture viewer, or an overlay window. This checkout includes separate **KDE Plasma / KWin** and **GNOME Shell / Mutter** backends.
 
-[Detailed guide](WaylandShader-Guide.txt) · [Project roadmap](TODO.md)
+[Detailed guide](WaylandShader-Guide.txt) · [Project roadmap](TODO.md) · [Project handbook](PROJECT-HANDBOOK.md) · Backend chapters: [KDE](docs/KDE.md), [GNOME](docs/GNOME.md), [niri](docs/NIRI.md)
 
 ## Current status
 
@@ -82,6 +82,8 @@ environment.systemPackages = [
 
 Use your normal system rebuild workflow. After installation or a native-module update, save your work and start a new **GNOME** login; do not restart the live Wayland compositor. The KWin package and its binary names are unchanged.
 
+On GLF-OS, `glf-update` builds and selects the next boot generation; it does not switch the running system. Reboot to activate that generation, or explicitly run `nixos-rebuild switch` after reviewing the configuration. Keep separate non-flake inputs for the KDE and GNOME checkouts, and select the matching package using `glf.environment.type`. Refresh the GNOME input after source changes, just as for the KWin input below.
+
 ```bash
 waylandshader-gnome-controller
 waylandshader-gnomectl outputs
@@ -92,7 +94,11 @@ waylandshader-gnomectl output DP-1 gamma 1.2
 
 Replace `DP-1` with an ID reported by `outputs`. The GNOME CLI supports the same commands as the KWin CLI. Read-only commands do not activate anything; the GUI and mutation commands may enable only `waylandshader@man33li.github.com`. GNOME must allow user extensions.
 
+**Browse** uses Qt's native file picker—GTK 3 with GNOME's default Qt theme—not a separate Nautilus or Dolphin process. The GNOME package includes GTK's GSettings schemas in its Qt launcher environment. Choosing a file only fills the path; **Load preset** applies it. Closing the controller leaves the compositor effect running; uncheck **Enable desktop effects** to bypass it.
+
 The extension exports `/WaylandShader` on the session service `org.gnome.Shell`, using `org.waylandshader.Effect`. Settings are stored in the extension's GSettings schema, with monitor profiles keyed by connector ID. An unreadable saved preset reports an error without taking down the controls or independent color adjustments.
+
+Master bypass releases GPU resources and temporal history, but keeps the loaded preset's parameter definitions. Known parameters remain editable while bypassed; their validated values are saved and applied when rendering is enabled again. An in-progress preset compilation still rejects parameter edits.
 
 This backend requires **desktop OpenGL EGL**, not GLES. Unmappable, tiled, or ambiguous shared-view outputs are reported and passed through without disabling supported outputs. GNOME requests software cursor rendering and inhibits direct scanout while processing is active.
 
@@ -220,6 +226,8 @@ Recorded verification includes a successful Nix package build and **3/3 passing 
 
 GNOME verification used isolated GNOME Shell/Mutter **50.4** sessions beside KDE, including native Wayland GUI input and two independent views at **1280×800/60 Hz** and **800×600/75 Hz**. Actual post-paint framebuffer checks covered identity and parameterized Slang rendering, independent gamma/saturation, master bypass, small redraws without feedback, unsupported-output isolation, and a synthetic PQ/HDR identity round trip. Cold activation and preset-restoration races were reproduced and corrected. The Nix package also runs the retained GJS ownership/pending-load lifecycle regression.
 
+Live GNOME 50.4 checks on an AMD Radeon RX 6800 XT exercised the controller's preset loading, parameter editing, primary-monitor color adjustment, and master bypass. Direct KMS scanout confirmed the primary monitor's shader/color result; the secondary monitor's settings were left unchanged. On this system, GNOME monitor screencasts captured the unfiltered scene, so they were useful for inspecting the GUI but **not** for proving the final native effect.
+
 For GNOME development:
 
 ```bash
@@ -228,6 +236,14 @@ cmake -S gnome -B build/gnome -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON
 cmake --build build/gnome --parallel
 ctest --test-dir build/gnome --output-on-failure
 ```
+
+The opt-in [bypass-parameter regression](gnome/tests/parameter-bypass.js) requires a **fresh disposable GNOME session** with the extension enabled and no preset configured. Pass that session's private D-Bus address, never the address of your working desktop:
+
+```bash
+gjs -m gnome/tests/parameter-bypass.js "$PRIVATE_GNOME_DBUS_ADDRESS"
+```
+
+It loads a real Slang preset, edits it while bypassed, rejects invalid and unknown parameters without changing the saved value, and verifies the value survives re-enabling and GPU-runtime reconstruction. It failed on the previous native module and passed on the corrected module. It is separate from CTest because it controls a running compositor.
 
 C++ sources use clang-format's **WebKit** style. When reporting a rendering problem, include the compositor version, GPU/driver, preset and relevant settings, reproduction steps, and status output from the matching backend's CLI.
 

@@ -21,6 +21,8 @@ struct ShaderParameter {
     double step;
     double defaultValue;
     double value;
+
+    bool validateValue(double candidate, QString& error) const;
 };
 
 struct ShaderFrame {

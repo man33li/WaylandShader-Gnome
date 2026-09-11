@@ -148,20 +148,20 @@ namespace {
         return reinterpret_cast<const void*>(eglGetProcAddress(name));
     }
 
-    bool validateValue(const ShaderParameter& parameter, double value, QString& error)
-    {
-        const float shaderValue = static_cast<float>(value);
-        if (!std::isfinite(shaderValue) || shaderValue < parameter.minimum || shaderValue > parameter.maximum) {
-            error = QStringLiteral("Parameter '%1' must be finite and between %2 and %3")
-                        .arg(parameter.name)
-                        .arg(parameter.minimum, 0, 'g', 9)
-                        .arg(parameter.maximum, 0, 'g', 9);
-            return false;
-        }
-        return true;
-    }
-
 } // namespace
+
+bool ShaderParameter::validateValue(double candidate, QString& error) const
+{
+    const float shaderValue = static_cast<float>(candidate);
+    if (!std::isfinite(shaderValue) || shaderValue < minimum || shaderValue > maximum) {
+        error = QStringLiteral("Parameter '%1' must be finite and between %2 and %3")
+                    .arg(name)
+                    .arg(minimum, 0, 'g', 9)
+                    .arg(maximum, 0, 'g', 9);
+        return false;
+    }
+    return true;
+}
 
 struct ShaderRuntime::Impl {
     struct Output {
@@ -376,7 +376,7 @@ std::unique_ptr<ShaderRuntime> ShaderRuntime::load(EGLDisplay display, EGLContex
                 if (parameter.name.isEmpty() || !std::isfinite(parameter.minimum)
                     || !std::isfinite(parameter.maximum) || parameter.minimum > parameter.maximum
                     || !std::isfinite(parameter.step) || parameter.step < 0
-                    || !validateValue(parameter, parameter.defaultValue, error)) {
+                    || !parameter.validateValue(parameter.defaultValue, error)) {
                     error = QStringLiteral("Invalid shader metadata for parameter '%1': %2").arg(parameter.name, error);
                     return nullptr;
                 }
@@ -403,7 +403,7 @@ std::unique_ptr<ShaderRuntime> ShaderRuntime::load(EGLDisplay display, EGLContex
                     error = QStringLiteral("Unknown shader parameter '%1'").arg(it.key());
                     return nullptr;
                 }
-                if (!validateValue(*parameter, it.value(), error)) {
+                if (!parameter->validateValue(it.value(), error)) {
                     return nullptr;
                 }
             }
@@ -427,7 +427,7 @@ std::unique_ptr<ShaderRuntime> ShaderRuntime::load(EGLDisplay display, EGLContex
             // as .slangp overrides, and returns an error for an absent name.
             float value = 0;
             if (!checkLibra(libra_gl_filter_chain_get_param(&output.chain, name, &value), error)
-                || !validateValue(parameter, value, error)) {
+                || !parameter.validateValue(value, error)) {
                 return nullptr;
             }
             const auto override = overrides.constFind(parameter.name);
@@ -472,7 +472,7 @@ bool ShaderRuntime::setParameter(const QString& name, double value, QString& err
         error = QStringLiteral("Unknown shader parameter '%1'").arg(name);
         return false;
     }
-    if (!validateValue(*parameter, value, error)) {
+    if (!parameter->validateValue(value, error)) {
         return false;
     }
     const auto index = size_t(parameter - d->parameters.begin());

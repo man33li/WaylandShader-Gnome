@@ -78,9 +78,12 @@ gboolean wayland_shader_effect_set_enabled(WaylandShaderEffect* self, gboolean e
 /**
  * wayland_shader_effect_set_parameter:
  * @self: the effect
- * @name: active preset parameter name
+ * @name: loaded preset parameter name
  * @value: finite parameter value within its declared range
  * @error: return location for a rejected mutation
+ *
+ * Known parameters remain editable while master processing is bypassed.
+ * Edits are retained and applied when the preset's GPU runtime is rebuilt.
  * Returns: whether the mutation was accepted
  */
 gboolean wayland_shader_effect_set_parameter(WaylandShaderEffect* self, const gchar* name, double value, GError** error);

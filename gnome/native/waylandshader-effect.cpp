@@ -1501,12 +1501,22 @@ gboolean wayland_shader_effect_set_enabled(WaylandShaderEffect* self, gboolean e
 gboolean wayland_shader_effect_set_parameter(WaylandShaderEffect* self, const gchar* name, double value, GError** error)
 {
     return mutate(self, error, [&](Engine& engine) {
-        require(!engine.loading && engine.runtime, QStringLiteral("No ready preset, or compilation is in progress"));
+        require(!engine.loading && !engine.preset.isEmpty(), QStringLiteral("No ready preset, or compilation is in progress"));
         const auto parameterName = text(name);
         QString runtimeError;
-        require(engine.runtime->setParameter(parameterName, value, runtimeError), runtimeError);
+        if (engine.runtime) {
+            require(engine.runtime->setParameter(parameterName, value, runtimeError), runtimeError);
+            engine.lastParameters = engine.runtime->parameters();
+        } else {
+            // Bypass releases GPU history, not the loaded parameter contract.
+            // Save edits against that metadata for the next runtime rebuild.
+            const auto parameter = std::find_if(engine.lastParameters.begin(), engine.lastParameters.end(),
+                [&](const auto& candidate) { return candidate.name == parameterName; });
+            require(parameter != engine.lastParameters.end(), QStringLiteral("Unknown shader parameter '%1'").arg(parameterName));
+            require(parameter->validateValue(value, runtimeError), runtimeError);
+            parameter->value = static_cast<float>(value);
+        }
         engine.overrides[engine.preset][parameterName] = value;
-        engine.lastParameters = engine.runtime->parameters();
         engine.redraw();
         engine.notify();
     });

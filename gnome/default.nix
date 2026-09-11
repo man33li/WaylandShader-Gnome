@@ -27,10 +27,12 @@ pkgs.stdenv.mkDerivation {
     gobject-introspection
     glib
     gjs
+    wrapGAppsHook3
     kdePackages.wrapQtAppsHook
   ];
   buildInputs = with pkgs; [
     mutter
+    gtk3
     # Private pkg-config requirements not propagated by Mutter's dependencies.
     expat
     isocodes
@@ -50,6 +52,12 @@ pkgs.stdenv.mkDerivation {
     runHook preCheck
     ctest --output-on-failure
     runHook postCheck
+  '';
+  # Qt's native GNOME file chooser needs GTK's schemas and GIO modules.
+  # Merge them into the Qt wrapper instead of wrapping each executable twice.
+  dontWrapGApps = true;
+  preFixup = ''
+    qtWrapperArgs+=("''${gappsWrapperArgs[@]}")
   '';
   passthru = {
     extensionUuid = "waylandshader@man33li.github.com";
