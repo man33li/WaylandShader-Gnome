@@ -68,6 +68,7 @@ try {
     mutate('loadPreset', '(s)', [preset]);
     const loaded = settled();
     expect(!loaded.error && loaded.active && gain(loaded) === 1, 'The real probe preset did not become active.');
+    expect(loaded.recentPresets?.[0] === preset, 'The successful load was not recorded first in recentPresets.');
     mutate('setParameter', '(sd)', ['GAIN', 0.75]);
     mutate('setEnabled', '(b)', [false]);
     const bypassed = settled();

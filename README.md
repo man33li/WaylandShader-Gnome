@@ -94,7 +94,7 @@ waylandshader-gnomectl output DP-1 gamma 1.2
 
 Replace `DP-1` with an ID reported by `outputs`. The GNOME CLI supports the same commands as the KWin CLI. Read-only commands do not activate anything; the GUI and mutation commands may enable only `waylandshader@man33li.github.com`. GNOME must allow user extensions.
 
-**Browse** uses Qt's native file picker—GTK 3 with GNOME's default Qt theme—not a separate Nautilus or Dolphin process. The GNOME package includes GTK's GSettings schemas in its Qt launcher environment. Choosing a file only fills the path; **Load preset** applies it. Closing the controller leaves the compositor effect running; uncheck **Enable desktop effects** to bypass it.
+**Browse** uses Qt's native file picker—GTK 3 with GNOME's default Qt theme—not a separate Nautilus or Dolphin process. The GNOME package includes GTK's GSettings schemas in its Qt launcher environment. **Recent** lists the last 10 successfully loaded presets, from the GUI or CLI, by full path; status reports them as `recentPresets`. Choosing a file from either only fills the path; **Load preset** applies it. Closing the controller leaves the compositor effect running; uncheck **Enable desktop effects** to bypass it.
 
 The extension exports `/WaylandShader` on the session service `org.gnome.Shell`, using `org.waylandshader.Effect`. Settings are stored in the extension's GSettings schema, with monitor profiles keyed by connector ID. An unreadable saved preset reports an error without taking down the controls or independent color adjustments.
 

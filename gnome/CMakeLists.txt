@@ -103,7 +103,12 @@ if(WAYLANDSHADER_BUILD_TESTS)
             ${GJS} -m ${CMAKE_CURRENT_SOURCE_DIR}/tests/effect-lifecycle.js
             $<TARGET_FILE_DIR:waylandshader_gnome>
             ${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/temporal.slangp)
-    set_tests_properties(gnome_effect_lifecycle PROPERTIES TIMEOUT 10)
+    add_test(NAME gnome_recent_presets
+        COMMAND ${CMAKE_COMMAND} -E env
+            "GI_TYPELIB_PATH=${MUTTER_GIR_DIR}:$ENV{GI_TYPELIB_PATH}"
+            ${GJS} -m ${CMAKE_CURRENT_SOURCE_DIR}/tests/recent-presets.js
+            $<TARGET_FILE_DIR:waylandshader_gnome>)
+    set_tests_properties(gnome_effect_lifecycle gnome_recent_presets PROPERTIES TIMEOUT 10)
 endif()
 
 add_library(gnome_controller_client STATIC ../src/controller_client.cpp)

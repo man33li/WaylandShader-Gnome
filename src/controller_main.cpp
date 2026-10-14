@@ -1,6 +1,7 @@
 #include "controller_backend.h"
 #include "controller_client.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
@@ -13,6 +14,7 @@
 #include <QLineEdit>
 #include <QLocale>
 #include <QMap>
+#include <QMenu>
 #include <QPointer>
 #include <QPushButton>
 #include <QScrollArea>
@@ -76,9 +78,15 @@ public:
         m_preset->setPlaceholderText(QStringLiteral("Select a RetroArch .slangp preset"));
         m_preset->setAccessibleName(QStringLiteral("Shader preset path"));
         auto* browse = new QPushButton(QStringLiteral("Browse…"), this);
+        m_recent = new QPushButton(QStringLiteral("Recent"), this);
+        m_recent->setAccessibleName(QStringLiteral("Recently used shader presets"));
+        m_recent->setToolTip(QStringLiteral("Choose a recently used preset, then click Load preset."));
+        m_recent->setMenu(new QMenu(m_recent));
+        m_recent->setEnabled(false);
         m_load = new QPushButton(QStringLiteral("Load preset"), this);
         presetRow->addWidget(m_preset, 1);
         presetRow->addWidget(browse);
+        presetRow->addWidget(m_recent);
         presetRow->addWidget(m_load);
         layout->addLayout(presetRow);
         auto* controlRow = new QHBoxLayout;
@@ -286,6 +294,7 @@ private:
         m_outputState->setText(!output                        ? QString()
                 : pending                                     ? QStringLiteral("Saving…")
                 : !m_client.status().enabled                  ? QStringLiteral("Bypassed")
+                : !output->bypass.isEmpty()                   ? QStringLiteral("Unfiltered: ") + output->bypass
                 : output->shaderActive && output->colorActive ? QStringLiteral("Preset + color active")
                 : output->shaderActive                        ? QStringLiteral("Preset active")
                 : output->colorActive                         ? QStringLiteral("Color active")
@@ -491,6 +500,25 @@ private:
         }
     }
 
+    void updateRecentPresets(const QStringList& presets)
+    {
+        if (m_recentPresets == presets)
+            return;
+        m_recentPresets = presets;
+        auto* menu = m_recent->menu();
+        menu->clear();
+        for (const auto& path : presets) {
+            auto label = path;
+            auto* action = menu->addAction(label.replace(QLatin1Char('&'), QStringLiteral("&&")));
+            connect(action, &QAction::triggered, this, [this, path] {
+                m_preset->setText(path);
+                m_pathEdited = true;
+                m_preset->setFocus();
+            });
+        }
+        m_recent->setEnabled(!presets.isEmpty());
+    }
+
     void updateStatus(const ControllerStatus& status)
     {
         m_loading = status.loading;
@@ -499,6 +527,7 @@ private:
             const QSignalBlocker blocked(m_enabled);
             m_enabled->setChecked(status.enabled);
         }
+        updateRecentPresets(status.recentPresets);
         if (!m_pathEdited && !m_preset->hasFocus()) {
             m_preset->setText(status.loading ? status.requestedPreset : status.preset);
         }
@@ -531,6 +560,7 @@ private:
 
     ControllerClient m_client;
     QLineEdit* m_preset;
+    QPushButton* m_recent;
     QPushButton* m_load;
     QCheckBox* m_enabled;
     QComboBox* m_output;
@@ -545,6 +575,7 @@ private:
     QFormLayout* m_form;
     QMap<QString, Editor> m_editors;
     QString m_parameterPreset;
+    QStringList m_recentPresets;
     QString m_operationError;
     QString m_selectedOutputId;
     QString m_pendingOutputId;

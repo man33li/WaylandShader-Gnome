@@ -29,6 +29,9 @@ static GLuint makeTexture(bool source)
     glTexStorage2D(GL_TEXTURE_2D, source ? std::bit_width(64u) : 1, GL_RGBA16F, 64, 32);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // Host contract: only the freshly written base level is exposed; the
+    // patched librashader exposes the rest while generating requested mips.
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
     if (source) {
         std::array<float, 64 * 32 * 4> pixels;
         for (size_t i = 0; i < pixels.size(); i += 4) {
@@ -42,7 +45,8 @@ static GLuint makeTexture(bool source)
     return texture;
 }
 
-static void exerciseContext(EGLDisplay display, EGLConfig config, bool robust, const QString& preset)
+static void exerciseContext(EGLDisplay display, EGLConfig config, bool robust, const QString& preset,
+    const QString& baseLevelPreset)
 {
     const EGLint attributes[] = {
         EGL_CONTEXT_MAJOR_VERSION_KHR, 3, EGL_CONTEXT_MINOR_VERSION_KHR, 3,
@@ -113,6 +117,25 @@ static void exerciseContext(EGLDisplay display, EGLConfig config, bool robust, c
         require(runtime->setParameter(QStringLiteral("GAIN"), 0.1, error), error);
         frame(11, 5, true, { 0.012549f, 0.025f, 0.0125f });
     }
+    // Without mipmap_input, a high requested LOD must sample the live base
+    // level, not allocated but uninitialized mip storage (VHSPro banding).
+    const GLuint fresh = makeTexture(true);
+    {
+        QString error;
+        auto runtime = std::async(std::launch::async, [&] {
+            return ShaderRuntime::load(display, context, baseLevelPreset, { 11 }, {}, error);
+        }).get();
+        require(bool(runtime), error);
+        require(runtime->render(11, { fresh, destination, GL_RGBA16F, QSize(64, 32), 0, 60.0f, 17, true }, error), error);
+        glBindFramebuffer(GL_FRAMEBUFFER, readback);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, destination, 0);
+        std::array<float, 4> pixel {};
+        glReadPixels(32, 16, 1, 1, GL_RGBA, GL_FLOAT, pixel.data());
+        require(glGetError() == GL_NO_ERROR && std::abs(pixel[0] - 0.25f) < 0.003f
+                && std::abs(pixel[1] - 0.5f) < 0.003f && std::abs(pixel[2] - 0.75f) < 0.003f,
+            QStringLiteral("High-LOD sample read uninitialized mip storage: %1 %2 %3").arg(pixel[0]).arg(pixel[1]).arg(pixel[2]));
+    }
+    glDeleteTextures(1, &fresh);
     glDeleteFramebuffers(1, &readback);
     glDeleteTextures(1, &source);
     glDeleteTextures(1, &destination);
@@ -138,6 +161,26 @@ int main(int argc, char** argv)
                         directory.filePath(QLatin1String(file))),
                 QStringLiteral("Cannot copy shader fixture"));
         }
+        QFile basePreset(directory.filePath(QStringLiteral("base-level.slangp")));
+        require(basePreset.open(QIODevice::WriteOnly), QStringLiteral("Cannot create base-level preset"));
+        basePreset.write("shaders = 1\nshader0 = base-level.slang\nfilter_linear0 = true\nmipmap_input0 = false\n");
+        basePreset.close();
+        QFile baseShader(directory.filePath(QStringLiteral("base-level.slang")));
+        require(baseShader.open(QIODevice::WriteOnly), QStringLiteral("Cannot create base-level shader"));
+        baseShader.write(R"(#version 450
+layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; } global;
+#pragma stage vertex
+layout(location = 0) in vec4 Position;
+layout(location = 1) in vec2 TexCoord;
+layout(location = 0) out vec2 uv;
+void main() { gl_Position = global.MVP * Position; uv = TexCoord; }
+#pragma stage fragment
+layout(location = 0) in vec2 uv;
+layout(location = 0) out vec4 FragColor;
+layout(set = 0, binding = 2) uniform sampler2D Source;
+void main() { FragColor = textureLod(Source, uv, 3.0); }
+)");
+        baseShader.close();
         QImage lut(2, 2, QImage::Format_RGBA8888);
         lut.fill(QColor(128, 255, 255));
         require(lut.save(directory.filePath(QStringLiteral("lookup.png"))), QStringLiteral("Cannot create LUT fixture"));
@@ -150,10 +193,11 @@ int main(int argc, char** argv)
         require(eglChooseConfig(display, configAttributes, &config, 1, &count) && count,
             QStringLiteral("No host OpenGL configuration"));
         for (bool robust : { false, true }) {
-            exerciseContext(display, config, robust, directory.filePath(QStringLiteral("temporal.slangp")));
+            exerciseContext(display, config, robust, directory.filePath(QStringLiteral("temporal.slangp")),
+                directory.filePath(QStringLiteral("base-level.slangp")));
         }
         eglTerminate(display);
-        std::cout << "Temporal isolation, resets, reloads, parameters, and context sharing passed.\n";
+        std::cout << "Temporal isolation, resets, reloads, parameters, base-level sampling, and context sharing passed.\n";
         return 0;
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';
