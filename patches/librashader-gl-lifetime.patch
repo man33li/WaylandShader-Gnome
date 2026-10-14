@@ -962,3 +962,58 @@ diff -ruN a/librashader-runtime-gl/src/util.rs b/librashader-runtime-gl/src/util
              Err(FilterChainError::GlCompileError)
          } else {
              Ok(shader)
+diff --git a/librashader-runtime-gl/src/gl/gl3/texture_bind.rs b/librashader-runtime-gl/src/gl/gl3/texture_bind.rs
+--- a/librashader-runtime-gl/src/gl/gl3/texture_bind.rs
++++ b/librashader-runtime-gl/src/gl/gl3/texture_bind.rs
+@@ -3,6 +3,7 @@
+ use crate::texture::InputTexture;
+ use glow::HasContext;
+ use librashader_reflect::reflect::semantics::TextureBinding;
++use librashader_runtime::scaling::MipmapSize;
+ 
+ pub struct Gl3BindTexture;
+ 
+@@ -27,6 +28,13 @@ impl BindTexture for Gl3BindTexture {
+     fn gen_mipmaps(ctx: &glow::Context, texture: &InputTexture) {
+         unsafe {
+             ctx.bind_texture(glow::TEXTURE_2D, texture.image.handle);
++            // The caller may allocate immutable mip storage but expose only
++            // the live base level until a pass requests mipmap generation.
++            ctx.tex_parameter_i32(
++                glow::TEXTURE_2D,
++                glow::TEXTURE_MAX_LEVEL,
++                (texture.image.size.calculate_miplevels() - 1) as i32,
++            );
+             ctx.generate_mipmap(glow::TEXTURE_2D);
+             ctx.bind_texture(glow::TEXTURE_2D, None);
+         }
+diff --git a/librashader-runtime-gl/src/gl/gl46/texture_bind.rs b/librashader-runtime-gl/src/gl/gl46/texture_bind.rs
+--- a/librashader-runtime-gl/src/gl/gl46/texture_bind.rs
++++ b/librashader-runtime-gl/src/gl/gl46/texture_bind.rs
+@@ -3,6 +3,7 @@
+ use crate::texture::InputTexture;
+ use glow::HasContext;
+ use librashader_reflect::reflect::semantics::TextureBinding;
++use librashader_runtime::scaling::MipmapSize;
+ 
+ pub struct Gl46BindTexture;
+ 
+@@ -24,8 +25,16 @@ impl BindTexture for Gl46BindTexture {
+     }
+ 
+     fn gen_mipmaps(context: &glow::Context, texture: &InputTexture) {
+-        if let Some(texture) = texture.image.handle {
+-            unsafe { context.generate_texture_mipmap(texture) }
++        if let Some(handle) = texture.image.handle {
++            unsafe {
++                // Expose allocated mip storage only when generating its data.
++                context.texture_parameter_i32(
++                    handle,
++                    glow::TEXTURE_MAX_LEVEL,
++                    (texture.image.size.calculate_miplevels() - 1) as i32,
++                );
++                context.generate_texture_mipmap(handle);
++            }
+         }
+     }
+ }

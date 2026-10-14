@@ -258,6 +258,15 @@ ControllerError ControllerClient::acceptJson(const QString& json)
     next.preset = object.value(QStringLiteral("preset")).toString();
     next.requestedPreset = object.value(QStringLiteral("requestedPreset")).toString();
     next.error = object.value(QStringLiteral("error")).toString();
+    const auto recent = object.value(QStringLiteral("recentPresets"));
+    if (!recent.isUndefined() && !recent.isArray())
+        return invalid(QStringLiteral("recentPresets must be an array."));
+    for (const auto& entry : recent.toArray()) {
+        auto path = entry.toString();
+        if (!entry.isString() || path.isEmpty())
+            return invalid(QStringLiteral("recent preset must be a nonempty string."));
+        next.recentPresets.push_back(std::move(path));
+    }
     QSet<QString> names;
     for (const auto& entry : object.value(QStringLiteral("parameters")).toArray()) {
         if (!entry.isObject()) {
@@ -315,6 +324,8 @@ ControllerError ControllerClient::acceptJson(const QString& json)
                     + QStringLiteral(" must be finite numeric data."));
             }
         }
+        if (const auto bypass = output.value(QStringLiteral("bypass")); !bypass.isUndefined() && !bypass.isString())
+            return invalid(QStringLiteral("output bypass must be a string."));
         ControllerOutput value;
         value.id = output.value(QStringLiteral("id")).toString();
         value.name = output.value(QStringLiteral("name")).toString();
@@ -324,6 +335,7 @@ ControllerError ControllerClient::acceptJson(const QString& json)
         value.settings.saturation = output.value(QStringLiteral("saturation")).toDouble();
         value.shaderActive = output.value(QStringLiteral("shaderActive")).toBool();
         value.colorActive = output.value(QStringLiteral("colorActive")).toBool();
+        value.bypass = output.value(QStringLiteral("bypass")).toString();
         if (outputIds.contains(value.id)
             || value.settings.gamma < OutputSettings::MinimumGamma
             || value.settings.gamma > OutputSettings::MaximumGamma

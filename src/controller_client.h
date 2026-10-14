@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVariantMap>
 #include <QVector>
 #include <functional>
@@ -29,6 +30,7 @@ struct ControllerOutput {
     OutputSettings settings;
     bool shaderActive = false;
     bool colorActive = false;
+    QString bypass; // nonempty: why this monitor is shown unfiltered
 };
 
 struct ControllerStatus {
@@ -37,6 +39,7 @@ struct ControllerStatus {
     bool loading = false;
     QString preset;
     QString requestedPreset;
+    QStringList recentPresets; // empty on backends without history
     QString error;
     QVector<ControllerParameter> parameters;
     QVector<ControllerOutput> outputs;

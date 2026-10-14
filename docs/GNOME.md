@@ -18,7 +18,7 @@ The owning checkout is `gnome-backend`, locally `/home/knd/AI/WaylandShader-gnom
 | Shared frontend source | `src/controller_client.cpp`, `src/controller_main.cpp`, `src/ctl_main.cpp` | Qt GUI/CLI built with the GNOME backend selection |
 | Private shader library | `shader-library.nix`, `patches/librashader-gl-lifetime.patch` | Pinned librashader 0.10.1 with private GL lifetime corrections |
 | Persistent configuration | `gnome/extension/schemas/org.gnome.shell.extensions.waylandshader.gschema.xml` | Versioned native configuration JSON in GSettings |
-| Retained regressions | `gnome/tests/effect-lifecycle.js`, `gnome/tests/parameter-bypass.js` | GI ownership/pending-disable and real bypass/rebuild behavior respectively |
+| Retained regressions | `gnome/tests/effect-lifecycle.js`, `gnome/tests/recent-presets.js`, `gnome/tests/parameter-bypass.js`, `tests/shader_runtime_test.cpp` | GI ownership/pending-disable, saved-history filtering, real bypass/rebuild/history behavior, and base-level sampling respectively |
 
 ## Architecture: three processes/layers, not one application
 
@@ -106,6 +106,16 @@ Two later failures were corrected without changing the renderer's safety contrac
 - **Bypassed parameter edits:** disabling rendering released the runtime, but the UI still offered the retained parameter definitions. Validation was moved to `ShaderParameter::validateValue`, shared by live and cached edits. Previously loaded, known parameters can now be edited while bypassed; unknown, nonfinite or out-of-range values are rejected. GPU history is still released, and in-progress compilation still rejects edits.
 - **Browse crashed the GUI:** the GTK 3 file picker aborted because `org.gtk.Settings.FileChooser` was missing from the controller's environment. The GNOME package now declares GTK 3, uses `wrapGAppsHook3`, and merges its arguments into the Qt wrapper with `dontWrapGApps = true`. The fix supplies the dependency instead of forcing a non-native dialog or suppressing the fatal error.
 
+### 11. Port the niri fork's backend-neutral features (2026-10-14)
+
+Ported from [WaylandShader-niri](https://github.com/man33li/WaylandShader-niri) 0.3.0, adjusted for Mutter:
+
+- **VHSPro horizontal-band correction.** The source texture allocated a full mip chain but exposed uninitialized higher levels, so implicit-LOD sampling could read them and draw dark bands. The shader source now exposes only level 0, and this is reset after every frame's copy, so a previous preset's stale mips are not visible either. The librashader patch gains niri's GL 3.3/4.6 `gen_mipmaps` hunk, which exposes the extra levels only while generating mipmaps that a preset requests. With the old host contract, the shared runtime regression's high-LOD sample read `0 0 0`; with the new one it passes on default GL and GL 3.3.
+- **Recently used presets.** The native engine records the last 10 *successfully compiled* presets as canonical paths, most recent first. GUI, CLI and restored loads all count; a symlink resolves to the same entry, failed loads and unloading leave the list unchanged, and missing files stay listed. History is saved as `recent_presets` in the existing version-1 GSettings JSON and reported in status as `recentPresets`. Older saved settings import unchanged: their saved preset joins the history once it compiles. Malformed saved entries are skipped instead of rejecting the rest of the configuration. The controller adds a **Recent** menu beside **Browse…**.
+- **Per-output bypass reason.** An output's mapping failure (tiled monitor, shared CRTC, geometry mismatch, processing error) is now reported as `bypass` instead of `error`, the same field niri uses. The controller shows it as `Unfiltered: <reason>`.
+
+Not ported, because they have no Mutter equivalent: niri's **render GPU selection** (a KDL `render-drm-device` include) and the per-output **`transfer`** route. Mutter chooses its primary GPU at startup, from its own heuristics or a root-owned udev tag. The effect runs on the stage view before Mutter copies frames to secondary GPUs, so outputs on another GPU are processed on any copy path.
+
 ## Step-by-step build, install and use
 
 ### 1. Confirm the source and compositor
@@ -189,7 +199,7 @@ Gamma and saturation controls do not force the master switch on. Neutral values 
 
 ### 6. Browse, select and explicitly load a preset
 
-Browse uses Qt's native picker—GTK 3 under GNOME's default Qt theme—not a Nautilus or Dolphin process. Selecting a `.slangp` only changes the path field. Press **Load preset** to compile/apply it, or use:
+Browse uses Qt's native picker—GTK 3 under GNOME's default Qt theme—not a Nautilus or Dolphin process. **Recent** lists the last 10 successfully loaded presets by full path. Selecting a `.slangp` from either one only fills the path field. Press **Load preset** to compile/apply it, or use:
 
 ```bash
 waylandshader-gnomectl load /absolute/path/to/preset.slangp
@@ -229,7 +239,7 @@ cmake --build "$build_dir" --parallel
 ctest --test-dir "$build_dir" --output-on-failure
 ```
 
-`gnome_effect_lifecycle` creates a real GI object, queues preset/disable work, forces garbage collection, and checks delivery/retention and shutdown. It **does not attach to a running stage or prove GPU rendering**. Recorded package builds passed this check 1/1.
+`gnome_effect_lifecycle` creates a real GI object, queues preset/disable work, forces garbage collection, and checks delivery/retention and shutdown. `gnome_recent_presets` round-trips saved history through import/export/status, covering ordering, deduplication, malformed-entry filtering and the 10-entry limit. Neither test **attaches to a running stage or proves GPU rendering**. The 2026-10-14 package build passed 2/2.
 
 ### Real bypass regression in a disposable Shell
 
@@ -295,6 +305,7 @@ Evidence labels: **code** = inspectable implementation; **recorded** = earlier v
 | Wrong installed backend | **Observed:** GNOME build was staged while the system module still selected KWin; desktop-matched selection installed GNOME | Build success does not prove correct desktop deployment |
 | Apparent updater failure | **Observed:** `glf-update` had selected a next-boot generation | Distinguish build, boot selection, system switch and fresh native-module discovery |
 | Bypass rejected edits | **Observed:** old module rejected a valid edit with no GPU runtime; retained regression failed before and passed after the metadata-validation fix | Release history/resources without discarding the loaded parameter contract |
+| Niri feature port | **Observed (2026-10-14):** package build with 2/2 CTest. In a disposable headless GNOME Shell 50.5, the retained bypass regression passed, including the `recentPresets` assertion. CLI loads checked ordering, symlink deduplication, preserved history after a failed load, the 10-entry limit, and restoration after the extension was disabled and enabled again. The runtime base-level regression failed with the old host contract and passed with the new one | The Recent menu was smoke-launched offscreen but not inspected visually; VHSPro on a physical display remains **open** |
 | Browse aborted controller | **Observed:** fatal missing `org.gtk.Settings.FileChooser`; native GTK picker works after runtime wrapping | Declare indirect UI runtime dependencies; do not hide the symptom with a different dialog |
 | Effect survived GUI closure | **Observed:** renderer remained active, no error, settings unchanged | Intended process separation, not another bug |
 | Screen capture looked unfiltered | **Observed:** monitor screencast vs direct scanout saw different stages | Identify the observation point before diagnosing rendering |

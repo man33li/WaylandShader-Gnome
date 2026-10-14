@@ -15,6 +15,7 @@ extern "C" {
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QSet>
+#include <QStringList>
 
 #include <algorithm>
 #include <cmath>
@@ -51,6 +52,8 @@ void clutter_stage_view_schedule_update(ClutterStageView* view);
 namespace {
 using WaylandShader::OutputSettings;
 using WaylandShader::ShaderRuntime;
+
+constexpr qsizetype maxRecentPresets = 10;
 
 struct Engine;
 struct Output;
@@ -349,8 +352,7 @@ struct Resources {
                 if (w == 1 && h == 1)
                     break;
             }
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level - 1);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -367,6 +369,11 @@ struct Resources {
                 && glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE,
             QStringLiteral("Incomplete shader source copy framebuffer"));
         glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        // Only level 0 holds this frame. Higher levels are uninitialized or a
+        // previous preset's stale mips; the patched librashader exposes them
+        // only while generating mipmaps that the preset requests.
+        glBindTexture(GL_TEXTURE_2D, source);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         const GLenum error = glGetError();
         if (error != GL_NO_ERROR)
             throw Failure(QStringLiteral("Shader source GPU copy failed (GL 0x%1)").arg(error, 0, 16));
@@ -426,6 +433,7 @@ struct Engine {
     QMap<QString, OutputSettings> savedOutputs;
     QMap<QString, QMap<QString, double>> overrides;
     QString preset, requested, error, pending;
+    QStringList recent; // successfully compiled presets, most recent first
     QByteArray lastStatus;
     EGLDisplay display = EGL_NO_DISPLAY;
     EGLContext context = EGL_NO_CONTEXT;
@@ -526,13 +534,13 @@ QJsonObject Engine::status() const
         row.insert(QStringLiteral("name"), output->name);
         row.insert(QStringLiteral("shaderActive"), shader(*output));
         row.insert(QStringLiteral("colorActive"), color(*output));
-        if (!output->failure.isEmpty())
-            row.insert(QStringLiteral("error"), output->failure);
+        if (!output->failure.isEmpty()) // shown unfiltered; same field name as niri's status
+            row.insert(QStringLiteral("bypass"), output->failure);
         outputRows.append(row);
     }
     return { { "enabled", enabled }, { "active", active() }, { "loading", loading },
-        { "preset", preset }, { "requestedPreset", requested }, { "error", error },
-        { "parameters", parameterRows }, { "outputs", outputRows } };
+        { "preset", preset }, { "requestedPreset", requested }, { "recentPresets", QJsonArray::fromStringList(recent) },
+        { "error", error }, { "parameters", parameterRows }, { "outputs", outputRows } };
 }
 
 void Engine::notify()
@@ -855,6 +863,9 @@ void Engine::completeLoad()
             }
             runtime = std::move(completed->result);
             preset = completed->path;
+            recent.removeAll(preset);
+            recent.prepend(preset);
+            recent = recent.mid(0, maxRecentPresets);
             lastParameters = runtime->parameters();
             if (completed->path == requested)
                 error.clear();
@@ -1352,8 +1363,9 @@ gchar* wayland_shader_effect_export_settings(WaylandShaderEffect* self)
                 parameters.insert(parameter.key(), parameter.value());
             parameterSettings.insert(it.key(), parameters);
         }
-        return g_strdup(QJsonDocument(QJsonObject { { "version", 1 }, { "enabled", engine.enabled },
-                                          { "preset", engine.preset }, { "parameters", parameterSettings }, { "outputs", outputSettings } })
+        return g_strdup(QJsonDocument(QJsonObject { { "version", 1 }, { "enabled", engine.enabled }, { "preset", engine.preset },
+                                          { "recent_presets", QJsonArray::fromStringList(engine.recent) },
+                                          { "parameters", parameterSettings }, { "outputs", outputSettings } })
                 .toJson(QJsonDocument::Compact)
                 .constData());
     } catch (...) {
@@ -1400,6 +1412,16 @@ gboolean wayland_shader_effect_import_settings(WaylandShaderEffect* self, const 
             const QFileInfo file(preset);
             require(file.isAbsolute(), QStringLiteral("Saved preset must be an absolute filename"));
         }
+        // History is advisory: skip malformed entries instead of rejecting
+        // otherwise valid settings. Stale files stay listed and fail on load.
+        QStringList recent;
+        for (const auto& entry : object["recent_presets"].toArray()) {
+            const auto path = entry.toString();
+            if (recent.size() < maxRecentPresets && QFileInfo(path).isAbsolute()
+                && path.endsWith(QStringLiteral(".slangp"), Qt::CaseInsensitive) && !recent.contains(path))
+                recent.push_back(path);
+        }
+        engine.recent = std::move(recent);
         engine.savedOutputs = std::move(outputSettings);
         engine.overrides = std::move(parameterSettings);
         engine.enabled = enabled;
