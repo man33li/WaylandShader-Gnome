@@ -780,3 +780,70 @@ Only this report was changed in the repository. Probe fixtures were external, ow
 Not claimed: the main agent's concurrent manual GUI/render observations, physical hardware sign-off, exhaustive allocation-failure injection, or a successful bit-reproducibility check. Those limits do not reinstate the closed R3-1 compatibility failure. No new blocking requirement defect was found in the provenance/harness changes.
 
 ACCEPT — R3-1's exercised JSON and native-argument surfaces match the original baseline; the repeated 3,366-case fuzz and 1,200 additional provenance cases have zero mismatches; the manifest and single-socket devkit exception are justified and retain bus/runtime isolation. No blocking findings.
+
+## Round 5
+
+ACCEPT
+
+| ID | Severity | REQ | File:line | Evidence | Required fix |
+|---|---|---|---|---|---|
+| G-1 — closed | — | REQ-045, REQ-052; T-GUI item 9 | `gnome/controller/gui/window.odin:118–154,617–631`; `gnome/CMakeLists.txt:118–126` | The actual production parameter construction now assigns the spin's ATK name from the same description-or-name text used by its visible label. The executed real-GTK test checks **Gain** and fallback **GAIN**, visible label, mnemonic buddy and tooltip. An independent single-call rollback in an owned copy makes that unchanged test fail on both missing accessible names; restoring the call makes it pass again. | None; the specified accessibility defect is fixed. |
+| New findings | — | — | — | No new blocking or other demonstrated defect found in this narrow change. | None. |
+
+### Revision, scope and supplied visual evidence
+
+Reviewed HEAD: **f1a7b7b**, confirmed with `git rev-parse --short HEAD`. Inputs read: acceptance Round 4, build-log “Rework round 4,” and `visual-checks.md`.
+
+The prior failure was real: `visual-checks.md:44` records unnamed dynamic parameter spins on build 6f6709d, while other controls were named and the Qt baseline exposed **Gain**. I do not reinterpret that old failure as a deferred observation. The new headless regression directly exercises and verifies the corrected property in the production construction path. The historical visual record remains unchanged; this review does not claim a fresh complete screen-reader, T-GUI or T-ISO-RENDER desktop run.
+
+The normal Nix commands returned exit 0:
+
+```text
+/tmp/ws-review-a-r5-result -> /nix/store/hy26763n4q281s14mxn9sfnhswlll3rc-waylandshader-gnome-0.1.0
+/tmp/ws-review-a-r5-kwin   -> /nix/store/pqzi10amim770gmai2w0nqwqzpf426lj-waylandshader-0.1.0
+```
+
+My GNOME invocation waited on the same output's concurrent store lock and then returned that artifact; I do not claim it printed or independently executed the complete Nix checkPhase. I separately configured and compiled an external tree and personally ran **18/18 CTest entries successfully, no skips**, including real GL/GL33 and the new GTK accessibility test. T-KWIN actually compiled/linked/installed in my invocation. The dedicated verbose accessibility replay additionally ran **one real selected test**, not zero tests or an inert disabled branch.
+
+### G-1 fix and regression quality
+
+1. **The name is set in production, not in the test.** `build_parameters` obtains `label_text := cstr(parameter_label(&p))`, assigns it with `atk_object_set_name(gtk_widget_get_accessible(e.spin), label_text)`, and uses that same text for `gtk_label_new` (`window.odin:619–625`). The existing helper selects description, otherwise name (`view.odin:119–120`), matching the original label/buddy selection at `b223c1a:src/controller_main.cpp:457–462`.
+2. **Editing behavior is retained.** The existing parameter spin creation, tooltip, input/output handlers, value-changed/debounce connections and mnemonic-widget association remain. The production diff adds the explicit ATK name and reuses the already-needed label conversion; it does not replace the widget, change ranges/steps/visible wording, alter D2 or add a GUI control.
+3. **The real test rebuilds the actual form twice.** `parameter_spin_accessible_name` calls `build_parameters`, retrieves the grid's real label/spin, reads `atk_object_get_name`, and independently checks the expected literal **Gain** or **GAIN** (`window.odin:127–145`). It also checks the visible label, buddy pointer and tooltip. It cleans the editors, retained parameter-preset string and owned grid, and frees the transfer-full tooltip result (`:143–153`).
+4. **The dedicated CTest is actually enabled.** The new registration passes both `WS_GTK_PARAM_A11Y_TEST=true` and the exact `ODIN_TEST_NAMES=main.parameter_spin_accessible_name` selection, with one Odin test thread (`CMakeLists.txt:118–126`). My verbose output confirms those arguments and “Finished 1 test … The test was successful.” The separate pure GUI-unit entry may leave the GTK test disabled; it is not substituted for the dedicated real-GTK entry.
+5. **The regression can fail for the precise old behavior.** In an owned copied tree I removed only the new production `atk_object_set_name(...)` call. This reinstates the earlier name-less construction while leaving the new test, visible label, tooltip, buddy and launcher intact. The same CTest exits **8**, with exact assertions expecting **Gain** and **GAIN** but receiving empty names. It initializes GTK and executes the selected test; this is not a display/compiler/infrastructure failure. Restoring the single call produces **1/1 pass** again. I did not claim this copy was a literal checkout of the old GUI binary.
+
+### Narrow scope, FFI and safety
+
+- The production change is limited to the dynamic GUI construction and required opaque ATK/GTK bindings (`gtk.odin:58–62,79–81,102–104,122–124`). No mirrored C struct/enum was added. The ATK name and label getters are borrowed reads; the tooltip getter's owned result is freed in the regression.
+- `gnome/default.nix` adds Xvfb only as a check dependency and supplies the existing store-local D-Bus session configuration to the new launcher. `CMakeLists.txt` registers one additional test. The requirements amendment explicitly says the headless dynamic-name test supplements rather than replaces the manual checklist (`requirements.md:199`). These are necessary test integrations, not new application features.
+- `gtk-headless.sh:4–12` creates owned temporary XDG directories, unsets inherited Wayland/AT-SPI/session-bus/starter addresses and GTK modules, forces X11/local GIO, disables the AT-SPI bridge, and uses an owned Xvfb plus private D-Bus. My positive, negative and restored checks all ran through this launcher. They inspect local GTK/ATK objects and do not operate the live accessibility bus or compositor.
+- The diff of `gnome/native`, `runtime`, `common`, `glib`, client, CLI, extension, existing goldens and KWin/shared paths against 6f6709d is empty. The exact T-UNCHANGED protected-path check against b223c1a is also empty. No unrelated implementation slice was reopened.
+- Installed ELF checks, GIR byte comparison and installed relative-path-set comparison against baseline all pass. No public native API or installed-file-layout change was introduced.
+
+### Commands run
+
+Commands ran from the repository root. All private-copy mutations used the edit tool and only `/tmp/ws-review-a-r5-negative`; no production source was edited.
+
+| Command / check | Independently observed result |
+|---|---|
+| `git rev-parse --short HEAD`; `git diff --stat 6f6709d HEAD`; targeted full diff of the GUI/bindings/CMake/Nix/launcher/manifest slice | Exit 0; **f1a7b7b**, narrow production and test changes reviewed. Documentation records from intervening review rounds are distinguished from implementation changes. |
+| `nix-build gnome/default.nix -o /tmp/ws-review-a-r5-result` | Exit **0**; waited for a concurrent identical-output build, then returned the installed GNOME artifact. Not claimed as my own fresh complete checkPhase transcript. |
+| `nix-build default.nix -o /tmp/ws-review-a-r5-kwin` | Exit **0**; actual KWin C++ compile/link/install. No KWin runtime claim. |
+| `nix-shell gnome/shell.nix --run 'cmake -S gnome -B /tmp/ws-review-a-r5-build -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build /tmp/ws-review-a-r5-build --parallel 2 && LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir /tmp/ws-review-a-r5-build --output-on-failure && ctest --test-dir /tmp/ws-review-a-r5-build -R "^gnome_gui_accessibility$" -V'` | Exit **0**. Independent full build and **18/18** tests pass, no skips, 57.56 seconds CTest time. New accessibility test passes in 8.65 seconds; both real GL variants execute. Subsequent verbose **1/1** accessibility replay passes in 8.63 seconds and reports one actual selected Odin test, memory tracking enabled. |
+| `mkdir /tmp/ws-review-a-r5-negative && cp -a gnome /tmp/ws-review-a-r5-negative/gnome`; remove only copied production `atk_object_set_name(gtk_widget_get_accessible(e.spin), label_text)` | Copy creation exit 0; single-call negative mutation only in the owned copy. New regression/expectations/launcher left unchanged. |
+| `nix-shell gnome/shell.nix --run 'cmake -S /tmp/ws-review-a-r5-negative/gnome -B /tmp/ws-review-a-r5-negative/build -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && ctest --test-dir /tmp/ws-review-a-r5-negative/build -R "^gnome_gui_accessibility$" -V'` | Expected exit **8**. GTK initializes, one test executes, and both exact accessible-name assertions fail: expected **Gain**, got empty; expected **GAIN**, got empty. CTest **0/1**, 9.00 seconds. This demonstrates the test detects the pre-fix behavior. |
+| Restore the copied production name setter; `nix-shell gnome/shell.nix --run 'ctest --test-dir /tmp/ws-review-a-r5-negative/build -R "^gnome_gui_accessibility$" -V' && rm -rf /tmp/ws-review-a-r5-negative` | Exit **0**. Restored control **1/1** passes in 8.39 seconds; one actual Odin test executes. Owned temporary copy removed afterward. |
+| `git diff --exit-code 6f6709d -- gnome/native gnome/runtime gnome/common gnome/glib gnome/controller/client gnome/controller/ctl gnome/extension gnome/tests/golden src tests CMakeLists.txt default.nix shell.nix shader-library.nix patches` | Exit **0**, no unrelated implementation/golden/KWin/shared-source changes. |
+| Exact T-UNCHANGED `git diff --exit-code b223c1a -- …` protected-path command from previous sections | Exit **0**, no output. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/elf-check.sh /tmp/ws-review-a-r5-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native/libwaylandshader-gnome.so /tmp/ws-review-a-r5-result/bin/.waylandshader-gnomectl-wrapped /tmp/ws-review-a-r5-result/bin/.waylandshader-gnome-controller-wrapped'` | Exit **0**, installed ELF contract retained. |
+| Baseline/final installed `WaylandShader-1.0.gir` diff; `diff <(find -L /tmp/ws-baseline-result -printf '%P\n' \| sort) <(find -L /tmp/ws-review-a-r5-result -printf '%P\n' \| sort)` | Both exit **0**, no GIR or installed-layout differences. |
+| Read `visual-checks.md`, acceptance Round 4 and builder rework-round-4 record; compare baseline label/buddy source with current production/test/launcher | Historical G-1 failure and required correction are accounted for. Their full desktop observations are supplied evidence, not claimed as my independent executions. |
+
+### Limits and disposition
+
+The only repository file written by this review is this appended section. The copied negative mutation was restored, retested and removed. No Shell/devkit session, live module load, extension installation/enabling, compositor restart or mutating live-session-bus call was performed. The display-dependent checks used only owned Xvfb, private D-Bus and local GTK/ATK objects with the accessibility bridge disabled.
+
+Not rerun: the complete desktop visual/screen-reader matrix, hardware tests, prior differential fuzz, or optional bit-reproducibility comparison. This narrowly scoped G-1 correction does not claim those observations. Existing parser/path/BOM/native/runtime/CLI regressions did execute in my full 18-test run.
+
+ACCEPT — G-1 is fixed in the production parameter-editor path; the real-GTK accessibility regression passes both label/fallback cases and independently fails when the sole name-setting call is rolled back. No blocking findings or unrelated implementation changes found.

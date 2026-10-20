@@ -228,3 +228,43 @@ Still open from earlier rounds: B13/B14 were not upheld by acceptance, and nothi
 | Harness refusal probe: `sh gnome/tests/isolated-session.sh --private-child true` with `WS_DEVKIT=1` and (a) child bus equal to the caller bus, (b) `XDG_RUNTIME_DIR` equal to the caller runtime | both exit 1 `refusing caller bus or runtime directory`; nothing linked into the private runtime |
 
 Not run: T-ISO-RENDER, T-GUI (the main agent is running them), T-HW and the sign-offs; no devkit session started by me. All throwaway probes and fixtures were deleted.
+
+## Round 5
+
+ACCEPT
+
+Reviewed rework-round-4 commit `f1a7b7b` (`git rev-parse --short HEAD`, clean tree). The sole item is G-1 (`acceptance.md` "Round 4" item 1; `visual-checks.md` T-GUI item 9). The builder's evidence is `build-log.md` "Rework round 4".
+
+**G-1 is fixed.** `build_parameters` now sets each parameter spin's ATK name to `parameter_label(&p)`, the description or else the name (`gnome/controller/gui/window.odin:619-621`). That is the same text as the buddy label, matching the baseline's buddy-label naming. The label, tooltip, mnemonic buddy and signal hookups are unchanged. `label_text` is reused for `gtk_label_new`, and both GTK and ATK copy the string.
+
+**The new `gnome_gui_accessibility` test can fail.** It is a real GTK test under Xvfb on a private bus. I copied the tree, removed only the `atk_object_set_name` line (the round-3 behavior) and kept the new test. The test then fails on both cases with `expected … to be Gain, got ` and `… GAIN, got `. Restored HEAD passes. Without a display the test calls `fail_now`, so it fails rather than skipping. It is inert in the ordinary `gnome_gui_units` run, because the define is off and it returns early.
+
+**Nothing else changed.**
+- `git diff 6f6709d HEAD -- gnome/{native,runtime,common,glib,controller/client,controller/ctl}` is empty.
+- The production change is the three lines above, plus ATK/GTK getter declarations in `gtk.odin`, a CTest registration, `xvfb-run` in `nativeCheckInputs`, and the `dbus-run-session` config substitution for `gtk-headless.sh` in `default.nix`.
+- **`gtk-headless.sh`:** it unsets `DBUS_SESSION_BUS_ADDRESS`, `AT_SPI_BUS_ADDRESS`, `WAYLAND_DISPLAY` and `GTK_MODULES`, uses private XDG directories from `mktemp`, and starts its own Xvfb and bus. So it cannot reach the live session.
+- The `requirements.md` CTest note and the new `GATES.md` rows match what was done; the rework-3 row closes my R4-1.
+
+### Findings
+
+| ID | Severity | REQ | file:line | Evidence | Required fix |
+|---|---|---|---|---|---|
+| G-1 | closed | REQ-045, REQ-052 (T-GUI 9) | `gnome/controller/gui/window.odin:619-625`; test `:113-154`; `gnome/CMakeLists.txt:118-126`; `gnome/tests/gtk-headless.sh` | The negative control described above fails on both cases; HEAD passes, standalone and in checkPhase. The test checks the ATK object name with `NO_AT_BRIDGE=1`. That it reaches AT-SPI as the accessible name follows from GTK 3's ATK→AT-SPI bridge [INFERENCE]. The main agent's desktop AT-SPI observation is the end-to-end check, and I did not repeat it. | — |
+| R4-1 | closed | — | `docs/waterfall/GATES.md` | Rows for "3 Implementation rework 3" and "4 Visual checks" were added. | — |
+| R5-1 | informational | — | installed `libwaylandshader-gnome.so`, `.waylandshader-gnomectl-wrapped` | Both binaries differ byte-for-byte from round 4 (`cmp` exit 1), although their sources are unchanged. This is the same non-bit-reproducible output already disclosed in `acceptance.md` Round 4. No REQ requires reproducible builds. All behavioral and contract tests pass on this artifact. | — |
+
+Deferred, not passed: T-HW and the remaining user sign-offs. The main agent's T-ISO-RENDER/T-GUI results are in `visual-checks.md`; I did not run them.
+
+### Commands run (round 5)
+
+| Command | Result |
+|---|---|
+| `git rev-parse --short HEAD`; `git status --short`; `git diff 6f6709d HEAD -- gnome/ docs/waterfall/01-requirements/requirements.md docs/waterfall/GATES.md` | `f1a7b7b`; clean; diff reviewed (GUI, CMake, default.nix, new `gtk-headless.sh` only) |
+| `git diff --stat 6f6709d HEAD -- gnome/native gnome/runtime gnome/common gnome/glib gnome/controller/client gnome/controller/ctl` | empty |
+| `nix-build gnome/default.nix -o /tmp/wsB5-gnome-result` | exit 0, `/nix/store/hy26763n4q281s14mxn9sfnhswlll3rc-waylandshader-gnome-0.1.0`; `nix log` shows `gnome_gui_accessibility` passed, **18/18** passed (T-NIX) |
+| `nix-build default.nix -o /tmp/wsB5-kwin-result` | exit 0, `/nix/store/9gz1hwpzyxgidlpp13r1afznnrqnrssf-waylandshader-0.1.0` (T-KWIN) |
+| Negative control: `mktemp` copy of `gnome/` with only `window.odin:621` (`atk_object_set_name…`) removed; `nix-shell -p xvfb-run --run 'nix-shell gnome/shell.nix --run "sh tests/gtk-headless.sh odin test controller/gui … -define:WS_GTK_PARAM_A11Y_TEST=true -define:ODIN_TEST_NAMES=main.parameter_spin_accessible_name …"'`, then the same command on HEAD | copy: exit 1, `expected … to be Gain, got ` and `… GAIN, got `; HEAD: exit 0, `The test was successful.` Copy removed |
+| Installed T-ELF, T-GIR, T-LAYOUT, T-WRAP (`grep -ao`), T-UNCHANGED | all exit 0 |
+| `isolated-session.sh` + `parameter-bypass.js` (final) | exit 0 (T-BYPASS) |
+| `isolated-session.sh` + `iso-cli.sh` on the baseline and final, then `diff` | both exit 0; empty diff (T-ISO-CLI) |
+| `cmp` of the installed native `.so` and ctl binary, round 4 vs round 5 | both differ (R5-1, informational) |

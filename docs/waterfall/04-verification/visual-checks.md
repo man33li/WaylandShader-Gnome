@@ -50,3 +50,13 @@ Minor observation (not a REQ): closing the window logged one `Gdk-WARNING: Tried
 ## Findings for the main reviewer
 
 - **G-1 (REQ-045 accessibility, T-GUI 9):** give each parameter spin button an accessible name equal to its visible label text (description, or the name when there is none), as the Qt buddy label did. Required regression: an automated AT-SPI or `gtk_widget_get_accessible` name check for a parameter editor.
+
+## Recheck after rework round 4 (commit `f1a7b7b`, package `/tmp/ws-r4-result`)
+
+T-GUI 9 rerun with the same method (headless isolated session, controller on the live desktop, host a11y bus, preset with parameters `GAIN` "Gain" and `TINY` "Tiny"):
+
+- AT-SPI now lists the spin buttons as `Gamma`, `Saturation`, `Tiny`, `Gain`.
+- `Gain`: name `Gain`, description `GAIN\nDefault: 1; range: 0.100000001 to 2`, labelled-by `Gain`. This equals the Qt baseline's name, description and labelled-by relation.
+- `Tiny`: name `Tiny`, labelled-by `Tiny`.
+
+**G-1: PASS.**

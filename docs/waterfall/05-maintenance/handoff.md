@@ -1,26 +1,46 @@
 # Handoff: Odin refactor of the GNOME backend
 
-State at the end of phase 4 round 3: **not accepted**, one open finding, rework limit (2 rounds) exhausted. See `../GATES.md`.
+**State:** phase 4 accepted in round 5 after 4 of 5 rework rounds; build commit `f1a7b7b` on `ODIN-refactor`. See `../GATES.md` and `../04-verification/acceptance.md` (Round 5).
 
-## Open decision (user)
+## Accepted deviations
 
-R3-1 (`../04-verification/acceptance.md` Round 3, `review-B.md` Round 3): the C++/Qt baseline strips one leading U+FEFF when it converts JSON strings and C-string arguments to text; the Odin port keeps it. This only matters for strings that actually start with an invisible U+FEFF; normal connector IDs, parameter names and saved paths never do. Choose one:
+- **D1:** the monitor combo popup has no per-item tooltips. GTK 3 combo popups have none; the combo's own tooltip shows the selected id.
+- **D2:** GTK 3 spin buttons ignore *stepping* increments of 1e-10 or less. Typed values stay exact (verified: `1.0000001e-7` commits as exactly `f32(1.0000001e-7)`).
 
-1. Authorize rework round 3: strip one leading U+FEFF in the JSON string extraction and C-string `text()` conversion, while keeping raw-key lookup unchanged; add the baseline-pinned regression described in acceptance.md Round 3; then a final review.
-2. Record R3-1 as accepted deviation D3 in `../02-design/decision.md` and mark phase 4 accepted.
+Both are recorded in `../02-design/decision.md`. The GUI stays GTK 3 by user decision (Clay + raylib rejected).
 
-Also pending your confirmation: deviations D1 and D2 (`../02-design/decision.md`), provisionally accepted by the main agent.
+## Left for you
 
-## Deferred manual tests (agents cannot perform them)
+1. **T-HW** (`../01-requirements/requirements.md`): install the package system-wide, start a fresh GNOME login, and check the physical displays.
+   - Shading, gamma/saturation, HDR identity, hotplug, suspend.
+   - Whether the pointer is shaded with the scene: the devkit viewer can't show this for either build.
+   - Small-damage redraws (a blinking text cursor).
+   - Proving the native effect needs a direct KMS scanout capture, because GNOME screenshots and screencasts see the unfiltered scene (`README.md:229`).
+2. **T-SAFETY and T-DOCS sign-off:** review `gnome/tests/isolated-session.sh`, the build log, and the GNOME sections of `README.md` / `docs/GNOME.md`.
+3. **Merging:** `ODIN-refactor` is not pushed or merged.
 
-T-ISO-RENDER (visual check in a disposable Shell; its private devkit viewer lacked PipeWire), the T-GUI visual and accessibility checklist, T-SAFETY and T-DOCS sign-off, and T-HW (physical displays, only after acceptance). Commands are in `../01-requirements/requirements.md`.
+## How the visual checks were run
 
-## Do not
+The method is recorded in `../04-verification/visual-checks.md`. In short:
+- Each disposable Shell runs through `isolated-session.sh` (`WS_DEVKIT=1` for render checks), and is driven with `waylandshader-gnomectl` on `$WS_PRIVATE_BUS`.
+- Screenshots come from the xdg-desktop-portal Screenshot API.
+- The GUI is driven through AT-SPI with `AT_SPI_BUS_ADDRESS` set to the host a11y bus.
+- The C++ build from `b223c1a` serves as the pixel and accessibility oracle.
+- Agent limits:
+  - subagents cannot get desktop control;
+  - omp's own Wayland screen capture is not in the released build;
+  - an AT-SPI press that opens a modal GTK dialog blocks until the dialog closes, so use direct AT-SPI calls with short timeouts.
 
-Install the package or enable the extension in the live session before acceptance. A native-module change needs a fresh GNOME login, never a compositor restart.
+## Environment notes
 
-## Environment
+- **Baseline worktree:** the C++ worktree at `/tmp/ws-baseline` (`b223c1a`) feeds the baseline-differential tests. If `/tmp` was cleared, recreate it with `git worktree add --detach /tmp/ws-baseline b223c1a`, then `nix-build gnome/default.nix -o /tmp/ws-baseline-result` inside it.
+- **Role agents:** `.omp/agents/` holds the role agents, with model and effort pinned per role. This clone is used from `/home/knd/AI/dodForPonytail`, whose `.omp/agents` is a symlink to them.
+- **Screenshot permission:** the portal permission was granted for unsandboxed host apps during this work. Revoke it with:
 
-- Baseline C++ worktree `/tmp/ws-baseline` at `b223c1a`. It is used by the baseline-differential tests; recreate it with `git worktree add --detach /tmp/ws-baseline b223c1a` if `/tmp` was cleared.
-- Role agents live in `.omp/agents/` (model and effort are pinned per role). This clone is used from `/home/knd/AI/dodForPonytail`, whose `.omp/agents` is a symlink to them.
-- Last tested package: `/nix/store/zsiwskpgiapg0f6b9y54hq3vl52fhg66-waylandshader-gnome-0.1.0`.
+  ```sh
+  gdbus call --session --dest org.freedesktop.impl.portal.PermissionStore \
+    --object-path /org/freedesktop/impl/portal/PermissionStore \
+    --method org.freedesktop.impl.portal.PermissionStore.DeletePermission screenshot screenshot ''
+  ```
+
+- **Install:** a native-module change needs a fresh GNOME login, never a compositor restart.

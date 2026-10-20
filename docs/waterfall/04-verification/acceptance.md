@@ -553,3 +553,68 @@ No other builder rework is required by this decision. The green 17-test suite cu
 Not independently exercised here: the main agent's screenshot/AT-SPI desktop scenarios, physical display/HDR/hotplug/suspend tests, optional output-byte reproducibility comparison or driver fault injection. Those limits do not weaken the directly reproduced G-1 finding. This review started no Shell/devkit session, installed/enabled no extension, loaded no module into the live compositor, restarted no compositor and made no mutating live-session-bus call; the GTK probe used only Xvfb, a private bus and local ATK access with the accessibility bridge disabled.
 
 REJECTED
+
+## Round 5
+
+### Decision and review selected
+
+**I side with review A (sol 6.1), and only review A.** Its Round-5 acceptance correctly identifies the production G-1 fix, the enabled real-GTK regression and the unchanged editing behavior (`review-A.md:790,808-820`). No finding from review B is imported as an additional requirement or blocker.
+
+**ACCEPTED for the phase-4 gate at implementation commit `f1a7b7b`.** I independently reran both required package builds and the actual production-path accessibility regression. All **18/18** registered headless tests pass, without skips; T-KWIN passes; and the dedicated GTK test executes one selected test covering both label and fallback-name cases. The supplied end-to-end AT-SPI recheck also closes G-1 on the actual controller (`visual-checks.md:54-62`). No upheld blocking finding or builder rework remains.
+
+This acceptance is bounded by the established user-sign-off ruling and the explicitly deferred evidence below. It does **not** assert that physical hardware tests, every visual observation or human sign-offs have passed. Four of the five permitted rework rounds have been used; no fifth rework is requested. D1/D2 remain the accepted deviations; G-1 is fixed, not waived, and no additional deviation is introduced.
+
+### Commands run and results
+
+All commands ran from the repository root. Only this acceptance document was edited by this reviewer.
+
+| Command / check | Independently observed result |
+|---|---|
+| `git rev-parse --short HEAD` | Exit 0: **`f1a7b7b`**. |
+| **T-NIX:** `nix-build gnome/default.nix -o /tmp/ws-acceptance-r5-gnome` | Exit 0; actual fresh configure/build/checkPhase/install. **18/18 CTest entries passed, 0 failed, no skips**, 16.70 seconds. Both GL variants executed; `gnome_gui_accessibility` passed in 8.94 seconds. Output: `/nix/store/nbdjyhvk58k3wwd60x83y2jwjc1vn41c-waylandshader-gnome-0.1.0`. |
+| **T-KWIN:** `nix-build default.nix -o /tmp/ws-acceptance-r5-kwin` | Exit 0; actual compile/link/install. Output: `/nix/store/q14yaawjdrzira7z5iygf65c0n5ff0kc-waylandshader-0.1.0`. No KWin runtime claim. |
+| Dedicated production GTK accessibility command below | Exit 0. **“Finished 1 test … The test was successful.”** This is one executed selected Odin test covering **Gain** and fallback **GAIN**, not a zero-test or disabled-self-check result. Memory tracking is enabled; no failure is reported. |
+| Source inspection of `build_parameters`, the test, registration and private-display launcher | Confirmed that the name is assigned by production, the assertions use independent expected literals, the registered test enables the required define, and the test uses only a private X server/bus (`window.odin:118-154,617-631`; `CMakeLists.txt:118-126`; `gtk-headless.sh:2-12`). |
+| Read `visual-checks.md` “Recheck after rework round 4” | Supplied main-agent evidence: actual AT-SPI parameter names **Gain** and **Tiny** now match the Qt baseline. This is not claimed as my own desktop execution. |
+
+The fresh checkPhase includes the existing native/parser/path/BOM/C-argument/unit/GL/CLI/ELF/ban regressions plus the new GTK accessibility entry. Thus earlier accepted fixes remained exercised on this artifact; the new test does not replace them.
+
+Dedicated command executed:
+
+```sh
+nix-shell gnome/shell.nix --run 'export PATH="/nix/store/940y9pcrxibjg54684874n70nd4mvany-xvfb-run-1+g87f6705/bin:$PATH"; sh gnome/tests/gtk-headless.sh odin test gnome/controller/gui -out:/tmp/ws-acceptance-r5-a11y -vet -strict-style -define:GL_DEBUG=false -define:ODIN_TEST_THREADS=1 -define:WS_GTK_PARAM_A11Y_TEST=true -define:ODIN_TEST_NAMES=main.parameter_spin_accessible_name "-extra-linker-flags:$(pkg-config --libs-only-L gtk+-3.0 gio-2.0)"'
+```
+
+### G-1 verification and findings disposition
+
+| Finding / observation | Disposition | Evidence and limits |
+|---|---|---|
+| **G-1 — parameter spin accessible names** | **Closed; no remaining accessibility blocker from this finding.** | Production obtains the visible label text with `parameter_label(&p)`, sets `atk_object_set_name(gtk_widget_get_accessible(e.spin), label_text)`, and uses the same text for the visible label (`gnome/controller/gui/window.odin:619-625`). The mnemonic association and tooltip remain (`:618,629`). The helper selects description, otherwise name (`gnome/controller/gui/view.odin:119-120`), matching the baseline label/buddy choice (`/tmp/ws-baseline/src/controller_main.cpp:457-462`). |
+| **G-1 regression quality** | **Required persistent regression is executed and passes.** | The test calls actual `build_parameters`, retrieves the real grid children, and checks ATK name **Gain** then **GAIN**, visible label, mnemonic buddy and tooltip, including a form rebuild (`window.odin:127-145`). The dedicated CTest explicitly passes `WS_GTK_PARAM_A11Y_TEST=true` and the selected test name (`CMakeLists.txt:118-126`). I ran this test independently as well as seeing it pass in my Nix checkPhase. Review A separately records a copied single-call rollback failing these assertions and restoration passing (`review-A.md:834-836`); those negative controls were not my executions. |
+| **G-1 actual-app AT-SPI result** | **Supplied end-to-end check passes.** | The main agent reran T-GUI item 9 on commit `f1a7b7b` and observed `Gamma`, `Saturation`, `Tiny`, `Gain`; `Gain`'s name, description and labelled-by relation equal the Qt baseline (`visual-checks.md:54-62`). This supersedes the historical failure at `:44`, which remains a valid record of the old build. |
+| **Prior compatibility/ABI findings** | **Remain closed for their recorded finite regressions.** | Their registered tests pass in my fresh 18-entry checkPhase. This narrow GUI correction does not reopen previous sources or make a global equivalence claim. |
+| **Optional binary-byte/reproducibility observation** | **Informational, not a requirement blocker; no reproducibility claim.** | Round 4 already distinguishes ordinary successful Nix builds from an optional output-byte comparison. Review B's R5-1 repeats a byte-difference observation (`review-B.md:254,270`); I did not independently compare these binaries or repeat `--check` and do not adopt a new defect on that basis. Required normal build/checkPhase acceptance passes (`requirements.md:119,172`). The byte-level cause and significance remain unisolated; neither harmlessness nor a functional/ABI failure is inferred. |
+
+**Builder rework list: none.** Both the requested production fix and its regression are complete. This acceptance does not require a toolkit replacement, visible UI changes, new feature or additional compatibility waiver.
+
+### Visual evidence accepted and explicitly deferred user work
+
+The supplied T-ISO-RENDER/T-GUI record remains evidence from the **main agent**, not from this reviewer's own desktop session. Accept the earlier recorded passing checks together with the focused G-1 recheck; do not claim the entire visual matrix was freshly repeated by me on `f1a7b7b`.
+
+The following remain **deferred / not passed**, without blocking phase-4 acceptance under the main agent's ruling:
+
+1. **T-HW — physical system validation after a fresh user login.** Physical display/AMD behavior, HDR identity, hotplug and suspend/resume, with the user's physical rendering/color checks, remain user-only (`requirements.md:131,182`). Software/headless GL results and the devkit are not substitutes.
+2. **T-SAFETY — final human sign-off.** The user still signs off the harness and execution log against the live-session isolation policy (`requirements.md:129,180`). Reviewed guards, private test environments and the absence of reviewer live mutations are evidence, not the user's completed sign-off.
+3. **T-DOCS — final human sign-off.** The user still reviews the documentation/recipes and remaining terminology hits (`requirements.md:130,181`). Code/test registration review is not a declaration that this manual sign-off occurred.
+4. **T-ISO-RENDER item 6 — physical cursor processing.** The devkit viewer draws its own cursor, so whether the real pointer is shaded and inhibition is balanced was **not observable** there for either baseline or port. It remains for physical T-HW observation (`visual-checks.md:25`).
+5. **T-ISO-RENDER item 7 — actual small-damage visual observation.** A blinking-cursor/small-damage case was **not observed** on the devkit view. The recorded headless partial-redraw evidence is indirect and does not turn this visual item into a pass (`visual-checks.md:26`).
+6. **T-ISO-RENDER item 8 — unsupported-output bypass observation.** No unsupported virtual output was available, so the bypass-reason scenario was **not reproduced** (`visual-checks.md:27`). Exercise it on suitable hardware where feasible; the existing tool limit is not a demonstrated port defect.
+7. **Limited state-label observations within T-GUI item 5.** `Saving…` was too transient to capture and `Unfiltered:` could not be reproduced in the supplied session (`visual-checks.md:40`). The other recorded states passed; acceptance does not imply every transient/unsupported-output label was visually observed.
+
+The main agent's recorded seven T-ISO-RENDER passes, the other T-GUI passes and the new G-1 AT-SPI pass are retained as positive evidence (`visual-checks.md:20-46,54-62`). The baseline-identical observation limits above are not silently reclassified as failures or passes. Broader unexercised driver/fault/screen-reader combinations remain outside the finite evidence; no exhaustive hardware or assistive-technology claim is made.
+
+This reviewer started no Shell/devkit session, installed/enabled no extension, loaded no module into the live compositor, restarted no compositor and made no mutating live-session-bus call. The dedicated GTK test used owned temporary XDG directories, Xvfb, private D-Bus and local ATK with the accessibility bridge disabled (`gnome/tests/gtk-headless.sh:2-12`). The host AT-SPI observations are the main agent's supplied recheck, not an undisclosed action by this reviewer.
+
+**Phase-4 acceptance is granted with the explicitly deferred user work above.** It is not authorization for an agent to load the module into the currently running live Shell; the physical deployment/fresh-login checks remain the user's responsibility.
+
+ACCEPTED
