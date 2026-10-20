@@ -46,14 +46,14 @@ The whole record is in `docs/waterfall/`:
 - the GTK 3 controller.
 
 Constraints:
-   - `git mv docs/waterfall docs/waterfall-odin` and keep it as reference. Point the README `Load:` line's benchmark link at the new path.
+- `extension.js`, the D-Bus interface, the GSettings JSON, the CLI output and the GUI behavior stay byte-compatible.
 - No new features.
 - The KWin backend keeps building.
 
 **How:** use the installed waterfall workflow. Write nothing in the prompt or in project docs about how to run it beyond this file. This run is the first real use of the packaged workflow, and that is part of what it tests.
 
 1. **Branch:** `RUST-refactor` from `ODIN-refactor`.
-   - `git mv docs/waterfall docs/waterfall-odin` and keep it as reference.
+   - `git mv docs/waterfall docs/waterfall-odin` and keep it as reference. Point the README `Load:` line's benchmark link at the new path.
    - Then scaffold a fresh `docs/waterfall/`.
    - The Odin sources stay on their branch and are replaced in the Rust branch (clean cutover).
 2. **Oracle:** the C++ build at `b223c1a` is the primary oracle. The Odin build (`nix-build gnome/default.nix` on `ODIN-refactor`) is a second implementation to cross-check against.
