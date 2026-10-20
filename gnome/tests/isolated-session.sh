@@ -52,6 +52,12 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+if [ "${WS_DEVKIT:-0}" = 1 ]; then
+    case "${WS_CALLER_RUNTIME-}" in /*) ;; *) echo 'devkit requires an absolute caller runtime directory' >&2; exit 1 ;; esac
+    [ -S "$WS_CALLER_RUNTIME/pipewire-0" ] || { echo 'devkit requires caller runtime pipewire-0 socket' >&2; exit 1; }
+    # Share only the viewer transport; never its lockfile or the caller's bus/runtime.
+    ln -s -- "$WS_CALLER_RUNTIME/pipewire-0" "$XDG_RUNTIME_DIR/pipewire-0"
+fi
 gsettings set org.gnome.shell disable-user-extensions false
 gsettings set org.gnome.shell enabled-extensions "['waylandshader@man33li.github.com']"
 if [ "${WS_DEVKIT:-0}" = 1 ]; then

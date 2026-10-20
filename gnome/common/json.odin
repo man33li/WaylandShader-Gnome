@@ -97,21 +97,21 @@ utf16_less :: proc(a,b: string) -> bool {
     left,right := Utf16_Iterator{remaining=a},Utf16_Iterator{remaining=b}
     for { x,more_x := next_utf16(&left); y,more_y := next_utf16(&right); if !more_x || !more_y { return !more_x && more_y }; if x!=y { return x<y } }
 }
-write_value :: proc(b: ^Writer, value: json.Value, indent: int = -1) -> Error {
+write_value :: proc(b: ^Writer, value: json.Value, indent: int = -1, document: ^JSON_Document = nil) -> Error {
     b.indented = indent >= 0
     switch v in value {
     case json.Null: put(b,"null")
     case json.Boolean: boolean(b,bool(v))
     case json.Integer: buffer:[32]u8; put(b,strconv.write_int(buffer[:],i64(v),10))
     case json.Float: number(b,f64(v))
-    case json.String: quote(b,string(v))
+    case json.String: quote(b,json_text(document,string(v)))
     case json.Array:
         put(b,"[")
         if indent>=0 { put(b,"\n") }
         for item,i in v {
             if i>0 { put(b,",\n" if indent>=0 else ",") }
             if indent>=0 { indentation(b,indent+4) }
-            write_value(b,item,indent+4 if indent>=0 else -1)
+            write_value(b,item,indent+4 if indent>=0 else -1,document)
         }
         if indent>=0 { if len(v)>0 { put(b,"\n") }; indentation(b,indent) }
         put(b,"]")
@@ -126,8 +126,8 @@ write_value :: proc(b: ^Writer, value: json.Value, indent: int = -1) -> Error {
         for key,index in keys {
             if index>0 { put(b,",\n" if indent>=0 else ",") }
             if indent>=0 { indentation(b,indent+4) }
-            quote(b,key); put(b,": " if indent>=0 else ":")
-            write_value(b,v[key],indent+4 if indent>=0 else -1)
+            quote(b,json_text(document,key)); put(b,": " if indent>=0 else ":")
+            write_value(b,v[key],indent+4 if indent>=0 else -1,document)
         }
         if indent>=0 { if len(keys)>0 { put(b,"\n") }; indentation(b,indent) }
         put(b,"}")
@@ -136,9 +136,9 @@ write_value :: proc(b: ^Writer, value: json.Value, indent: int = -1) -> Error {
 }
 finish :: proc(b: ^Writer) -> string { if b.indented { put(b,"\n"); b.indented=false }; return string(b.bytes[:]) }
 destroy :: proc(b: ^Writer) { delete(b.bytes); b^={} }
-stringify :: proc(value: json.Value, indented: bool = false) -> (string,Error) {
+stringify :: proc(value: json.Value, indented: bool = false, document: ^JSON_Document = nil) -> (string,Error) {
     b:Writer
-    write_value(&b,value,0 if indented else -1)
+    write_value(&b,value,0 if indented else -1,document)
     result:=finish(&b)
     if b.error!=nil { err:=b.error; destroy(&b); return "",err }
     return result,nil

@@ -63,7 +63,7 @@ export_json :: proc(e: ^Engine) -> (string,Error) {
     success=true
     return common.finish(&w),nil
 }
-parse_document :: proc(source: string) -> (json.Value,Error) { return common.parse_json(source,context.temp_allocator) }
+parse_document :: proc(source: string) -> (common.JSON_Document,Error) { return common.parse_json(source,context.temp_allocator) }
 read_boolean :: proc(o: json.Object,name: string,fallback: bool) -> (bool,Error) {
     value,exists:=o[name]; if !exists { return fallback,nil }
     result,ok:=value.(json.Boolean); if !ok { return false,fmt.tprintf("%s must be boolean",name) }
@@ -152,14 +152,15 @@ import_settings :: proc(e: ^Engine,source: string) -> Error {
     if e.renderer_failed { return e.error if len(e.error)>0 else "The GNOME renderer is unavailable" }
     document,parse_error:=parse_document(source)
     if parse_error!=nil { return parse_error }
-    o,ok:=document.(json.Object)
+    defer common.destroy_document(&document)
+    o,ok:=document.value.(json.Object)
     if !ok { return "Configuration must be a JSON object" }
     version,version_ok:=o["version"].(json.Float)
     if len(o)>0 && (!version_ok || version!=1) { return "Unsupported settings version" }
     enabled,enabled_error:=read_boolean(o,"enabled",true)
     if enabled_error!=nil { return enabled_error }
     preset:string
-    if v,exists:=o["preset"]; exists { p,is_string:=v.(json.String); if !is_string { return "Preset must be a string" }; preset=string(p) }
+    if v,exists:=o["preset"]; exists { p,is_string:=common.json_string_value(&document,v); if !is_string { return "Preset must be a string" }; preset=p }
     saved:map[string]common.Output_Settings
     overrides:map[string]map[string]f64
     recent:[dynamic]string
@@ -168,8 +169,9 @@ import_settings :: proc(e: ^Engine,source: string) -> Error {
     if v,exists:=o["outputs"]; exists {
         outputs,outputs_object:=v.(json.Object); if !outputs_object { return "Output settings must be an object" }
         ids,se:=sorted_keys(cast(map[string]json.Value)outputs); if se!=nil { return se }
-        for id in ids {
-            values,is_object:=outputs[id].(json.Object)
+        for raw_id in ids {
+            values,is_object:=outputs[raw_id].(json.Object)
+            id:=common.json_text(&document,raw_id)
             if len(id)==0 || !is_object { return "Invalid saved output settings" }
             settings,read_error:=read_settings(values)
             if read_error!=nil { return read_error }
@@ -179,25 +181,28 @@ import_settings :: proc(e: ^Engine,source: string) -> Error {
     if v,exists:=o["parameters"]; exists {
         presets,presets_object:=v.(json.Object); if !presets_object { return "Parameter settings must be an object" }
         paths,se:=sorted_keys(cast(map[string]json.Value)presets); if se!=nil { return se }
-        for path in paths {
-            values,is_object:=presets[path].(json.Object); if !is_object { return "Invalid saved preset parameters" }
+        for raw_path in paths {
+            values,is_object:=presets[raw_path].(json.Object); if !is_object { return "Invalid saved preset parameters" }
+            path:=common.json_text(&document,raw_path)
             parameters:map[string]f64
             inserted:=false
             defer if !inserted { for name in parameters { delete(name) }; delete(parameters) }
             names,ne:=sorted_keys(cast(map[string]json.Value)values); if ne!=nil { return ne }
-            for name in names {
-                value,is_number:=values[name].(json.Float)
+            for raw_name in names {
+                value,is_number:=values[raw_name].(json.Float)
+                name:=common.json_text(&document,raw_name)
                 if len(name)==0 || !is_number || math.is_nan(value) || math.is_inf(value) { return "Saved parameters must have finite numeric values" }
                 if err:=set_map(&parameters,name,f64(value)); err!=nil { return err }
             }
+            if previous,collision:=overrides[path]; collision { for name in previous { delete(name) }; delete(previous) }
             if err:=set_map(&overrides,path,parameters); err!=nil { return err }; inserted=true
         }
     }
     if len(preset)>0 && preset[0]!='/' { return "Saved preset must be an absolute filename" }
     if entries,is_array:=o["recent_presets"].(json.Array); is_array {
         for entry in entries {
-            path,is_string:=entry.(json.String)
-            if is_string && len(path)>=7 && path[0]=='/' && has_slangp_suffix(string(path)) { if err:=recent_append(&recent,string(path)); err!=nil { return err } }
+            path,is_string:=common.json_string_value(&document,entry)
+            if is_string && len(path)>=7 && path[0]=='/' && has_slangp_suffix(path) { if err:=recent_append(&recent,path); err!=nil { return err } }
         }
     }
     for k in e.saved_outputs { delete(k) }; delete(e.saved_outputs)
@@ -228,14 +233,15 @@ coordinate :: proc(o: json.Object,name: string,minimum: f64) -> (i32,Error) {
 set_outputs :: proc(e: ^Engine,source: string) -> Error {
     document,document_error:=parse_document(source)
     if document_error!=nil { return document_error }
-    array,array_ok:=document.(json.Array); if !array_ok { return "Outputs must be a JSON array" }
+    defer common.destroy_document(&document)
+    array,array_ok:=document.value.(json.Array); if !array_ok { return "Outputs must be a JSON array" }
     next:[dynamic]^Output
     views:[dynamic]Output_View
     success:=false
     defer if !success { for o in next { destroy_output(o) }; delete(next); delete(views) }
     for value in array {
         o,ok:=value.(json.Object); if !ok { return "Each output must be an object" }
-        id,id_ok:=o["id"].(json.String); name,name_ok:=o["name"].(json.String)
+        id,id_ok:=common.json_string_value(&document,o["id"]); name,name_ok:=common.json_string_value(&document,o["name"])
         if !id_ok || !name_ok { return "Output IDs and names must be strings" }
         output,allocation_error:=new(Output); if allocation_error!=nil { return "Out of memory" }
         output.engine=e; output.key=e.next_key; e.next_key+=1; output.scale=1; reset_clock(output)

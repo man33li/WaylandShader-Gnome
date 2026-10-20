@@ -42,18 +42,18 @@ json_parser_rework_strings :: proc(t: ^testing.T) {
         value,err:=parse_json(pair[0])
         testing.expect(t,err==nil)
         if err!=nil { continue }
-        rendered,we:=stringify(value)
+        rendered,we:=stringify(value.value,document=&value)
         testing.expect(t,we==nil)
         testing.expect_value(t,rendered,pair[1])
-        delete(rendered); json.destroy_value(value)
+        delete(rendered); destroy_document(&value)
     }
     value,err:=parse_json(`{"high":"\ud800","low":"\udfff"}`)
     testing.expect(t,err==nil)
     if err==nil {
-        object:=value.(json.Object)
+        object:=value.value.(json.Object)
         testing.expect_value(t,string(object["high"].(json.String)),"\xed\xa0\x80")
         testing.expect_value(t,string(object["low"].(json.String)),"\xed\xbf\xbf")
-        json.destroy_value(value)
+        destroy_document(&value)
     }
 }
 @(test)

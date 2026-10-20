@@ -34,6 +34,22 @@ function observe(label, source) {
 for (const path of paths) observe(`path:${path}`, JSON.stringify({version: 1, preset: path}));
 for (const path of recents) observe(`recent:${path}`, JSON.stringify({version: 1, recent_presets: [path]}));
 observe('recent:all', JSON.stringify({version: 1, recent_presets: recents}));
+// Round 3 (R3-1), appended after all earlier records: raw U+FEFF (B) versus its ASCII JSON escape (E), as value text.
+// Labels use the form name plus the unprefixed path, so the invisible B never appears in a label.
+{
+    const B = '\ufeff';
+    const forms = {rawLead: p => B + p, escLead: p => '\\ufeff' + p, rawDouble: p => B + B + p, escDouble: p => '\\ufeff\\ufeff' + p,
+        rawMid: p => p.slice(0, 2) + B + p.slice(2), escMid: p => p.slice(0, 2) + '\\ufeff' + p.slice(2), rawTrail: p => p + B, escTrail: p => p + '\\ufeff',
+        rawLeadEscLater: p => B + p[0] + '\\ufeff' + p.slice(1)};
+    const text = value => `"${value}"`; // no path contains a quote or backslash except the intended \ufeff escapes
+    for (const [form, f] of Object.entries(forms)) {
+        for (const path of ['/a/b/', '/a//b/', '/a/../', '/', '/nx/x.slangp', '/nx/x.slangp/', 'rel/x.slangp'])
+            observe(`r3:path:${form}:${path}`, `{"version":1,"preset":${text(f(path))}}`);
+        for (const path of ['/a.ſlangp', '/a.slangp', '/K.\u212Aslangp', '/x.SLANGPı', 'rel.slangp', '/dir.slangp/'])
+            observe(`r3:recent:${form}:${path}`, `{"version":1,"recent_presets":[${text(f(path))}]}`);
+        observe(`r3:recent-pair:${form}`, `{"version":1,"recent_presets":[${text(f('/a.slangp'))},"/a.slangp",${text(f('/a.slangp'))}]}`);
+    }
+}
 if (capture) print('PATH_CAPTURE=' + JSON.stringify(actual, null, 2));
 else {
     const [, bytes] = Gio.File.new_for_uri(import.meta.url).get_parent().get_child('path-contract-baseline.json').load_contents(null);

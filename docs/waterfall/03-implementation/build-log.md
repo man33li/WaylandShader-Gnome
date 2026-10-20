@@ -487,3 +487,94 @@ diff /tmp/ws-final-iso-baseline.log /tmp/ws-final-iso-port.log
 - The API-version/prototype negative copies were removed after restoration and positive recompilation. No diagnostic mutation or throwaway source remains in production.
 - No commit or live GNOME installation/enabling/module load/restart/mutating live-session-bus call was performed. Manual render/GUI/hardware observations and safety/docs signoffs remain deferred to the user, not counted as passed. D1/D2 remain unchanged.
 - These are finite, executed compatibility and regression results; final phase-4 acceptance remains the reviewer's decision.
+
+## Rework round 3
+
+The user authorized up to five rework rounds and retained GTK 3. This round fixes the two R3-1 surfaces in `../04-verification/acceptance.md:431–440`: JSON string/key conversion and shared native C-string conversion. It also implements the explicitly requested devkit-only access to the caller's `pipewire-0` socket; every other isolation boundary is retained. Historical Round-3 acceptance text describing the earlier two-round limit is superseded by this authorization.
+
+### Ownership and conversion design
+
+| Owner | Disjoint files/work |
+|---|---|
+| Builder.BomCore | Shared JSON document/provenance and tests; native config extraction; client status extraction/tests; CLI document serialization |
+| Builder.BomSecurity | Shared native text boundary/tests; isolated-session single-socket sharing; boundary/lifetime review |
+| Builder.BomCorpus | New BOM contract and appended parser/path corpus cases |
+| Builder | Build/test integration, baseline captures, negative isolation tests, devkit proof and this log |
+
+The parsed document retains core JSON values and document-scoped UTF8/UTF16 string provenance, plus its allocator. Raw object lookup is unchanged. Text extraction and writing use the source encoding, so a raw UTF8 leading BOM loses one character while an escaped/UTF16 BOM remains. Duplicate keys retain the last encoding/value; discarded metadata is removed before freeing strings, and decoded-key collisions release replaced nested maps. There are no marker bytes, global provenance tables or blanket key trimming. The native text boundary removes one BOM only after validating the original complete C string; the parser's separate document-BOM stage is coordinated with that conversion.
+
+### Baseline-first and isolation checks
+
+| Command / check | Result |
+|---|---|
+| Original-only `bom-contract.js --capture`, then parser/path capture extensions, using standalone GJS with baseline native directory, `GIO_USE_VFS=local` and the inherited typelib path prepended with Mutter's directory | PASS. **1285 BOM records**, **369 parser records** and **203 path records** pinned. The prior **275 parser records** and **77 path records** were required to remain exactly equal before extensions; both checks passed. Session provenance copies: `local://r3-*-baseline.json`. |
+| Baseline `bom-contract.js`, `parser-corpus.js`, `path-contract.js`, `native-contract.js` without capture | PASS: 1285, 369 and 203 cases match, and the original native byte/error contract passes. No port result was used as an oracle. |
+| `computer.capabilities()` | Wayland backend: AX read capability granted; screenshot capture unavailable. Final viewer observation will use available read-only window evidence and/or the viewer's Wayland protocol evidence, not claim an unavailable screenshot. |
+| `WS_DEVKIT=1` harness with an owned synthetic absolute caller runtime lacking `pipewire-0` | EXPECTED FAIL, exit 1: `devkit requires caller runtime pipewire-0 socket`, before any Shell launch. Synthetic runtime removed. |
+| Direct private-child harness with synthetic equal caller/child bus addresses, `WS_DEVKIT=1` | EXPECTED FAIL, exit 1: `refusing caller bus or runtime directory`. Existing guard remains effective before socket sharing. |
+| `nix-build gnome/default.nix -o /tmp/ws-r3-result`, first attempt | FAIL at Odin compile: immutable parameter reassignment and runtime string concatenation in new tests. Owner received diagnostics; real C ABI and direct argument-test targets compiled. |
+
+The BOM matrix covers raw/escaped, single/double/middle/only BOMs; raw static-key lookup; iterated-key conversion; duplicate/colliding keys in both orders; a later escape changing storage provenance; saved values/recents/output id/name; and actual exported string-argument calls. Readable preset files are in an exclusive temporary directory; unattached effects lack stage/EGL, so these calls verify request acceptance without starting a shader compile worker.
+
+`WS_DEVKIT=1` now validates an absolute caller runtime and an actual `pipewire-0` socket, then symlinks only that runtime entry into the disposable directory. No lockfile, session-bus socket, other runtime entry or whole directory is linked; the existing host-Wayland viewer connection is unchanged. Headless behavior remains unchanged. User-facing documentation records this exception and the 20-second command; the CTest manifest includes `gnome_bom_contract`.
+
+### Integration corrections and final checks
+
+| Command / check | Result |
+|---|---|
+| Full external CMake build in `/tmp/ws-r3-build`, first attempt | FAIL at `-vet` shadowing in decoded-key collision cleanup; renamed the local presence flag. CLI/GUI/runtime already compiled. |
+| `cmake --build /tmp/ws-r3-build --parallel` followed by full CTest, next attempt | Build PASS, but standalone native contracts crashed and common tracking tests reported retained string allocations. No Shell-hosted test loaded this intermediate module. Root: assigning `context.allocator` inside an `if` block did not survive that block; destruction used the wrong allocator. |
+| Corrected document destruction | `destroy_document` now passes its original allocator explicitly into recursive `json.destroy_value` (`gnome/common/json_parse.odin:15–20`). Security retracted its initial allocator-safety assessment and reviewed the correction. Tracking and native temporary-document tests cover the actual lifetime paths. |
+| Remaining common fixture parse failure | Odin's formatter interpreted literal JSON braces. Replaced that test's formatter-generated input with constant JSON; expected success and baseline expectations unchanged. |
+| Final full external build/CTest | **PASS 17/17**, no skips, 47.15 seconds. |
+| `nix-build gnome/default.nix -o /tmp/ws-r3-result` | **PASS**, fresh configure/build/checkPhase/install, **17/17 passed**, no skips, 16.74 seconds. |
+| `nix-build default.nix -o /tmp/ws-r3-kwin` | **PASS**, fresh KWin C++ compile/link/install. |
+| Installed BOM/parser/path checks plus baseline/port `gnome_native_arguments` in separate processes | **PASS:** 1285 BOM cases, 369 parser cases, 203 path cases, and six exact NULL/byte-FF checks per implementation. |
+| Headless `WS_DEVKIT=0` T-BYPASS, additionally asserting no host `pipewire-0` symlink | **PASS**, unchanged GPU-runtime bypass/rebuild test. |
+| Fresh baseline and port `WS_DEVKIT=0` T-ISO-CLI, then transcript diff | **PASS**, both runs exit 0 and diff is empty. Files: `/tmp/ws-r3-iso-baseline.log`, `/tmp/ws-r3-iso-port.log`. |
+| Installed ELF/GIR/layout checks | **PASS**, exit 0; public ABI and installed paths unchanged. |
+| T-UNCHANGED protected-path diff against `b223c1a` | **PASS**, no output. |
+
+### Twenty-second devkit proof
+
+The tested package was `/tmp/ws-r3-result` → `/nix/store/9hfbxb7zajp8fbnhmb5xaglgsn40fcmj-waylandshader-gnome-0.1.0`. The private Shell log explicitly selected that package and said the system extension would not be loaded.
+
+Inside `nix-shell gnome/shell.nix`, the **exact executed command** was:
+
+```sh
+WS_DEVKIT=1 WAYLAND_DEBUG=client gnome/tests/isolated-session.sh /tmp/ws-r3-result -- sh -c 'set -eu; test -L "$XDG_RUNTIME_DIR/pipewire-0"; test "$(readlink "$XDG_RUNTIME_DIR/pipewire-0")" = "$WS_CALLER_RUNTIME/pipewire-0"; test ! -e "$XDG_RUNTIME_DIR/pipewire-0.lock"; printf "DEVKIT_READY shell=%s root=%s start=%s\n" "$WS_SHELL_PID" "$WS_PRIVATE_ROOT" "$(date +%s)"; ps -o pid=,ppid=,args= --ppid "$WS_SHELL_PID" || :; sleep 20; kill -0 "$WS_SHELL_PID"; printf "DEVKIT_20S_ALIVE end=%s\n" "$(date +%s)"'
+```
+
+**PASS, exit 0.** The assertions confirmed the exact socket symlink and absence of a linked/copied lockfile. Ready/end timestamps were `1792505617` and `1792505637`; the owned Shell remained alive after the 20-second hold, then the harness stopped it.
+
+Read-only desktop inspection did not yield a viewer window through the attempted `devkit` name filter; that lookup was inconclusive (the actual title is “Mutter Development Kit”). Screenshot capture was unavailable on this Wayland provider. No visual screenshot or full manual GUI/render pass is claimed. Instead, the owned client's protocol provides direct window-mapping/presentation evidence:
+
+- Owned Shell **402516** launched viewer **402567** (`mutter-devkit`).
+- `xdg_surface#77.get_toplevel` created `xdg_toplevel#78`, with title **Mutter Development Kit** and app id **org.gnome.Mutter.Mdk**.
+- The host configured the toplevel to **1280×846**, and `wl_surface#47` entered `wl_output#6`.
+- That surface attached buffers and committed them; **159 presentation events** were recorded, including host presentation feedback. This proves a mapped, presented viewer, not merely a spawned process.
+- After the command, `ps -p 402516,402567 -o pid=,stat=,args=` returned no processes (exit 1, expected absence). The private root was removed.
+- Host `/run/user/1000/pipewire-0` identity stayed **`78:45:socket`** before and after. The host socket was not removed or replaced.
+
+Evidence: `local://r3-devkit-wayland.log` (exact command, process identity, mapping/presentation and shutdown), and bounded `local://r3-devkit-proof.json`. Relevant trace positions: package selection at line 40; toplevel identity at 1766–1773; configure at 2032–2036 and 2511–2515; first buffer/commit at 2466–2468; presentation at 2550; shutdown at 4742. The read-only computer session was closed afterward; no desktop input/control grant was used.
+
+This proves the newly requested devkit startup and teardown path. It does not replace the deferred visual T-ISO-RENDER/T-GUI checklists.
+
+### Per-item results and handoff
+
+| Item | Root fix / source | Executed regression | Result |
+|---|---|---|---|
+| R3-1: JSON values and iterated keys | Document-owned storage provenance and original allocator at `gnome/common/json_parse.odin:9–50`; explicit conversion at `json_text`/`json_string_value`; raw lookup remains unchanged. Native conversion/collision cleanup at `gnome/native/config.odin:150–249`, client extraction at `gnome/controller/client/status.odin:31–130`, and provenance-aware writer/CLI migration | Original baseline first, then port: **1285** BOM cases, **369** parser cases and **203** path cases; common conversion/lookup/duplicate/allocator tests and all client status-string fields. Raw/escaped/later-escape, repeated/middle/only BOM and lone-surrogate controls retained | **PASS** |
+| R3-1: native C-string arguments | Complete UTF-8 validation followed by exactly one leading BOM removal in shared `gnome/native/boundary.odin:31–38`; every existing caller uses that conversion | Actual exported load/output mutator calls and controls in BOM matrix; `gnome/native/boundary_test.odin:6–31`; original six NULL/byte-FF assertions on both libraries in separate processes | **PASS** |
+| Devkit-only PipeWire access | `gnome/tests/isolated-session.sh:55–60`: absolute caller-runtime/socket checks, one symlink only, before private Shell startup; existing isolation guards retained | Missing-socket and equal-bus refusal tests; headless no-symlink assertion; exact devkit symlink/no-lockfile assertions; unchanged host socket identity and private-root cleanup | **PASS** |
+| Final-package devkit startup/closure | Existing `--devkit` path with the requested one-socket access | Owned viewer toplevel configured, mapped to host output and presented buffers; 20-second hold; owned Shell/viewer PIDs absent afterward. Protocol proof, not a screenshot/manual rendering checklist | **PASS** |
+| Existing compatibility/build gates | No public ABI, installed-layout or protected KWin-source change | Fresh GNOME **17/17** checkPhase, fresh KWin build, installed ELF/GIR/layout, protected diff, headless T-BYPASS, fresh baseline/port T-ISO-CLI empty diff, and **107/107** CLI goldens on both implementations | **PASS** |
+
+Final tested artifacts:
+
+```text
+/tmp/ws-r3-result -> /nix/store/9hfbxb7zajp8fbnhmb5xaglgsn40fcmj-waylandshader-gnome-0.1.0
+/tmp/ws-r3-kwin   -> /nix/store/d6kvi9b689fwndx0bd35lzjz09nh604p-waylandshader-0.1.0
+```
+
+GTK 3 and D1/D2 are unchanged. No baseline expectation was changed to fit the port, no commit was made, and no live extension installation/enabling/native-module load or live compositor restart occurred. The only newly authorized host resource was the devkit client's PipeWire socket connection, alongside the existing host-Wayland viewer connection. Full visual GUI/render/hardware acceptance and manual safety/docs signoffs remain deferred; the protocol startup proof does not claim those checks.

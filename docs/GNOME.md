@@ -288,6 +288,14 @@ Stop only terminal A's disposable process tree when finished. Confirm its privat
 
 ### Real GUI and presentation checks
 
+For a 20-second disposable devkit viewer, from the checkout:
+
+```sh
+nix-shell gnome/shell.nix --run 'WS_DEVKIT=1 gnome/tests/isolated-session.sh "$HOME/.cache/waylandshader/gnome-result" -- sleep 20'
+```
+
+Only `WS_DEVKIT=1` links the caller's `pipewire-0` socket into the private runtime directory, so the viewer can display the disposable Shell. No PipeWire lockfile, session-bus socket, other runtime entry or whole runtime directory is linked. The existing host-Wayland connection for the viewer is unchanged. The Shell and extension still use private XDG directories and a private bus; the harness stops only its owned Shell after the command. Ordinary headless tests do not link the host PipeWire socket. This does not install or enable the extension in the working desktop.
+
 A useful acceptance pass opens Browse, cancels, reopens, selects a path containing spaces, and verifies the path without loading an unwanted preset. Then compare saved effect settings and close only the test controller. The GTK fix was verified this way in the real GNOME session, visually and through native accessibility interaction, then repeated using the installed launcher.
 
 On the recorded system, **GNOME monitor screencasts captured the unfiltered scene**. They proved that the GUI/file picker rendered, not that final native processing was correct. Direct KMS scanout was used for the physical primary-output processing check. KMS access is privileged, device/plane-specific and format/driver-sensitive; do not copy another machine's plane ID. Allow authentication/OSD animations to settle before comparing images. No exact gamma calibration claim is made from those captures.

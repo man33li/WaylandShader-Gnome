@@ -12,14 +12,14 @@ Output :: struct { id, name: string, settings: common.Output_Settings, shader_ac
 Status :: struct {
     enabled, active, loading: bool,
     preset, requested_preset, error: string,
-    recent_presets: []string, parameters: []Parameter, outputs: []Output, json: json.Object,
+    recent_presets: []string, parameters: []Parameter, outputs: []Output, json: common.JSON_Document,
 }
 
 free_status :: proc(s: ^Status) {
     delete(s.recent_presets)
     delete(s.parameters)
     delete(s.outputs)
-    if s.json != nil { json.destroy_value(s.json) }
+    common.destroy_document(&s.json)
     s^ = {}
 }
 invalid :: proc(message: string) -> Error { return {.Protocol, fmt.tprintf("Invalid WaylandShader status: %s", message)} }
@@ -29,10 +29,13 @@ number :: proc(object: json.Object, key: string) -> (f64, bool) {
 }
 
 accept_json :: proc(c: ^Client, source: string) -> Error {
-    root, parse_error := common.parse_json(source)
-    object, is_object := root.(json.Object)
+    // QDBusDemarshaller::toStringUnchecked performs QString::fromUtf8 before acceptJson.
+    input:=source
+    if len(input)>=3 && input[:3]=="\xef\xbb\xbf" { input=input[3:] }
+    root, parse_error := common.parse_json(input)
+    object, is_object := root.value.(json.Object)
     if parse_error != nil || !is_object {
-        json.destroy_value(root)
+        common.destroy_document(&root)
         if message, failed := parse_error.?; failed {
             if message == "Out of memory" { return {.Transport, message} }
             return invalid(fmt.tprintf("expected a JSON object: %s", message))
@@ -40,14 +43,14 @@ accept_json :: proc(c: ^Client, source: string) -> Error {
         return invalid("expected a JSON object: no error occurred")
     }
     next: Status
-    next.json = object
+    next.json = root
     accepted := false
     defer if !accepted { free_status(&next) }
     for field in ([]string{"enabled", "active", "loading"}) {
         if _, ok := object[field].(json.Boolean); !ok { return invalid(fmt.tprintf("%s must be boolean.", field)) }
     }
     for field in ([]string{"preset", "requestedPreset", "error"}) {
-        if _, ok := object[field].(json.String); !ok { return invalid(fmt.tprintf("%s must be a string.", field)) }
+        if _, ok := common.json_string_value(&next.json,object[field]); !ok { return invalid(fmt.tprintf("%s must be a string.", field)) }
     }
     parameters, params_ok := object["parameters"].(json.Array)
     outputs, outputs_ok := object["outputs"].(json.Array)
@@ -55,9 +58,9 @@ accept_json :: proc(c: ^Client, source: string) -> Error {
     next.enabled = object["enabled"].(json.Boolean)
     next.active = object["active"].(json.Boolean)
     next.loading = object["loading"].(json.Boolean)
-    next.preset = object["preset"].(json.String)
-    next.requested_preset = object["requestedPreset"].(json.String)
-    next.error = object["error"].(json.String)
+    next.preset, _ = common.json_string_value(&next.json,object["preset"])
+    next.requested_preset, _ = common.json_string_value(&next.json,object["requestedPreset"])
+    next.error, _ = common.json_string_value(&next.json,object["error"])
     if recent_value, present := object["recentPresets"]; present {
         recent, ok := recent_value.(json.Array)
         if !ok { return invalid("recentPresets must be an array.") }
@@ -65,7 +68,7 @@ accept_json :: proc(c: ^Client, source: string) -> Error {
         next.recent_presets, allocation_error = make([]string, len(recent))
         if allocation_error != nil { return {.Transport, "Out of memory"} }
         for entry, i in recent {
-            path, string_ok := entry.(json.String)
+            path, string_ok := common.json_string_value(&next.json,entry)
             if !string_ok || path == "" { return invalid("recent preset must be a nonempty string.") }
             next.recent_presets[i] = path
         }
@@ -76,8 +79,8 @@ accept_json :: proc(c: ^Client, source: string) -> Error {
     for entry, i in parameters {
         row, ok := entry.(json.Object)
         if !ok { return invalid("parameter must be an object.") }
-        name, name_ok := row["name"].(json.String)
-        description, desc_ok := row["description"].(json.String)
+        name, name_ok := common.json_string_value(&next.json,row["name"])
+        description, desc_ok := common.json_string_value(&next.json,row["description"])
         if !name_ok || name == "" || !desc_ok { return invalid("parameter name/description must be strings; name must not be empty.") }
         for key in ([]string{"minimum", "maximum", "step", "default", "value"}) {
             if _, valid := number(row, key); !valid { return invalid(fmt.tprintf("parameter %s must be finite numeric data.", key)) }
@@ -95,8 +98,8 @@ accept_json :: proc(c: ^Client, source: string) -> Error {
     for entry, i in outputs {
         row, ok := entry.(json.Object)
         if !ok { return invalid("output must be an object.") }
-        id, id_ok := row["id"].(json.String)
-        name, name_ok := row["name"].(json.String)
+        id, id_ok := common.json_string_value(&next.json,row["id"])
+        name, name_ok := common.json_string_value(&next.json,row["name"])
         if !id_ok || id == "" || !name_ok { return invalid("output id/name must be strings; id must not be empty.") }
         for key in ([]string{"shaderEnabled", "colorEnabled", "shaderActive", "colorActive"}) {
             if _, valid := row[key].(json.Boolean); !valid { return invalid(fmt.tprintf("output %s must be boolean.", key)) }
@@ -107,7 +110,7 @@ accept_json :: proc(c: ^Client, source: string) -> Error {
         bypass := ""
         if value, present := row["bypass"]; present {
             var_ok: bool
-            bypass, var_ok = value.(json.String)
+            bypass, var_ok = common.json_string_value(&next.json,value)
             if !var_ok { return invalid("output bypass must be a string.") }
         }
         o := Output{id=id, name=name, bypass=bypass, shader_active=row["shaderActive"].(json.Boolean), color_active=row["colorActive"].(json.Boolean), settings={gamma=row["gamma"].(json.Float), saturation=row["saturation"].(json.Float), shader_enabled=row["shaderEnabled"].(json.Boolean), color_enabled=row["colorEnabled"].(json.Boolean)}}

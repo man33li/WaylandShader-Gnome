@@ -106,7 +106,7 @@ usage_exit :: proc(app: ^App, message: string) {
 }
 
 print_value :: proc(app: ^App, value: json.Value) {
-	text, err := common.stringify(value, true)
+	text, err := common.stringify(value, true, &app.cl.status.json)
 	if err != nil {
 		finish(app, 3, fmt.tprint(err.?))
 		return
@@ -116,7 +116,7 @@ print_value :: proc(app: ^App, value: json.Value) {
 }
 
 print_status :: proc(app: ^App) {
-	print_value(app, app.cl.status.json)
+	print_value(app, app.cl.status.json.value)
 }
 
 evaluate_load :: proc(app: ^App, status: ^client.Status) {
@@ -202,7 +202,7 @@ on_available :: proc(data: rawptr, err: client.Error) {
 			print_status(app)
 		} else {
 			// QJsonValue::toArray() of a missing or non-array value is an empty array
-			array, is_array := app.cl.status.json[cmd.name].(json.Array)
+			array, is_array := app.cl.status.json.value.(json.Object)[cmd.name].(json.Array)
 			print_value(app, is_array ? array : json.Array{})
 		}
 		finish(app, 0)

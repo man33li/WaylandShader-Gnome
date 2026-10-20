@@ -1,12 +1,54 @@
 package common
 
+import "base:runtime"
 import json "core:encoding/json"
 import "core:math"
 import "core:strconv"
 import "core:unicode/utf8"
 
-// Qt 6.11.2 qjsonparser.cpp: structural tokens never scan the following value.
-JSON_Parser :: struct { source: string, index: int, depth: int }
+JSON_String_Encoding :: enum { UTF8, UTF16 }
+JSON_Document :: struct {
+    value: json.Value,
+    string_encoding: map[rawptr]JSON_String_Encoding,
+    allocator: runtime.Allocator,
+}
+destroy_document :: proc(document: ^JSON_Document) {
+    allocator:=document.allocator
+    if allocator.procedure==nil { allocator=context.allocator }
+    json.destroy_value(document.value,allocator)
+    delete(document.string_encoding)
+    document^={}
+}
+json_text :: proc(document: ^JSON_Document, value: string) -> string {
+    if document!=nil {
+        encoding,parsed:=document.string_encoding[rawptr(raw_data(value))]
+        if parsed && encoding==.UTF8 && len(value)>=3 && value[:3]=="\xef\xbb\xbf" { return value[3:] }
+    }
+    return value
+}
+json_string_value :: proc(document: ^JSON_Document, value: json.Value) -> (string,bool) {
+    text,ok:=value.(json.String)
+    if !ok { return "",false }
+    return json_text(document,string(text)),true
+}
+
+// Qt 6.11.2 stores a whole string as UTF-16 if any escape occurs, including after a raw BOM.
+JSON_Parser :: struct { source: string, index: int, depth: int, string_encoding: map[rawptr]JSON_String_Encoding }
+json_delete_string :: proc(p: ^JSON_Parser, value: string) {
+    delete_key(&p.string_encoding,rawptr(raw_data(value)))
+    delete(value)
+}
+json_delete_node :: proc(p: ^JSON_Parser, value: json.Value) {
+    #partial switch v in value {
+    case json.String: json_delete_string(p,string(v))
+    case json.Array:
+        for item in v { json_delete_node(p,item) }
+        delete(v)
+    case json.Object:
+        for key,item in v { json_delete_string(p,key); json_delete_node(p,item) }
+        delete(v)
+    }
+}
 json_digit :: proc(c: u8) -> bool { return c>='0' && c<='9' }
 json_hex :: proc(source: string) -> (u32,bool) {
     value:u32
@@ -35,8 +77,9 @@ json_next :: proc(p: ^JSON_Parser) -> u8 {
 json_string :: proc(p: ^JSON_Parser) -> (string,Error) {
     source:=p.source
     end:=p.index
+    encoding:=JSON_String_Encoding.UTF8
     for end<len(source) && source[end]!='"' {
-        if source[end]=='\\' && end+1<len(source) { end+=1 }
+        if source[end]=='\\' { encoding=.UTF16; if end+1<len(source) { end+=1 } }
         end+=1
     }
     bytes,err:=make([]u8,end-p.index)
@@ -46,7 +89,12 @@ json_string :: proc(p: ^JSON_Parser) -> (string,Error) {
     count:=0
     for p.index<len(source) {
         c:=source[p.index]; p.index+=1
-        if c=='"' { success=true; return string(bytes[:count]),nil }
+        if c=='"' {
+            text:=string(bytes[:count])
+            if count>0 && map_insert(&p.string_encoding,rawptr(raw_data(text)),encoding)==nil { return "","Out of memory" }
+            success=true
+            return text,nil
+        }
         if c!='\\' {
             if c>=0x80 {
                 code,width:=utf8.decode_rune(source[p.index-1:])
@@ -128,22 +176,25 @@ json_node :: proc(p: ^JSON_Parser) -> (json.Value,Error) {
         p.depth+=1; defer p.depth-=1
         obj:json.Object
         success:=false
-        defer if !success { json.destroy_value(json.Value(obj)) }
+        defer if !success { json_delete_node(p,json.Value(obj)) }
         token:=json_next(p)
         for token=='"' {
             key,err:=json_string(p)
             if err!=nil { return {},err }
             key_owned:=true
-            defer if key_owned { delete(key) }
+            defer if key_owned { json_delete_string(p,key) }
             if json_next(p)!=':' { return {},"missing name separator" }
             if !json_space(p) { return {},"unterminated object" }
             value,ve:=json_node(p)
             if ve!=nil { return {},ve }
-            if previous,exists:=obj[key]; exists { json.destroy_value(previous); obj[key]=value }
-            else {
-                if map_insert(cast(^map[string]json.Value)&obj,key,value)==nil { json.destroy_value(value); return {},"Out of memory" }
-                key_owned=false
-            }
+            stored,entry,inserted,allocation_error:=map_entry(cast(^map[string]json.Value)&obj,key)
+            if allocation_error!=nil { json_delete_node(p,value); return {},"Out of memory" }
+            if !inserted {
+                // map_entry retains the stored key; Qt retains the last duplicate's encoding.
+                if len(key)>0 { p.string_encoding[rawptr(raw_data(stored^))]=p.string_encoding[rawptr(raw_data(key))] }
+                json_delete_node(p,entry^)
+            } else { key_owned=false }
+            entry^=value
             token=json_next(p)
             if token!=',' { break }
             token=json_next(p)
@@ -157,14 +208,14 @@ json_node :: proc(p: ^JSON_Parser) -> (json.Value,Error) {
         p.depth+=1; defer p.depth-=1
         array:json.Array
         success:=false
-        defer if !success { json.destroy_value(json.Value(array)) }
+        defer if !success { json_delete_node(p,json.Value(array)) }
         if !json_space(p) { return {},"unterminated array" }
         if p.source[p.index]==']' { p.index+=1; success=true; return array,nil }
         for {
             if !json_space(p) { return {},"unterminated array" }
             value,err:=json_node(p)
             if err!=nil { return {},err }
-            if _,ae:=append(&array,value); ae!=nil { json.destroy_value(value); return {},"Out of memory" }
+            if _,ae:=append(&array,value); ae!=nil { json_delete_node(p,value); return {},"Out of memory" }
             token:=json_next(p)
             if token==']' { break }
             if token!=',' {
@@ -181,20 +232,21 @@ json_node :: proc(p: ^JSON_Parser) -> (json.Value,Error) {
         return json_number(p)
     }
 }
-parse_json :: proc(source: string,allocator:=context.allocator) -> (json.Value,Error) {
+parse_json :: proc(source: string,allocator:=context.allocator) -> (JSON_Document,Error) {
     context.allocator=allocator
-    input:=source
-    // Native text() first uses QString::fromUtf8, whose decoder removes one initial BOM.
-    if len(input)>=3 && input[:3]=="\xef\xbb\xbf" { input=input[3:] }
-    p:=JSON_Parser{source=input}
-    // QJsonPrivate::Parser then eats one BOM only when more input follows.
-    if len(input)>3 && input[:3]=="\xef\xbb\xbf" { p.index=3 }
+    p:=JSON_Parser{source=source}
+    success:=false
+    defer if !success { delete(p.string_encoding) }
+    // The caller has already performed any QString/C-string decoding.
+    if len(source)>3 && source[:3]=="\xef\xbb\xbf" { p.index=3 }
     result,err:=json_node(&p)
     if err!=nil { return {},err }
-    if json_space(&p) { json.destroy_value(result); return {},"garbage at the end of the document" }
+    if json_space(&p) { json_delete_node(&p,result); return {},"garbage at the end of the document" }
     #partial switch _ in result {
-    case json.Object,json.Array: return result,nil
+    case json.Object,json.Array:
+        success=true
+        return {value=result,string_encoding=p.string_encoding,allocator=allocator},nil
     }
-    json.destroy_value(result)
+    json_delete_node(&p,result)
     return {},"illegal value"
 }

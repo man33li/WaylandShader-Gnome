@@ -49,7 +49,7 @@ expect_invalid :: proc(t: ^testing.T, source, message: string) {
         testing.fail_now(t, "Valid status prerequisite failed")
     }
     defer free_status(&c.status)
-    original := c.status.json
+    original := c.status.json.value.(json.Object)
     e := accept_json(&c, source)
     if !testing.expect_value(t, e.kind, Kind.Protocol) {
         free_status(&c.status)
@@ -59,7 +59,7 @@ expect_invalid :: proc(t: ^testing.T, source, message: string) {
     testing.expect(t, c.has_status)
     testing.expect_value(t, c.status.parameters[0].name, "GAIN")
     // An invalid candidate never takes ownership of the old parsed object.
-    testing.expect_value(t, c.status.json["enabled"].(json.Boolean), original["enabled"].(json.Boolean))
+    testing.expect_value(t, c.status.json.value.(json.Object)["enabled"].(json.Boolean), original["enabled"].(json.Boolean))
 }
 replace_invalid :: proc(t: ^testing.T, old, new, message: string) {
     candidate, _ := strings.replace_all(VALID, old, new, context.temp_allocator)
@@ -202,11 +202,52 @@ json_compatibility :: proc(t: ^testing.T) {
         testing.fail_now(t, "Duplicate-key status prerequisite failed")
     }
     testing.expect(t, c.status.enabled)
-    testing.expect_value(t, c.status.json[""].(json.Float), f64(7))
+    testing.expect_value(t, c.status.json.value.(json.Object)[""].(json.Float), f64(7))
     escaped, _ := strings.replace_all(VALID, `"description":"Gain"`, `"description":"G\qain"`, context.temp_allocator)
     if !testing.expect_value(t, accept_json(&c, escaped).kind, Kind.None) {
         free_status(&c.status)
         testing.fail_now(t, "Unknown-escape status prerequisite failed")
     }
     testing.expect_value(t, c.status.parameters[0].description, "Gqain")
+}
+
+@(test)
+status_string_provenance :: proc(t: ^testing.T) {
+    c: Client
+    defer free_status(&c.status)
+    for pair in ([][2]string{
+        {"\xef\xbb\xbf", ""},
+        {`\ufeff`, "\xef\xbb\xbf"},
+        {"\xef\xbb\xbf\xef\xbb\xbf", "\xef\xbb\xbf"},
+        {"\xef\xbb\xbf" + `\u0041`, "\xef\xbb\xbfA"},
+    }) {
+        source:=VALID
+        for patch in ([][2]string{
+            {`"preset":""`, fmt.tprintf(`"preset":"%s/p"`,pair[0])},
+            {`"requestedPreset":""`, fmt.tprintf(`"requestedPreset":"%s/r"`,pair[0])},
+            {`"error":""`, fmt.tprintf(`"error":"%sfailure"`,pair[0])},
+            {`"/a.slangp"`, fmt.tprintf(`"%s/a.slangp"`,pair[0])},
+            {`"name":"GAIN"`, fmt.tprintf(`"name":"%sGAIN"`,pair[0])},
+            {`"description":"Gain"`, fmt.tprintf(`"description":"%sGain"`,pair[0])},
+            {`"id":"A"`, fmt.tprintf(`"id":"%sA"`,pair[0])},
+            {`"name":"Monitor"`, fmt.tprintf(`"name":"%sMonitor"`,pair[0])},
+            {`"gamma":1`, fmt.tprintf(`"bypass":"%sinactive","gamma":1`,pair[0])},
+        }) { source,_=strings.replace_all(source,patch[0],patch[1],context.temp_allocator) }
+        if !testing.expect_value(t,accept_json(&c,source).kind,Kind.None) { continue }
+        testing.expect_value(t,c.status.preset,fmt.tprintf("%s/p",pair[1]))
+        testing.expect_value(t,c.status.requested_preset,fmt.tprintf("%s/r",pair[1]))
+        testing.expect_value(t,c.status.error,fmt.tprintf("%sfailure",pair[1]))
+        testing.expect_value(t,c.status.recent_presets[0],fmt.tprintf("%s/a.slangp",pair[1]))
+        testing.expect_value(t,c.status.parameters[0].name,fmt.tprintf("%sGAIN",pair[1]))
+        testing.expect_value(t,c.status.parameters[0].description,fmt.tprintf("%sGain",pair[1]))
+        testing.expect_value(t,c.status.outputs[0].id,fmt.tprintf("%sA",pair[1]))
+        testing.expect_value(t,c.status.outputs[0].name,fmt.tprintf("%sMonitor",pair[1]))
+        testing.expect_value(t,c.status.outputs[0].bypass,fmt.tprintf("%sinactive",pair[1]))
+    }
+    replace_invalid(t,`"name":"GAIN"`,"\"name\":\"\xef\xbb\xbf\"","parameter name/description must be strings; name must not be empty.")
+    replace_invalid(t,`"id":"A"`,"\"id\":\"\xef\xbb\xbf\"","output id/name must be strings; id must not be empty.")
+    replace_invalid(t,`["/a.slangp"]`,"[\"\xef\xbb\xbf\"]","recent preset must be a nonempty string.")
+    // D-Bus QString decoding and JSON document decoding are separate, single-BOM stages.
+    testing.expect_value(t,accept_json(&c,"\xef\xbb\xbf\xef\xbb\xbf"+VALID).kind,Kind.None)
+    expect_invalid(t,"\xef\xbb\xbf\xef\xbb\xbf\xef\xbb\xbf"+VALID,"expected a JSON object: illegal number")
 }

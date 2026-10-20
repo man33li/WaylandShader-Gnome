@@ -46,6 +46,27 @@ for (const text of ['é', '€', '😀']) {
     add(`multibyte-escape-value:${text}`, `{"version":1,"ignored":"\\${text}"}`);
     add(`multibyte-escape-key:${text}`, `{"version":1,"\\${text}":0}`);
 }
+// Round 3 (R3-1), appended after all earlier records: raw U+FEFF (B, bytes EF BB BF) versus the ASCII escape \ufeff (E).
+// Raw-versus-escaped matrices live in bom-contract.js; ids here spell the encoding out because JSON.stringify keeps B invisible.
+{
+    const B = '\ufeff', E = '\\ufeff';
+    const forms = {plain: s => s, rawLead: s => B + s, escLead: s => E + s, rawDouble: s => B + B + s, escDouble: s => E + E + s,
+        rawMid: s => s.slice(0, 2) + B + s.slice(2), escMid: s => s.slice(0, 2) + E + s.slice(2), rawOnly: () => B, escOnly: () => E,
+        rawLeadEscLater: s => B + s[0] + E + s.slice(1)};
+    for (const [form, f] of Object.entries(forms)) {
+        add(`r3:version-key:${form}`, `{"${f('version')}":1}`);
+        add(`r3:version-key-beside:${form}`, `{"version":1,"${f('version')}":2}`);
+        add(`r3:param-name:${form}`, `{"version":1,"parameters":{"/p":{"${f('GAIN')}":0.5}}}`);
+        add(`r3:param-preset-key:${form}`, `{"version":1,"parameters":{"${f('/p')}":{"GAIN":0.5}}}`);
+        add(`r3:output-key:${form}`, `{"version":1,"outputs":{"${f('AB')}":{"gamma":2}}}`);
+        add(`r3:gamma-key:${form}`, `{"version":1,"outputs":{"o":{"${f('gamma')}":2}}}`);
+        add(`r3:preset-value:${form}`, `{"version":1,"preset":"${f('/tmp/ws-r3-missing-dir/x.slangp')}"}`);
+        add(`r3:recent:${form}`, `{"version":1,"recent_presets":["${f('/tmp/ws-r3-missing-dir/x.slangp')}"]}`);
+        add(`r3:set-outputs-id:${form}`, `[{"id":"${f('AB')}","name":"${f('N1')}","x":0,"y":0,"width":1,"height":1,"scale":1}]`, 'set_outputs');
+    }
+    for (const [order, pair] of [['raw-then-escaped', [B + 'GAIN', E + 'GAIN']], ['escaped-then-raw', [E + 'GAIN', B + 'GAIN']], ['raw-then-plain', [B + 'GAIN', 'GAIN']], ['plain-then-raw', ['GAIN', B + 'GAIN']]])
+        add(`r3:collide-param-name:${order}`, `{"version":1,"parameters":{"/p":{"${pair[0]}":1,"${pair[1]}":2}}}`);
+}
 const parserErrors = new Set(['unterminated object', 'missing name separator', 'unterminated array', 'missing value separator', 'illegal value', 'illegal number', 'invalid escape sequence', 'invalid UTF8 string', 'unterminated string', 'object is missing after a comma', 'too deeply nested document', 'garbage at the end of the document']);
 const actual = [];
 for (const entry of cases) {

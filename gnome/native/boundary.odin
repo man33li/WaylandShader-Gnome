@@ -32,7 +32,10 @@ text :: proc(value: cstring) -> (string, Error) {
     if value == nil || !bool(boundary_utf8_validate(value, -1, nil)) {
         return "", "Invalid UTF-8 argument"
     }
-    return string(value), nil
+    result := string(value)
+    // QString::fromUtf8 removes one initial BOM, not a second or an interior one.
+    if len(result)>=3 && result[:3]=="\xef\xbb\xbf" { result=result[3:] }
+    return result, nil
 }
 
 mutate :: proc(err: Error, destination: ^^glib.Error) -> b32 {

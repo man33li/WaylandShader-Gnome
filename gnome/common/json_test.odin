@@ -86,16 +86,16 @@ output_defaults :: proc(t: ^testing.T) {
 json_document_compatibility :: proc(t: ^testing.T) {
     value,err:=parse_json(`{"":1,"duplicate":{"old":[1]},"duplicate":{"new":2}}`)
     testing.expect(t,err==nil)
-    rendered,write_error:=stringify(value)
+    rendered,write_error:=stringify(value.value,document=&value)
     testing.expect(t,write_error==nil)
     testing.expect_value(t,rendered,`{"":1,"duplicate":{"new":2}}`)
-    delete(rendered); json.destroy_value(value)
+    delete(rendered); destroy_document(&value)
     escaped,escape_error:=parse_json(`{"a":"\q","emoji":"\ud83d\ude00"}`)
     testing.expect(t,escape_error==nil)
-    escaped_object:=escaped.(json.Object)
+    escaped_object:=escaped.value.(json.Object)
     testing.expect_value(t,string(escaped_object["a"].(json.String)),"q")
     testing.expect_value(t,string(escaped_object["emoji"].(json.String)),"😀")
-    json.destroy_value(escaped)
+    destroy_document(&escaped)
     for pair in ([][2]string{{`{} []`,"garbage at the end of the document"},{`{"a":`,"unterminated object"},{`[1,]`,"object is missing after a comma"},{`{"a" 1}`,"missing name separator"},{`{"a":1 "b":2}`,"unterminated object"},{`{"a":1,}`,"object is missing after a comma"}}) {
         tracking:mem.Tracking_Allocator
         mem.tracking_allocator_init(&tracking,context.allocator)
@@ -126,10 +126,10 @@ json_baseline_string_preservation :: proc(t: ^testing.T) {
     }) {
         value,err:=parse_json(source)
         testing.expect(t,err==nil)
-        rendered,write_error:=stringify(value)
+        rendered,write_error:=stringify(value.value,document=&value)
         testing.expect(t,write_error==nil)
         testing.expect_value(t,rendered,source)
         delete(rendered)
-        json.destroy_value(value)
+        destroy_document(&value)
     }
 }
