@@ -442,3 +442,114 @@ If an extra round is authorized, require fresh GNOME checkPhase and T-KWIN, the 
 Not checked: deferred manual visual/accessibility/app_id/hardware observations and sign-offs; real GL fault injection; the inferred extension/CLI/GUI propagation of malformed-prefix status outside the exercised native APIs. No live Shell module load, extension installation/enabling, compositor restart or mutating live-session-bus call was performed. The outstanding risk is this low-reach but demonstrated string-compatibility gap, not a failing package build or the absence of manual sign-off.
 
 REJECTED
+
+## Round 4
+
+### Decision and review selected
+
+**Selected adversarial review: review B (opus 5.5), and only review B.** I side with its assessment that R3-1 is fixed and its reviewed code/test changes introduce no demonstrated remaining blocker in that scope. Its Round-4 **ACCEPT** predates the new executed visual/accessibility results and explicitly leaves them to the main agent (`review-B.md:182,210,230`). I do **not** adopt that limited verdict as unconditional acceptance after receiving contrary test evidence.
+
+**Round-4 verdict: REJECTED for G-1 only.** The additional primary input, `visual-checks.md`, records a failed T-GUI item 9 on the actual application against the Qt baseline (`visual-checks.md:44,50-52`). I independently verified the production setup, compared the baseline buddy-label code, and reproduced the GTK accessible-name behavior under a private headless display. The existing manual-class ruling defers missing observations; it does not waive an executed, reproducible failed test. This rejection is not for unavailable physical hardware or unobservable devkit behavior.
+
+Build source: **`6f6709d`**, with documentation HEAD **`799e676`** (`git rev-parse --short HEAD`, exit 0). The raised limit is **five rework rounds** (`docs/waterfall/README.md:12`); three have been used, so two remain. Round 3's historical exhaustion language no longer controls after the user's recorded authorization (`docs/waterfall/GATES.md:14-16`).
+
+### Commands run and results
+
+Commands ran from the repository root. `R=/tmp/ws-acceptance-r4-gnome`, `BASE=/tmp/ws-baseline-result` and `EXT=share/gnome-shell/extensions/waylandshader@man33li.github.com` are display shorthands. Only this acceptance document was edited by this reviewer.
+
+| Command / check | Independently observed result |
+|---|---|
+| `git rev-parse --short HEAD` | Exit 0: `799e676`. |
+| **T-NIX:** `nix-build gnome/default.nix -o /tmp/ws-acceptance-r4-gnome` | Exit 0; actual configure/build/checkPhase/install. **17/17 CTest entries passed, 0 failed, no skips**, 16.78 seconds. Both GL variants and the new BOM contract executed. Output: `/nix/store/6m5j3b5349wkjjmzd4nbjcxv8d5mlama-waylandshader-gnome-0.1.0`. |
+| **T-KWIN:** `nix-build default.nix -o /tmp/ws-acceptance-r4-kwin` | Exit 0; actual compile/link/install. Output: `/nix/store/5fg7hbvamhl3jrh56il73kcxy4njfin8-waylandshader-0.1.0`. No KWin runtime claim. |
+| `nix-shell gnome/shell.nix --run 'export GI_TYPELIB_PATH="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH"; gjs -m gnome/tests/bom-contract.js <native> && gjs -m gnome/tests/parser-corpus.js <native> && gjs -m gnome/tests/path-contract.js <native> && gjs -m gnome/tests/native-contract.js <native>'`, executed sequentially for baseline and final package in one invocation | Exit 0. **Both libraries:** 1,285 BOM cases, 369 parser cases, 203 path/recents cases and original native byte/error contract pass. No capture mode or expectation edits. |
+| Initial doubly nested Nix/Xvfb/GJS launcher | Exit 2: shell quoting error before GTK execution. No accessibility conclusion drawn from that attempt. |
+| `nix-shell -p xvfb-run --run 'command -v xvfb-run'` | Exit 0; resolved `/nix/store/940y9pcrxibjg54684874n70nd4mvany-xvfb-run-1+g87f6705/bin/xvfb-run`. Used the resolved binary directly to avoid nested quoting. |
+| First single-shell headless GTK probe with `accessible.get_name()` | Exit 1 due to GJS's `Atk.Action.get_name` interface-method ambiguity, not an application assertion. Corrected by explicitly invoking `Atk.Object.prototype.get_name`. |
+| Corrected headless GTK/ATK probe below | **Exit 1 at the expected-name assertion.** Observed `name:null`, `labelledBy:["Gain"]`, and the tooltip only as accessible description. This reproduces the missing-name mechanism independently of the main agent's actual-app AT-SPI observation. An unrelated missing `colorreload-gtk-module` message also appeared; it is not the cause of the assertion. |
+| Source reads of production parameter creation, label helper, baseline buddy setup, requirement/checklist and current gates | Confirmed the application uses the reproduced setup without assigning a parameter spin's accessible name; baseline uses a buddy label. Existing gate rows cover rework 3 and its authorized documentation amendments. |
+
+The GTK probe recreated the **actual production widget setup**, not the whole Odin application: the independently read production code is `gnome/controller/gui/window.odin:19-27,574-585`. The main agent's separate `visual-checks.md:44` is the evidence from the actual running controller. My baseline comparison used source at `/tmp/ws-baseline/src/controller_main.cpp:446-462`; I did not independently drive the Qt application or repeat the main agent's desktop screenshots.
+
+#### Headless G-1 reproduction
+
+Executed launcher, with `<BODY>` replaced by the JavaScript below and shell-escaped as a single argument:
+
+```sh
+nix-shell gnome/shell.nix --run '/nix/store/940y9pcrxibjg54684874n70nd4mvany-xvfb-run-1+g87f6705/bin/xvfb-run -a dbus-run-session -- env -u WAYLAND_DISPLAY -u AT_SPI_BUS_ADDRESS GDK_BACKEND=x11 NO_AT_BRIDGE=1 GIO_USE_VFS=local gjs -c '\''<BODY>'\'''
+```
+
+```js
+imports.gi.versions.Gtk = "3.0";
+const {Gtk, Atk} = imports.gi;
+Gtk.init(null);
+const w = new Gtk.Window(), grid = new Gtk.Grid();
+const label = new Gtk.Label({label: "Gain"});
+const spin = new Gtk.SpinButton({
+    adjustment: new Gtk.Adjustment({
+        lower: 0.1, upper: 2, step_increment: 0.1,
+        page_increment: 1, value: 1,
+    }),
+    climb_rate: 0, digits: 0,
+});
+spin.set_hexpand(true);
+spin.set_tooltip_text("GAIN\nDefault: 1; range: 0.1 to 2");
+label.set_xalign(0);
+label.set_line_wrap(true);
+label.set_max_width_chars(40);
+label.set_mnemonic_widget(spin);
+grid.attach(label, 0, 0, 1, 1);
+grid.attach(spin, 1, 0, 1, 1);
+w.add(grid);
+w.show_all();
+while (Gtk.events_pending()) Gtk.main_iteration();
+const a = spin.get_accessible();
+const relation = a.ref_relation_set().get_relation_by_type(Atk.RelationType.LABELLED_BY);
+const observed = {
+    name: Atk.Object.prototype.get_name.call(a),
+    description: Atk.Object.prototype.get_description.call(a),
+    labelledBy: relation ? relation.get_target().map(t => Atk.Object.prototype.get_name.call(t)) : [],
+};
+print(JSON.stringify(observed));
+w.destroy();
+if (observed.name !== "Gain")
+    throw Error("G-1: parameter spin accessible name must be Gain");
+```
+
+Observed:
+
+```json
+{"name":null,"description":"GAIN\nDefault: 1; range: 0.1 to 2","labelledBy":["Gain"]}
+```
+
+The labelled-by relation and tooltip therefore exist, but do **not** supply the required accessible **name**. This is not a missing visible label, a missing tooltip or a demand for a new GUI feature.
+
+### Disposition of previous findings and new visual evidence
+
+- **R3-1 closed for the required reproductions.** My unchanged dual-baseline contracts pass, including raw/escaped/single/double/interior BOM and native-argument cases (`gnome/tests/bom-contract.js:120-148,185-200`). The native boundary still validates UTF-8 before removing one leading BOM (`gnome/native/boundary.odin:31-38`). No previous resolved parser/path/ABI issue is reopened.
+- **Review B's R4-1 gate note is addressed, not upheld.** Rework 3 and authorized manifest/devkit documentation amendments are recorded at `docs/waterfall/GATES.md:15`; visual evidence is recorded at `:16`.
+- **T-ISO-RENDER:** adopt the main agent's recorded seven passes and three observation/reproduction limits as supplied test evidence (`visual-checks.md:20-30`), not as my own executed desktop tests. The baseline-identical tool limits are not additional defects or blockers; do not label every checklist item passed.
+- **T-GUI:** the supplied run records ten passes and **G-1 failing item 9** (`visual-checks.md:36-46`). My source comparison and headless probe independently support G-1. The prior deferral ruling does not allow ignoring a known failed item.
+- **D1/D2 remain accepted.** Neither concerns parameter accessible names. Physical T-HW and remaining user-only sign-offs remain deferred, not passed.
+
+### Optional Nix byte-reproducibility observation
+
+Review A reports that an extra `nix-build --check` rebuilt the package and passed all 17 tests, but then exited 1 because installed output bytes differed (`review-A.md:650,686,703`). **I do not uphold this as a second blocker.** The required build command is ordinary `nix-build` with every headless checkPhase test passing, not a bit-for-bit reproducibility check (`docs/waterfall/01-requirements/requirements.md:119,172`); my actual required builds pass. Neither the report nor my evidence isolates a functional, ABI or other required-contract failure from that comparison.
+
+I did not repeat that optional check, do not know the byte-level cause, and make **no claim of bit-reproducibility or that the differing bytes are harmless**. It remains a disclosed, unisolated, noncontract observation, not an exercised pass or an assumed compiler/debug-metadata explanation. No new reproducibility requirement or extra implementation rework is introduced here.
+
+### Upheld-findings table
+
+| Finding | Requirement / severity | Independently verified evidence | Real-world impact / required fix |
+|---|---|---|---|
+| **G-1 — parameter spin buttons lack an accessible name** | **Acceptance blocker: failed T-GUI item 9**, associated with REQ-045's baseline GUI parity and REQ-052's parameter labels. Accessible-name acceptance is explicit in `docs/waterfall/02-design/design.md:553` and `requirements.md:179`. **Moderate accessibility impact**, not a rendering/security failure. | Production builds the parameter spin, tooltip and mnemonic-label relation but never assigns its name (`gnome/controller/gui/window.odin:574-585`); the headless probe returns `name:null` despite `labelledBy:["Gain"]`. Baseline sets its label to description-or-name and makes it the spin's buddy (`/tmp/ws-baseline/src/controller_main.cpp:457-462`); the main agent observed baseline AT-SPI name `Gain` on the actual Qt control (`visual-checks.md:44`). | [INFERENCE] Assistive clients relying on accessible names cannot identify these parameter controls by name, although some may consult labelled-by relations. This affects ordinary parameter editors, not contrived input. Set each spin's accessible name to the same description-or-name text already returned by `parameter_label`; retain its existing relation and tooltip. |
+
+### Numbered rework list for the builder
+
+1. **G-1 — Name every dynamically created parameter spin using its visible label.** **Required fix:** set the spin's ATK accessible name to `parameter_label(&p)` in the production construction path (`view.odin:119-121` already provides description-or-name selection). Preserve the mnemonic buddy relation, tooltip, editing/debounce behavior and D2; do not replace the GTK widget or change visible text. **Required regression:** add an executed real-GTK headless test, using Xvfb/private D-Bus or equivalent, that exercises the production parameter-editor construction path and checks `gtk_widget_get_accessible`/ATK object name. Cover `description:"Gain", name:"GAIN"` → `Gain`, and empty description → `GAIN`. Assert the name itself, not merely a nonempty labelled-by relation or tooltip. The test must fail on this revision and run in the registered acceptance suite, not remain behind a disabled-by-default self-check or test only a duplicated mock widget. Re-run T-GUI item 9 on the actual controller after the fix, plus the normal GNOME checkPhase and T-KWIN.
+
+No other builder rework is required by this decision. The green 17-test suite currently omits this dynamic-widget name assertion; its success does not override the failed accessible-name check. Rejection returns to phase 3 within the user's expanded five-round allowance.
+
+Not independently exercised here: the main agent's screenshot/AT-SPI desktop scenarios, physical display/HDR/hotplug/suspend tests, optional output-byte reproducibility comparison or driver fault injection. Those limits do not weaken the directly reproduced G-1 finding. This review started no Shell/devkit session, installed/enabled no extension, loaded no module into the live compositor, restarted no compositor and made no mutating live-session-bus call; the GTK probe used only Xvfb, a private bus and local ATK access with the accessibility bridge disabled.
+
+REJECTED
