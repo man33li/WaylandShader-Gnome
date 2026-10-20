@@ -578,3 +578,56 @@ Final tested artifacts:
 ```
 
 GTK 3 and D1/D2 are unchanged. No baseline expectation was changed to fit the port, no commit was made, and no live extension installation/enabling/native-module load or live compositor restart occurred. The only newly authorized host resource was the devkit client's PipeWire socket connection, alongside the existing host-Wayland viewer connection. Full visual GUI/render/hardware acceptance and manual safety/docs signoffs remain deferred; the protocol startup proof does not claim those checks.
+
+## Rework round 4
+
+Scope: **G-1 only**, as requested by `docs/waterfall/04-verification/acceptance.md` Round 4 and `visual-checks.md:44`. The observed failure was an empty accessible name on dynamic parameter spins, despite their buddy relationship and tooltip. The baseline uses the description-or-name label and `setBuddy(spin)` (`/tmp/ws-baseline/src/controller_main.cpp:446–462`).
+
+### Ownership and implementation
+
+- **ws-ui / AccessibleParameters:** `gnome/controller/gui/window.odin` and `gtk.odin`. `build_parameters` now converts `parameter_label(&p)` once and uses the same text for the explicit ATK name and the visible GTK label (`window.odin:619–629`). Existing tooltip, mnemonic-widget association, input handlers and debounce remain in place. The narrow ATK/GTK bindings use opaque object pointers; no new mirrored C structure is introduced.
+- **Builder:** `gnome/CMakeLists.txt`, `gnome/default.nix`, new `gnome/tests/gtk-headless.sh`, this log and the CTest coverage-manifest addition in `requirements.md`. The new `gnome_gui_accessibility` CTest explicitly enables `WS_GTK_PARAM_A11Y_TEST` and selects `main.parameter_spin_accessible_name` (`CMakeLists.txt:118–126`). Nix adds `xvfb-run` to check inputs and supplies its store-local D-Bus configuration to the launcher (`default.nix:22–25,61`).
+- Core/runtime, UX and security implementation slices were not reopened. The UI owner ran no checks; Builder ran the integration checks below after the UI changes landed.
+
+The real-GTK regression (`window.odin:118–154`) calls the actual `build_parameters` function, not a recreation of the controls. Two consecutive production rebuilds test `{name: GAIN, description: Gain}` → ATK name **Gain**, then `{name: GAIN, description: empty}` → **GAIN**. It reads `atk_object_get_name`, checks the visible label and its mnemonic-widget association, and checks the tooltip. The owned tooltip string is freed, and editors, strings and the GTK grid are cleaned up. Missing display initialization fails the enabled test. The existing pure GUI unit test entry still does not initialize GTK.
+
+The launcher creates private temporary XDG directories, removes inherited Wayland/AT-SPI/session-bus addresses, forces X11 and local GIO, disables the AT-SPI bridge, and runs an owned Xvfb server and private D-Bus session (`gtk-headless.sh:1–12`). This checks the real local GTK/ATK objects without accessing the live compositor or its accessibility bus.
+
+### Commands and observed results
+
+All commands below ran from the repository root. No failed command or retry was needed in this rework.
+
+| Command | Result |
+|---|---|
+| `nix-build gnome/default.nix -o /tmp/ws-r4-result` | **PASS**, exit 0. Fresh build and full checkPhase: **18/18 passed**, no skips. New accessibility CTest passed in 8.74 s; both GL tests executed and passed. |
+| `nix-build default.nix -o /tmp/ws-r4-kwin` | **PASS**, exit 0. Fresh KWin plugin, Qt controller and CLI build/install completed. |
+| `nix-shell gnome/shell.nix --run 'cmake -S gnome -B /tmp/ws-r4-build -DWAYLANDSHADER_BUILD_TESTS=ON && ctest --test-dir /tmp/ws-r4-build -R "^gnome_gui_accessibility$" -V'` | **PASS**, exit 0. Verbose command confirms the enable define and exact test-name selection. Odin reported **“Finished 1 test … The test was successful.”** with memory tracking enabled; CTest reported **1/1 passed** in 8.76 s. |
+
+The standalone result confirms this is an executed production-path GTK regression, not merely an inert test compiled into the package.
+
+### Test-ID results
+
+| Test ID / rework coverage | Result this round |
+|---|---|
+| T-NIX | **PASS** — fresh package, 18/18 CTests passed |
+| T-ABI | **PASS** — real-header C ABI target and native Odin package compiled during the fresh GNOME build |
+| T-LIFE, T-RECENT, T-CONTRACT (port CTest) | **PASS** — corresponding lifecycle, recent-presets and native-contract tests |
+| Parser/path/BOM differential regressions; native argument regression | **PASS** — `gnome_parser_corpus`, `gnome_path_contract`, `gnome_bom_contract`, `gnome_native_arguments` |
+| T-UNIT-COMMON, T-UNIT-NATIVE, T-UNIT-CLIENT, T-UNIT-CTL, T-UNIT-GUI | **PASS** — all five Odin unit-test entries |
+| T-GL, T-GL33 | **PASS**, neither skipped |
+| T-CLI-GOLDEN, T-BAN, T-ELF (build-tree CTest) | **PASS** |
+| T-GUI item 9 / G-1 dynamic parameter-name regression | **PASS** — actual ATK names **Gain** and **GAIN**, visible label, buddy association and tooltip checked through production construction; passed in checkPhase and independently |
+| T-KWIN | **PASS** — fresh root Nix build |
+| Full manual T-GUI / T-ISO-RENDER and physical T-HW | **Not rerun** — this narrowly scoped correction uses headless GTK. Prior visual observations remain in `visual-checks.md`; no new full visual, screen-reader or hardware pass is claimed. Physical testing remains user-owned. |
+| Other baseline/install/isolated-session comparisons from earlier rounds | **Not rerun** — not requested for G-1; prior results remain recorded above rather than being claimed as fresh executions |
+
+Tested artifacts:
+
+```text
+/tmp/ws-r4-result -> /nix/store/b9hlianbibv0p0vdxijyvrz4ix0zq59l-waylandshader-gnome-0.1.0
+/tmp/ws-r4-kwin   -> /nix/store/92abcna6b116qbx90hr1c2pgpqp1s2lq-waylandshader-0.1.0
+```
+
+Both builds consumed `/nix/store/3jh4hmks3bryyygnl9md3vrqxxxsxiyj-source`. Only documentation was updated after these successful builds. Build evidence is in Nix derivations `iim9zqvgg5wc34idam5ngc88xilc45kx-waylandshader-gnome-0.1.0.drv` and `3qhx5k6z2i7gip95cj66q6c1d594zg8f-waylandshader-0.1.0.drv`; command transcripts are `artifact://726`, `artifact://727` and `artifact://728`, respectively.
+
+**Deviations:** none. GTK 3, D1/D2, visible wording, parameter editing and debounce are unchanged. No live Shell/native-module load, extension installation/enabling, live-bus mutation or compositor restart was performed. No commit was made.

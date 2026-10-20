@@ -20,7 +20,7 @@ pkgs.stdenv.mkDerivation {
     sourceRoot="$sourceRoot/gnome"
   '';
   postPatch = ''
-    substituteInPlace tests/cli-golden.sh \
+    substituteInPlace tests/cli-golden.sh tests/gtk-headless.sh \
       --replace-fail 'dbus-run-session --' 'dbus-run-session --config-file=${pkgs.dbus}/share/dbus-1/session.conf --'
   '';
 
@@ -58,7 +58,7 @@ pkgs.stdenv.mkDerivation {
     libGL
     shaderLibrary
   ] ++ pkgs.mutter.buildInputs;
-  nativeCheckInputs = with pkgs; [ dbus mesa ];
+  nativeCheckInputs = with pkgs; [ dbus mesa xvfb-run ];
   preCheck = ''
     export HOME=$TMPDIR
     export __EGL_VENDOR_LIBRARY_FILENAMES=${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json

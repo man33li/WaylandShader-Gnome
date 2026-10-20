@@ -110,6 +110,49 @@ spin_commit_selfcheck :: proc(t: ^testing.T) {
 	testing.expect(t, abs(gtk_spin_button_get_value(gamma) - 1.24) < 1e-12)
 }
 
+// Real-GTK regression for the production build_parameters path. Inert unless built with
+// -define:WS_GTK_PARAM_A11Y_TEST=true (needs a GDK display, e.g. xvfb-run); a missing display then fails.
+WS_GTK_PARAM_A11Y_TEST :: #config(WS_GTK_PARAM_A11Y_TEST, false)
+
+@(test)
+parameter_spin_accessible_name :: proc(t: ^testing.T) {
+	if !WS_GTK_PARAM_A11Y_TEST {
+		return
+	}
+	if !gtk_init_check(nil, nil) {
+		testing.fail_now(t, "no GDK display: run under xvfb-run")
+	}
+	app.parameters = gtk_grid_new()
+	g_object_ref_sink(app.parameters)
+	params := [?]client.Parameter {
+		{name = "GAIN", description = "Gain", minimum = 0.1, maximum = 2, default_value = 1, value = 1},
+		{name = "GAIN", description = "", minimum = 0.1, maximum = 2, default_value = 1, value = 1},
+	}
+	want := [?]cstring{"Gain", "GAIN"}
+	for &p, i in params {
+		status := client.Status{preset = "x", parameters = params[i:i + 1]}
+		build_parameters(&status)
+		spin := gtk_grid_get_child_at(app.parameters, 1, 0)
+		label := gtk_grid_get_child_at(app.parameters, 0, 0)
+		if spin == nil || label == nil {
+			testing.fail_now(t, "build_parameters did not attach label/spin")
+		}
+		testing.expect_value(t, string(atk_object_get_name(gtk_widget_get_accessible(spin))), string(want[i]))
+		testing.expect_value(t, string(gtk_label_get_text(label)), string(want[i]))
+		testing.expect(t, gtk_label_get_mnemonic_widget(label) == spin)
+		tip := gtk_widget_get_tooltip_text(spin) // transfer full
+		testing.expect_value(t, string(tip), parameter_tooltip(&p))
+		g_free(rawptr(tip))
+	}
+	clear_editors()
+	delete(app.editors)
+	clear_str(&app.parameter_preset)
+	app.editors = nil
+	gtk_widget_destroy(app.parameters)
+	g_object_unref(app.parameters)
+	app.parameters = nil
+}
+
 // ---------------------------------------------------------------------------
 // Window state (GUI:221-589). One window per process, so the state is a global.
 // ---------------------------------------------------------------------------
@@ -573,10 +616,13 @@ build_parameters :: proc(status: ^client.Status) {
 		}
 		e.spin = new_parameter_spin(p.minimum, p.maximum, parameter_step(&p), p.value)
 		gtk_widget_set_tooltip_text(e.spin, cstr(parameter_tooltip(&p)))
+		// The spin's own ATK name must equal the buddy label text (GUI:446-462).
+		label_text := cstr(parameter_label(&p))
+		atk_object_set_name(gtk_widget_get_accessible(e.spin), label_text)
 		connect(e.spin, "value-changed", editor_changed, e)
 		connect(e.spin, "activate", refresh_status_soon, nil)
 		connect(e.spin, "focus-out-event", refresh_status_on_focus_out, nil)
-		label := gtk_label_new(cstr(parameter_label(&p)))
+		label := gtk_label_new(label_text)
 		gtk_label_set_xalign(label, 0)
 		gtk_label_set_line_wrap(label, true)
 		gtk_label_set_max_width_chars(label, 40)

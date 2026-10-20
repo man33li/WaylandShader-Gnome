@@ -12,6 +12,7 @@ import wsglib "../../glib"
 foreign import gtk "system:gtk-3"
 foreign import gobject "system:gobject-2.0"
 foreign import glib "system:glib-2.0"
+foreign import atk "system:atk-1.0"
 
 Widget :: rawptr
 Adjustment :: rawptr
@@ -55,6 +56,12 @@ foreign gobject {
 }
 
 @(default_calling_convention = "c")
+foreign atk {
+	atk_object_set_name :: proc(a: rawptr, name: cstring) ---
+	atk_object_get_name :: proc(a: rawptr) -> cstring ---
+}
+
+@(default_calling_convention = "c")
 foreign gtk {
 	gtk_init_check :: proc(argc: ^c.int, argv: ^[^]cstring) -> b32 ---
 	gtk_main :: proc() ---
@@ -70,6 +77,8 @@ foreign gtk {
 	gtk_widget_set_sensitive :: proc(w: Widget, s: b32) ---
 	gtk_widget_set_visible :: proc(w: Widget, v: b32) ---
 	gtk_widget_set_tooltip_text :: proc(w: Widget, text: cstring) ---
+	gtk_widget_get_tooltip_text :: proc(w: Widget) -> cstring ---
+	gtk_widget_get_accessible :: proc(w: Widget) -> rawptr ---
 	gtk_widget_has_focus :: proc(w: Widget) -> b32 ---
 	gtk_widget_grab_focus :: proc(w: Widget) ---
 	gtk_widget_set_hexpand :: proc(w: Widget, e: b32) ---
@@ -91,6 +100,8 @@ foreign gtk {
 	gtk_label_set_line_wrap :: proc(l: Widget, wrap: b32) ---
 	gtk_label_set_max_width_chars :: proc(l: Widget, n: c.int) ---
 	gtk_label_set_mnemonic_widget :: proc(l: Widget, w: Widget) ---
+	gtk_label_get_text :: proc(l: Widget) -> cstring ---
+	gtk_label_get_mnemonic_widget :: proc(l: Widget) -> Widget ---
 
 	gtk_combo_box_text_append :: proc(c: Widget, id: cstring, text: cstring) ---
 	gtk_combo_box_text_remove_all :: proc(c: Widget) ---
@@ -109,6 +120,8 @@ foreign gtk {
 	gtk_spin_button_update :: proc(s: Widget) ---
 
 	gtk_grid_attach :: proc(g: Widget, child: Widget, left, top, width, height: c.int) ---
+	gtk_grid_new :: proc() -> Widget ---
+	gtk_grid_get_child_at :: proc(g: Widget, left, top: c.int) -> Widget ---
 
 	gtk_menu_new :: proc() -> Widget ---
 	gtk_menu_item_new_with_label :: proc(label: cstring) -> Widget ---

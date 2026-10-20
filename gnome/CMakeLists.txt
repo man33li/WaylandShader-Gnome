@@ -115,6 +115,15 @@ if(WAYLANDSHADER_BUILD_TESTS)
             "-extra-linker-flags:${ODIN_LDFLAGS}")
         set_tests_properties(gnome_${name}_units PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endforeach()
+    add_test(NAME gnome_gui_accessibility
+        COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/tests/gtk-headless.sh
+            ${ODIN} test ${CMAKE_CURRENT_SOURCE_DIR}/controller/gui
+            -out:${CMAKE_CURRENT_BINARY_DIR}/gui-accessibility ${ODIN_FLAGS}
+            -define:ODIN_TEST_THREADS=1 -define:WS_GTK_PARAM_A11Y_TEST=true
+            -define:ODIN_TEST_NAMES=main.parameter_spin_accessible_name
+            "-extra-linker-flags:${ODIN_LDFLAGS}")
+    set_tests_properties(gnome_gui_accessibility PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" TIMEOUT 120)
     odin_executable(gnome_gltest runtime/gltest shader-runtime-gltest)
     foreach(test gnome_shader_runtime_gl gnome_shader_runtime_gl33)
         add_test(NAME ${test} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shader-runtime-gltest ${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures)

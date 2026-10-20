@@ -195,3 +195,5 @@ grep -nE 'Qt|QFileDialog|C\+\+|libepoxy' README.md docs/GNOME.md
 ### REQ → test coverage
 
 Every test ID used in the requirement tables appears in the catalog above. CTest names, with their registering owner given in design.md §9, are: `gnome_effect_lifecycle`, `gnome_recent_presets`, `gnome_native_contract`, `gnome_common_units`, `gnome_native_units`, `gnome_client_units`, `gnome_ctl_units`, `gnome_gui_units`, `gnome_shader_runtime_gl`, `gnome_shader_runtime_gl33`, `gnome_cli_golden`, `gnome_elf`, `gnome_ban`. Rework coverage adds `gnome_parser_corpus`, `gnome_path_contract` and `gnome_bom_contract` for baseline-pinned native differential cases, and `gnome_native_arguments` for direct C-entry NULL/invalid-UTF8 validation.
+
+Rework round 4 adds `gnome_gui_accessibility`: real GTK parameter controls constructed through the production path under Xvfb and private D-Bus, covering the dynamic parameter-name portion of T-GUI item 9. This supplements, rather than replaces, the manual GUI checklist.
