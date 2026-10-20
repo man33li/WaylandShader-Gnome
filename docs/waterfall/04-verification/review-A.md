@@ -214,3 +214,165 @@ No live extension installation/enabling, live module load, compositor restart, o
 Not checked: full T-ISO-RENDER/T-GUI observation, physical hardware T-HW, and the explicitly identified fault-injection/race branches. T-HW belongs after acceptance; the missing GUI/render acceptance does not. The current automated suite is valuable but has real compatibility false negatives, and absent ABI/hot-path checks weaken its stated safety coverage.
 
 REJECT — blocking findings A-01 (JSON compatibility/data preservation), A-02 (restored-path bytes), A-03 (required ABI checks omitted), and A-04 (required render/GUI acceptance missing).
+
+## Round 2
+
+REJECT
+
+| ID | Severity | REQ | File:line | Evidence | Required fix |
+|---|---|---|---|---|---|
+| R2-A-01 | blocking | REQ-068 | `gnome/common/json_parse.odin:21–29,200–206`; missing case in `gnome/common/json_parse_test.odin:9–58` | The replacement scanner no longer accepts a leading UTF-8 byte-order mark (BOM). `import_settings("\ufeff{\"version\":1}")` succeeds on baseline b223c1a and on the independently retained round-1 Odin package, but 88c69ec raises `wayland-shader-error: illegal number`. The same assertion exits 0 on both controls and 1 on the new package. BOM-prefixed `[]` reaches `Configuration must be a JSON object` on the baseline, but fails parsing with `illegal number` on the new package. This is a newly introduced acceptance regression, not an authorized deviation. | Restore the baseline's handling of an initial UTF-8 BOM in the shared parser. Add baseline-pinned import and output-inventory cases, and a common parser regression. Preserve the required distinction between an initial BOM and an unexpected character elsewhere. |
+| R2-A-02 | blocking | REQ-068 | `gnome/common/json_parse.odin:36–49,145,166,189,207–209` | End-of-document error precedence still differs from Qt. Baseline rejects `{}"` and `{}tru` with `garbage at the end of the document`. The new scanner instead returns `unterminated string` and `illegal value`, respectively. Completing the root container eagerly scans the trailing token and propagates its lexical error before the final trailing-content check. Both differences were reproduced independently against the installed baseline and installed rework package. | After a complete root value, reproduce Qt's trailing-content detection/error precedence rather than exposing the contents of a malformed trailing token. Add these exact baseline-pinned cases while retaining nested-string, malformed-literal, separator, and EOF errors. |
+
+### Revision, ruling and independently observed results
+
+Reviewed HEAD: **88c69ec**, from `git rev-parse --short HEAD`. The review follows the seven numbered rework items in `acceptance.md:178–188`. Per the main reviewer's explicit ruling at `acceptance.md:11`, **A-04 is not an acceptance blocker**: manual render/GUI/hardware and safety/docs sign-off remain deferred, not passed. That ruling supersedes Round 1's A-04 classification without rewriting the historical review. D1/D2 remain accepted.
+
+Both Nix commands actually built their derivations. The GNOME build ran **13/13 CTest entries, no failures and no skips**, including real GL/GL33 and the expanded 107-case CLI comparison. An independent external CMake build ran the same 13 entries successfully. Build products:
+
+```text
+/tmp/ws-review-a-r2-result -> /nix/store/ywyrarmhrk5mpmq09fnj07ncwwb448lh-waylandshader-gnome-0.1.0
+/tmp/ws-review-a-r2-kwin   -> /nix/store/wsr8a4prijih9xrwgrq7sjki9jpr3mx3-waylandshader-0.1.0
+```
+
+Those green suites are real results, but they miss R2-A-01/R2-A-02. Neither the baseline goldens nor the reviewed production sources were modified during this review. Deliberate negative controls were performed only in an owned `/tmp` copy and removed after restoring and testing that copy. The only repository file changed by this review is this appended report section.
+
+### Rework disposition
+
+| Rework item | Independent reproduction and inspection | Round-2 disposition |
+|---|---|---|
+| **A-01 — parser/string compatibility** | The expanded `native-contract.js` passes against both the actual baseline and installed rework library. Its `reworkCases`/`observeImport` path calls the real native API and compares exact captured exports/errors; capture mode was not used. The previous trailing-decimal, underflow/overflow, signed Unicode escape, raw-newline, separator, high/low surrogate and surrogate-ordering examples now match (`gnome/tests/native-contract.js:61–100,127–132`; `gnome/common/json_parse.odin:67–131`; `gnome/common/json.odin:15–37`). | **Original reproduced cases fixed; REQ-068 still fails** because the new scanner introduces BOM rejection and retains trailing-garbage error differences, R2-A-01/R2-A-02. |
+| **A-02 — missing-path normalization** | Expanded native contract runs independently against baseline and port, checking export plus status `preset`/`requestedPreset`/`loading` for all three non-clean missing paths, including excess root-level `..` (`gnome/tests/native-contract.js:84–104`). `clean_absolute` is the production fallback and realpath remains the existing-file path (`gnome/native/config.odin:102–120,178–187`). | **Fixed for all requested reproductions.** |
+| **A-03 — omitted ABI checks** | Inspected shared GList/GObject assertions, GUI shared aliases and assertions, and real-header C assertions (`gnome/glib/glib.odin:9–12`; `gnome/glib/gobject.odin:19–22`; `gnome/controller/gui/gtk.odin:20–26`; `gnome/native/abi-check.c:16–32`). Positive production builds compile the C gate and consuming native/controller/runtime code. Deliberately changing copied C GList size 24→25 fails its real-header assertion. Changing the copied shared Odin assertion 24→25 independently fails native, GUI, CLI and runtime object builds at that assertion. | **Fixed; both sides of the gate can fail.** No present-layout mismatch alleged. |
+| **A-05 — before-paint allocation coverage** | The real callback calls production `before_paint_output`; tests call that same helper with shader/color, nil/missing and inactive cases under both counters (`gnome/native/paint.odin:174–184`; `gnome/native/native_test.odin:29–75`). In the copied production loop, an injected heap allocation makes the unchanged test fail with `heap_delta=1400`; replacing it with a temp allocation fails with `temp_delta=1400`. Removing the injection restores a pass. The opaque identity pointers are only compared and never passed to FFI. | **Fixed; independent negative controls prove the new regression is not a tautology and the C-entry context reset does not hide allocations.** |
+| **B2 — JSON number bytes** | Both real modules pass the expanded native-contract oracle for all eight required values plus existing small/f32 cases (`gnome/tests/native-contract.js:79–82,127–132`). Inspected the shared formatter's integer-precision and notation rules (`gnome/common/json.odin:39–81`). Existing 001–106 golden files remain unchanged. | **Fixed for every requested numeric reproduction.** |
+| **B3 — local per-call timeout** | All 107 CLI goldens pass against the actual baseline and against Odin. Additionally ran both installed CLIs sequentially under one private `hang-shell.js` owner with `--timeout 30 status`: both return exit 3, empty stdout and byte-identical `org.freedesktop.DBus.Error.NoReply: Did not receive a reply. Possible causes include: ...` stderr, including the final newline. Mapping is production code at `gnome/controller/client/client.odin:55–63,172–178`. The existing exit-4 overall-deadline cases still pass. | **Fixed; real delayed bus calls, not a unit-only mocked error.** |
+| **B6 — raw canonical filename bytes** | The expanded native-contract test creates a real raw-FF filename behind a valid UTF-8 symlink and asserts that readlink returned actual byte 255 before testing native calls (`gnome/tests/native-contract.js:105–125`). The test independently passes on baseline and rework, including direct-load status and restored/exported state. Inspected the separate external-byte replacement and internal surrogate-preserving paths (`gnome/common/text.odin:5–32`; `gnome/native/config.odin:178–187,237–246`; `gnome/native/engine.odin:283–289`; `gnome/native/boundary.odin:38–54`). | **Fixed for both requested raw-filename paths, without undoing isolated-surrogate export preservation.** |
+
+No evidence was found that the expanded native or CLI tests substitute the port's own model for the baseline oracle: the same native test passes on the original module, the same 107 golden cases pass on the original CLI, and independent delayed-call/negative-control checks exercise the risky paths. Coverage remains finite, as the new counterexamples demonstrate.
+
+### Additional parser regression observations
+
+All cases below used fresh unattached native objects; no Shell or session-bus access was involved.
+
+| Input | Baseline b223c1a | Rework 88c69ec |
+|---|---|---|
+| `\ufeff{"version":1}` (actual leading U+FEFF, UTF-8 BOM) | Accepted; default settings export | `illegal number` |
+| `\ufeff[]` | `Configuration must be a JSON object` | `illegal number` |
+| `{}"` | `garbage at the end of the document` | `unterminated string` |
+| `{}tru` | `garbage at the end of the document` | `illegal value` |
+| `{}\` | `garbage at the end of the document` | Same, control |
+| Backslash followed by literal `é` or `😀` inside an ignored string | `invalid UTF8 string` | Same, controls |
+| `[1,]` | `object is missing after a comma` | Same, control |
+| `[1e]` | `illegal number` | Same, control |
+| `[1.]` | `Configuration must be a JSON object` | Same, control |
+| `{"version":1.}` | Accepted | Accepted, original rework case fixed |
+
+The executable BOM assertion was:
+
+```js
+const e = imports.gi.WaylandShader.Effect.new();
+try {
+    e.import_settings("\ufeff{\"version\":1}");
+    if (JSON.parse(e.export_settings()).version !== 1) throw Error("wrong version");
+} finally {
+    e.shutdown();
+}
+```
+
+It exits **0** for `/tmp/ws-baseline-result`, **0** for the retained Round-1 `/tmp/ws-review-a-result`, and **1** for `/tmp/ws-review-a-r2-result`. Thus R2-A-01 is demonstrably a rework regression, not merely an old untested baseline difference.
+
+### Round-2 commands run
+
+Repository root is the command working directory. Shorthands in this table are `B=/tmp/ws-review-a-r2-build`, `R=/tmp/ws-review-a-r2-result`, `BASE=/tmp/ws-baseline-result`, `COPY=/tmp/ws-review-a-r2-negative`, and `EXT=share/gnome-shell/extensions/waylandshader@man33li.github.com`; actual invocations used the corresponding literal paths. Source edits mentioned below were surgical tool edits to the owned copy, not shell edits or repository mutations.
+
+| Check / command | Independently observed result |
+|---|---|
+| `git rev-parse --short HEAD`; `git diff --stat 94656d9 88c69ec` | Exit 0; reviewed revision `88c69ec` and inspected the rework's changed-file scope. |
+| `nix-build gnome/default.nix -o /tmp/ws-review-a-r2-result` | Exit 0; actual configure/build/checkPhase/install; **13/13**, no skips, 16.76 seconds CTest time. |
+| `nix-build default.nix -o /tmp/ws-review-a-r2-kwin` | Exit 0; actual C++ KWin compile/link/install. This is not a KWin runtime test. |
+| `nix-shell gnome/shell.nix --run 'cmake -S gnome -B /tmp/ws-review-a-r2-build -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build /tmp/ws-review-a-r2-build --parallel 2 && LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir /tmp/ws-review-a-r2-build --output-on-failure'` | Exit 0; independent full build and **13/13** checks, no skips, 46.81 seconds CTest time. Includes ABI compilation, all five Odin unit suites, native lifecycle/recents/contract, real GL/GL33, 107 CLI goldens, ELF and ban checks. |
+| `nix-shell gnome/shell.nix --run 'GI_TYPELIB_PATH="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH" gjs -m gnome/tests/native-contract.js <PACKAGE>/$EXT/native'`, separately for baseline and rework (literal expanded paths) | Both exit 0, `Native byte/error contract passed.` Independently covers the requested A-01/A-02/B2/B6 cases, including actual FF-byte verification. Neither run uses `--capture`. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/cli-golden.sh check /tmp/ws-baseline-result/bin/waylandshader-gnomectl'` | Exit 0, **107 cases match** against the original CLI; no golden files written. |
+| Independent private delayed-call command below, baseline then rework | Exit 0; explicit assertions confirm exit 3 and empty stdout; complete stdout/stderr/exit records compare equal. |
+| Native scanner matrix using the GI environment below, separately for baseline and rework | Both observational probes exit 0 because GErrors are caught. **Comparison fails** for the four cases in R2-A-01/R2-A-02; controls match as recorded above. |
+| BOM assertion body above using the same GI environment, for baseline, retained round-1 package and rework separately | Baseline **0**, Round-1 Odin **0**, rework **1** with uncaught `wayland-shader-error: illegal number`. This is an actual failing assertion, not just printed diagnostics. |
+| `mkdir /tmp/ws-review-a-r2-negative && cp -a gnome /tmp/ws-review-a-r2-negative/gnome`; then copied C/Odin GList size assertions changed 24→25 | Exit 0 preparing the private copy; no production file changed. |
+| `nix-shell gnome/shell.nix --run 'cmake -S /tmp/ws-review-a-r2-negative/gnome -B /tmp/ws-review-a-r2-negative/build -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build /tmp/ws-review-a-r2-negative/build --target gnome_abi_check'` | Expected exit **1** at `_Static_assert`: `"GList size"`. |
+| `nix-shell gnome/shell.nix --run 'odin build <COPY>/gnome/<PACKAGE> -build-mode:obj -out:<COPY>/<NAME>.o -vet -strict-style -define:GL_DEBUG=false'`, four separate commands for native, controller/gui, controller/ctl and runtime | Expected exit **1 in all four**, at the exact shared `size_of(GList) == 25` compile-time assertion. |
+| Restored copied C/Odin assertions, injected `probe,_:=make([]u8,1,context.allocator); delete(probe)` inside copied production `before_paint_output`; then `cmake --build <COPY>/build --target gnome_abi_check && ctest --test-dir <COPY>/build -R "^gnome_native_units$" --output-on-failure` inside Nix shell | C ABI gate passes; expected CTest exit **8**, specifically `heap_delta` **1400**, expected 0. |
+| Replaced copied heap injection with `probe,_:=make([]u8,1,context.temp_allocator); delete(probe,context.temp_allocator)`; same native CTest | Expected exit **8**, specifically `temp_delta` **1400**, expected 0. |
+| Removed allocation injection; `cmake --build <COPY>/build --target gnome_abi_check && ctest --test-dir <COPY>/build -R "^gnome_native_units$" --output-on-failure` inside Nix shell | Exit 0; restored real C gate and **1/1** native CTest pass. |
+| `rm -rf /tmp/ws-review-a-r2-negative` | Exit 0; removed only this review's owned temporary negative-control copy. |
+| Exact T-UNCHANGED protected-path `git diff --exit-code b223c1a -- …` from Round 1 | Exit 0, empty diff. |
+| `git diff --exit-code 94656d9 -- gnome/tests/golden/cli ':(exclude)gnome/tests/golden/cli/107.*' ':(exclude)gnome/tests/golden/cli/cases.txt'` | Exit 0; all previously existing 001–106 golden files are unchanged. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/elf-check.sh <R>/$EXT/native/libwaylandshader-gnome.so <R>/bin/.waylandshader-gnomectl-wrapped <R>/bin/.waylandshader-gnome-controller-wrapped'`; baseline/rework installed GIR `diff` | Both exit 0; exports/dependencies/SONAME and byte-identical GIR retained. |
+| `diff <(find -L /tmp/ws-baseline-result -printf '%P\n' \| sort) <(find -L /tmp/ws-review-a-r2-result -printf '%P\n' \| sort)` | Exit 0; installed relative path sets identical. |
+| `env WS_PRIVATE_ROOT=/tmp/ws-review-a-r2-refusal XDG_RUNTIME_DIR=/tmp/ws-review-a-r2-refusal/runtime WS_CALLER_RUNTIME=/tmp/ws-review-a-r2-caller WS_CALLER_BUS=unix:path=/tmp/ws-review-a-r2-refusal DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/ws-review-a-r2-refusal sh gnome/tests/isolated-session.sh --private-child true` | Expected exit **1**, `refusing caller bus or runtime directory`, before any Shell-hosted test. Uses synthetic equal addresses; does not contact the live bus. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh /tmp/ws-review-a-r2-result -- sh -c '\''gjs -m gnome/tests/parameter-bypass.js "$WS_PRIVATE_BUS"'\'''` | Exit 0; real bypass/edit/rebuild **PASS** in a disposable Shell. |
+| `set -o pipefail && nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh /tmp/ws-review-a-r2-result -- gnome/tests/iso-cli.sh /tmp/ws-review-a-r2-result/bin/waylandshader-gnomectl' \| tee /tmp/ws-review-a-r2-cli.log && diff /tmp/ws-review-a-cli-baseline.log /tmp/ws-review-a-r2-cli.log` | Exit 0, transcript identical to the baseline independently run in Round 1. Private auxiliary desktop services emitted environmental startup/shutdown warnings; no live compositor was used. |
+
+The native GI probes ran inside `nix-shell gnome/shell.nix --run` with explicit per-package paths:
+
+```sh
+env GI_TYPELIB_PATH="<PACKAGE>/share/gnome-shell/extensions/waylandshader@man33li.github.com/native:$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH" \
+    LD_LIBRARY_PATH="<PACKAGE>/share/gnome-shell/extensions/waylandshader@man33li.github.com/native:$LD_LIBRARY_PATH" \
+    gjs -c '<BODY>'
+```
+
+The scanner-matrix body, shown without shell quoting, was:
+
+```js
+for (const s of [
+    "\ufeff{\"version\":1}", "\ufeff[]",
+    "{\"version\":1,\"ignored\":\"\\é\"}",
+    "{\"version\":1,\"ignored\":\"\\😀\"}",
+    "{}\\", "{}\"", "{}tru", "[1,]", "[1e]", "[1.]",
+    "{\"version\":1.}",
+]) {
+    const e = imports.gi.WaylandShader.Effect.new();
+    try {
+        e.import_settings(s);
+        print(JSON.stringify(s) + " => " + e.export_settings());
+    } catch (x) {
+        print(JSON.stringify(s) + " => ERROR " + x.message);
+    } finally {
+        e.shutdown();
+    }
+}
+```
+
+The independent timeout launcher was:
+
+```sh
+nix-shell gnome/shell.nix --run 'env WS_CALLER_BUS="$DBUS_SESSION_BUS_ADDRESS" XDG_DATA_DIRS=/nonexistent GIO_USE_VFS=local dbus-run-session -- gjs -c '\''<BODY>'\'''
+```
+
+Its body was:
+
+```js
+const {Gio, GLib} = imports.gi;
+const f = Gio.Subprocess.new(["gjs", "-m", "gnome/tests/hang-shell.js"], Gio.SubprocessFlags.NONE);
+try {
+    if (!Gio.Subprocess.new(["gdbus", "wait", "--session", "--timeout", "5", "org.gnome.Shell"],
+        Gio.SubprocessFlags.NONE).wait_check(null)) throw Error("not ready");
+    let previous;
+    for (const root of ["/tmp/ws-baseline-result", "/tmp/ws-review-a-r2-result"]) {
+        const p = Gio.Subprocess.new([root + "/bin/waylandshader-gnomectl", "--timeout", "30", "status"],
+            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
+        const [ok, out, err] = p.communicate_utf8(null, null);
+        const record = JSON.stringify([p.get_exit_status(), out, err]);
+        print(root + " " + record);
+        if (p.get_exit_status() !== 3 || out !== "") throw Error("bad exit/stdout");
+        if (previous && previous !== record) throw Error("timeout mismatch");
+        previous = record;
+    }
+} finally {
+    f.force_exit();
+    f.wait(null);
+}
+```
+
+Not checked in Round 2: deferred manual visual/accessibility/app_id/hardware observations and exhaustive unrelated fault/race cases. No installation, extension enablement, module load, compositor restart or mutating call targeted the live session. The remaining acceptance risk is specifically the shared parser's independently reproduced compatibility failures, not an unrun build or a presumed failure.
+
+REJECT — R2-A-01 (leading-BOM acceptance regression) and R2-A-02 (wrong trailing-content error precedence) block REQ-068. All seven requested original rework reproductions otherwise pass; A-04 remains deferred under the main reviewer's ruling.

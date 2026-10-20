@@ -190,3 +190,134 @@ After rework, rerun `nix-build gnome/default.nix` with its full headless checkPh
 Not checked in this acceptance run: manual visual/accessibility/app_id observations, physical AMD/HDR/hotplug/suspend behavior, and manual safety/docs sign-off; these remain user sign-off items, not automated passes. No live Shell module load, extension installation/enabling, compositor restart, or mutating live-session-bus call was performed. Remaining risk: the existing green suite misses the independently reproduced compatibility failures above.
 
 REJECTED
+
+## Round 2
+
+### Decision and review selected
+
+**I side with review B (opus 5.5), and only review B, for Round 2.** Its broader baseline comparison identifies the remaining leading-dot number and missing-path trailing-slash differences as well as the BOM regression. I independently reproduced all three blockers, rather than accepting the report on authority. I additionally import **R2-A-02** from review A: the independently reproduced trailing-garbage error-precedence defect. R2-A-01 duplicates B's R2-1 and is not a separate rework item.
+
+Reviewed HEAD: **`88c69ec`**, independently confirmed by `git rev-parse --short HEAD` (exit 0). This decision concerns rework round 1, with the next builder rework being the last available round under the process limit (`docs/waterfall/README.md:12`). The numbered list below includes every defect upheld in this decision, including the inexpensive, verified minor fixes; it is not a request to add features.
+
+The manual-test ruling from Round 1 remains in force. T-ISO-RENDER/T-GUI visual observations, T-HW and T-SAFETY/T-DOCS sign-offs remain **deferred to the user, not passed and not acceptance blockers by themselves**. D1/D2 are unchanged accepted deviations (`docs/waterfall/02-design/decision.md:60-63`). The rejection is based on reproduced automated compatibility failures, not those deferred observations.
+
+### Commands run and results
+
+All commands ran from the repository root. In this section, `R=/tmp/ws-acceptance-r2-gnome`, `BASE=/tmp/ws-baseline-result`, and `EXT=share/gnome-shell/extensions/waylandshader@man33li.github.com`; actual invocations used the literal paths. No production source, fixture or golden was edited.
+
+| Command / check | Independently observed result |
+|---|---|
+| `git rev-parse --short HEAD` | Exit 0: `88c69ec`. |
+| **T-NIX:** `nix-build gnome/default.nix -o /tmp/ws-acceptance-r2-gnome` | Exit 0; actual fresh configure/build/checkPhase/install. **13/13 CTest entries passed, 0 failed, no skips**, 16.75 seconds. Both real GL and GL33 tests executed. C ABI assertions and the Odin native/controller/runtime targets compiled. Output: `/nix/store/hc7v1929hqnyiczimx0dhhgp214cjrwv-waylandshader-gnome-0.1.0`. |
+| **T-KWIN:** `nix-build default.nix -o /tmp/ws-acceptance-r2-kwin` | Exit 0; actual compile/link/install. Output: `/nix/store/zbr3i21nbl8bmrvs5cmmbfzd4nb6m9g3-waylandshader-0.1.0`. This is the required KWin build check, not a runtime observation. |
+| `nix-shell gnome/shell.nix --run 'env GI_TYPELIB_PATH="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH" gjs -m gnome/tests/native-contract.js /tmp/ws-baseline-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native && env GI_TYPELIB_PATH="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH" gjs -m gnome/tests/native-contract.js /tmp/ws-acceptance-r2-gnome/share/gnome-shell/extensions/waylandshader@man33li.github.com/native'` | Exit 0; **both** print `Native byte/error contract passed.` No capture mode used. Includes original parser/surrogate cases, missing-path reproductions, number exports and the byte-verified raw-FF canonical-path regressions (`gnome/tests/native-contract.js:61-132`). |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/cli-golden.sh check /tmp/ws-baseline-result/bin/waylandshader-gnomectl'` | Exit 0: **107 cases match** on the original C++ CLI. The rework CLI passed the same golden test in my fresh Nix checkPhase, including per-call NoReply and overall-deadline cases. |
+| Native parser/path/recent matrix below, separately on baseline and rework with the explicit native GI/loader environment used in Round 1 | Both observational probes exit 0 because GErrors are caught. **Comparison fails** for R2-1, R2-2, R2-3, R2-A-02 and B8, with exact results below. |
+| Native BOM assertion below on the rework package | **Exit 1**, uncaught `wayland-shader-error: illegal number`. This is an actual failing acceptance assertion, not merely a diagnostic difference. |
+| Same BOM assertion on retained Round-1 `/tmp/ws-acceptance-gnome` | Exit 0: `Round-1 BOM control PASS`. Baseline acceptance was also observed in the matrix. The rework introduced this regression. |
+| `nix-shell gnome/shell.nix --run 'pkg-config --variable=includedir mutter-cogl-18; pkg-config --variable=prefix libmutter-18; printenv NIX_CFLAGS_COMPILE'`, followed by tool glob/read/grep of the resolved real headers | Exit 0; resolved actual Mutter 50.5 and private librashader 0.10.1 headers. Confirmed Cogl's `unsigned long buffers` and `#define LIBRASHADER_CURRENT_VERSION 2`, versus the Odin `u32` declaration and absent C version assertion. |
+| `nix-shell gnome/shell.nix --run 'gjs -c <wrapper-probe>'`, described below | Exit 0 observationally; for **both** baseline and rework, GNU `grep -o` returns exit 0 but no extracted path, reports `binary file matches`, and the schema-existence criterion is false. With `-ao`, stderr is empty and the schema criterion is true for both. R2-4 confirmed as a catalog-command defect, not a missing packaged schema. |
+| Native C-entry NULL/invalid-UTF8 probe using Python `ctypes`, described below | First launcher: six baseline assertions passed, then exit 1 because loading the second implementation into the same process attempted to register the already-existing GType. This is a probe-isolation mistake, not an Odin API failure. Corrected separate-process rework probe: **exit 0, six assertions passed**. |
+| Targeted source searches/reads for invalid-text tests, frame-anchor ordering, retry/failure clearing, ABI assertions and package documentation | B7, remaining B9, B10 and B12 verified as bounded source/coverage findings below. No GL allocation/copy failure was injected in this acceptance run. |
+
+The fresh checkPhase exercised the same 13 test names recorded in Round 1, now with the expanded contract and 107-case CLI goldens. It did **not** contain the new counterexamples below. A passing suite and a failing BOM acceptance assertion are therefore consistent results.
+
+#### Targeted differential reproductions
+
+For each package separately, I used the Round-1 native launcher with these literal package roots: `/tmp/ws-baseline-result` and `/tmp/ws-acceptance-r2-gnome`. It sets `GI_TYPELIB_PATH` to the selected package's native directory plus the `pkg-config` Mutter typelib directory, and `LD_LIBRARY_PATH` to that same native directory before invoking `gjs -c`.
+
+The matrix created a **fresh unattached `WaylandShader.Effect` per input**, called `import_settings(source)`, printed `export_settings()` or the caught GError message, and always called `shutdown()` in `finally`. For missing paths it also printed status `preset`, `requestedPreset` and `loading`. Separately, a fresh object called `set_outputs("\ufeff[]")`. No object was attached to a compositor and no session-bus calls were made.
+
+| Input / case | Baseline b223c1a | Rework 88c69ec |
+|---|---|---|
+| Actual BOM + `{"version":1,"enabled":false}` | Accepted; exported `enabled:false` | `illegal number` |
+| Actual BOM + `[]` through import | `Configuration must be a JSON object` | `illegal number` |
+| Actual BOM + `[]` through `set_outputs` | Accepted | `illegal number` |
+| `{}"` | `garbage at the end of the document` | `unterminated string` |
+| `{}tru` | `garbage at the end of the document` | `illegal value` |
+| `{"version":1,"x":.5}` | Accepted | `illegal number` |
+| `{"version":1,"x":-.5}` | Accepted | `illegal number` |
+| `{"version":.5e1}` | `Unsupported settings version` (parsing succeeds) | `illegal number` |
+| `{1:2}` | `unterminated object` | `object is missing after a comma` |
+| `{'version':1}` | `unterminated object` | `object is missing after a comma` |
+| `{"x":"` followed by one backslash and EOF | `invalid escape sequence` | `unterminated string` |
+| `{"x":"` followed by backslash, `u`, and EOF | `invalid escape sequence` | `unterminated string` |
+| Top-level `]` | `object is missing after a comma` | `illegal value` |
+| Top-level `}` | `object is missing after a comma` | `illegal value` |
+| `recent_presets:["/a.ſlangp"]` in version-1 settings | Export keeps `/a.ſlangp` | Export drops it |
+| Missing preset `/a/./` | `/a/` | `/a` |
+| Missing preset `/a//b//` | `/a/b/` | `/a/b` |
+| Missing preset `/a/b/` | `/a/b/` | `/a/b` |
+| Missing preset `/a/b/../` | `/a/` | `/a` |
+| Missing preset `/nx/x.slangp/` | `/nx/x.slangp/` | `/nx/x.slangp` |
+| Control: missing preset `/a/b/.` | `/a/b` | Same |
+| Control: missing preset `/a/b/..` | `/a` | Same |
+| Control: missing preset `/../` | `/` | Same |
+
+For each of the five failing missing paths, the difference appears in **all three** path observations: exported `preset`, status `preset`, and status `requestedPreset`; both statuses have `loading:true`. The assertions concern fixed-input bytes before asynchronous completion, not whether a directory can compile as a preset.
+
+The executed failing BOM assertion body was:
+
+```js
+const e = imports.gi.WaylandShader.Effect.new();
+try {
+    e.import_settings("\ufeff{\"version\":1}");
+    if (JSON.parse(e.export_settings()).version !== 1) throw Error("wrong version");
+} finally {
+    e.shutdown();
+}
+```
+
+The Round-1 control used the same body with a success print after the assertion. For the matrix, the truncated-escape strings were constructed as `'{"x":"' + String.fromCharCode(92)` and the same expression plus `'u'`, so the tested backslash is an actual final byte, not a display escape.
+
+For R2-4, the `gjs -c` probe spawned GNU grep via `Gio.Subprocess` with arguments `["grep", flag, '/nix/store/[^:"]*/share/gsettings-schemas/gtk+3-[^:"/]*', root + "/bin/waylandshader-gnome-controller"]`, captured stdout/stderr/exit, selected the first stdout line as `d`, and called `Gio.File.new_for_path(d + "/glib-2.0/schemas/org.gtk.Settings.FileChooser.gschema.xml").query_exists(null)`. It tested flags `-o` and `-ao` on each package. This reproduces the catalog's extraction/existence logic without changing its file or running the GUI.
+
+For B10, the corrected `ctypes` probe loaded only the rework `.so` in its process, constructed one real effect, and called each of `wayland_shader_effect_set_outputs`, `wayland_shader_effect_import_settings`, and `wayland_shader_effect_load_preset` with both NULL and `b"\xff"`. For each call it asserted FALSE, a non-NULL `GError`, code 1 and exact message `Invalid UTF-8 argument`, then freed the error. Finally it shut down and unrefed the effect. All six passed, matching the six baseline observations before the first launcher's GType collision. The defect is the **absence of this persistent regression coverage**, not a demonstrated validation failure.
+
+### Disposition of Round-1 rework
+
+| Original item | Round-2 disposition and evidence |
+|---|---|
+| A-01 | **Original named parser/surrogate cases fixed**, independently exercised by the same expanded native contract on baseline and rework. REQ-068 is still open for the new matrix above; this is not global parser equivalence. |
+| A-02 | **Original three missing-path reproductions fixed**, same dual native-contract run (`gnome/tests/native-contract.js:101-104`). R2-3 exposes a remaining trailing-slash case, not failure of those three regressions. |
+| A-03 | **Original omitted checks fixed.** Inspected shared GList/GObject assertions and GUI aliases/assertions (`gnome/glib/glib.odin:9-12`; `gnome/glib/gobject.odin:18-22`; `gnome/controller/gui/gtk.odin:20-26`) and matching real-header C checks (`gnome/native/abi-check.c:16-32`); my fresh build compiles them. I did not repeat reviewers' destructive negative controls on copied sources. |
+| A-05 / B11 | **Requested loop coverage fixed.** The actual callback and tracking test share `before_paint_output` (`gnome/native/paint.odin:174-184`; `gnome/native/native_test.odin:29-75`); the heap/temp counters span shader/color/nil/missing/disabled cases and pass in my checkPhase. Builder/reviewer negative-control results are recorded at `docs/waterfall/03-implementation/build-log.md:341-344` and `review-A.md:246-247`, not claimed as my executions. |
+| B2 | **All requested numeric export cases fixed**, dual native-contract run with unchanged baseline-pinned expectations (`gnome/tests/native-contract.js:79-82,127-132`). |
+| B3 | **Requested per-call timeout regression fixed**, original CLI matches all 107 goldens and rework matches them in my checkPhase. This is finite coverage, not verification of every local GIO error. |
+| B6 | **Requested direct-load/restored raw-filename cases fixed**, dual native-contract run checks actual byte 255 in its fixture before testing status/settings (`gnome/tests/native-contract.js:105-125`). |
+
+### Upheld findings
+
+| Finding | Disposition / requirement | Independently verified evidence |
+|---|---|---|
+| **R2-1** | **Blocking regression**, REQ-068 | BOM acceptance fails in both settings import and output inventory; an explicit rework assertion exits 1 while baseline and retained Round-1 behavior accepts it. Initial scanner dispatch has no BOM handling (`gnome/common/json_parse.odin:21-29,200-206`). |
+| **R2-2** | **Blocking**, REQ-068 | All nine leading-dot/error-text cases in the matrix differ. Scanner numeric dispatch requires a digit before `.`, string scanning loses truncated-escape precedence, and object/root dispatch uses the wrong errors (`gnome/common/json_parse.odin:36-61,87-96,146-148,200-206`). |
+| **R2-A-02**, imported from A | **Blocking**, REQ-068 | Both `{}"` and `{}tru` have the wrong trailing-content error. Root completion eagerly scans the next token and returns its lexical error before the final garbage check (`gnome/common/json_parse.odin:145,166,189,207-209`). |
+| **R2-3** | **Blocking**, REQ-006/007 | Five missing trailing-slash paths differ in export and both status fields. `clean_absolute` discards the final separator (`gnome/native/config.odin:102-120,178-187`). No new path policy is authorized. |
+| **R2-4** | **Minor catalog-test defect**, T-WRAP | Binary extraction without `-a` makes the schema gate false on both packages inside the required development shell (`docs/waterfall/01-requirements/requirements.md:189-190`). The schema exists; the extractor is faulty. |
+| **B7** | **Minor FFI declaration defect**, REQ-061/062 | Odin declares `buffers: u32` (`gnome/native/mutter.odin:101`); the actual pinned header declares `unsigned long` (`/nix/store/ai91zd3ad7m9vs5x39yynf2kyn91ml5p-mutter-50.5-dev/include/mutter-18/cogl/cogl/cogl-framebuffer.h:654-659`). Current calls pass only mask 1, so this is not a claim of an observed x86-64 rendering failure. |
+| **B8** | **Minor compatibility defect**, REQ-017 | Baseline retains `/a.ſlangp`, rework drops it. The current suffix slices seven bytes before folding, which cannot recognize this Unicode-fold-equivalent suffix (`gnome/native/config.odin:168-171`). No third accepted deviation exists. |
+| **B9**, remaining version-assertion portion only | **Minor ABI-gate coverage**, REQ-020/059/061 | Field offsets are now checked (`gnome/native/abi-check.c:70-109`). The actual private header defines current API version 2 (`/nix/store/gl6nf7xzs0ifldc0h2bxplaw4g22pvs4-waylandshader-librashader-0.10.1/include/librashader/librashader.h:1189`), but the C gate does not assert it while runtime options hard-code 2 (`gnome/runtime/runtime.odin:136-137,239`). No current header/version mismatch is alleged. |
+| **B10** | **Minor persistent-test gap**, REQ-016 | Source search and contract inspection show no native C-entry NULL/invalid-UTF8 regression. My six corrected direct C-entry probes pass; the branch is real at `gnome/native/boundary.odin:31-35` and exported callers at `gnome/native/config.odin:287-302`. This needs a committed test, not a validation rewrite. |
+| **B12** | **Minor frame-state ordering defect**, REQ-032 | The port mutates `first_frame` before destination allocation/source copy (`gnome/native/paint.odin:166,240-244`); baseline commits it only after both (`/tmp/ws-baseline/gnome/native/waylandshader-effect.cpp:1141-1145`). A gamma/color mutation can clear output failure without resetting that clock (`gnome/native/config.odin:271-276`; `gnome/native/engine.odin:424-428`). [INFERENCE] Following an initial allocation/copy failure and that retry, the first successful shader frame can therefore have a nonzero number instead of baseline zero. The source ordering/retry route was verified; a real GL failure was not injected here. |
+
+**Not upheld:** B13's claimed Qt handling of a malformed signal remains an unverified inference, so I do not require a behavioral change on that basis. B14 overstates the documentation problem: `docs/GNOME.md:148` says the package “also runs” lifecycle, not that it runs **only** lifecycle; that statement is true. A fuller suite description is optional, not a defect blocking this feature-preserving cutover. B11 is closed as above. No other B finding or unverified A claim is silently imported.
+
+### Numbered rework list for the builder
+
+1. **R2-1 — Restore initial BOM handling in the shared parser.** Match baseline acceptance without stripping arbitrary BOMs inside the document. **Required regression:** actual UTF-8 BOM before a settings object and output array, through common parsing and the real native API; assert accepted bytes/behavior on baseline first, then rework, retaining depth and trailing-content checks.
+2. **R2-2 — Complete the reproduced numeric grammar and error precedence.** Accept `.5` and `-.5` where Qt does; match baseline errors for non-string object keys, terminal backslash/Unicode escapes and top-level closing tokens. Fix the scanner/parser root cause, not individual input strings. **Required regression:** every R2-2 matrix case above, including version `.5e1`, pinned from baseline in native/common tests; preserve existing overflow/underflow, `1.`, leading-zero and surrogate cases.
+3. **R2-A-02 — Detect trailing content before exposing its token error after a complete root.** Preserve internal-document errors while matching Qt's root trailing-garbage precedence. **Required regression:** `{}"` and `{}tru` must produce exact `garbage at the end of the document` on baseline and rework; include array-root equivalents and valid-whitespace controls.
+4. **R2-3 — Preserve the baseline trailing slash in missing-path cleanup.** Keep one final `/` when the input ends in `/` and the cleaned non-root result requires it; retain existing-file realpath behavior and the already-correct `/.`, `/..` and root cases. **Required regression:** all five failing paths plus the three controls above, comparing export, status `preset` and `requestedPreset` to baseline before asynchronous completion.
+5. **R2-4 — Make T-WRAP extraction binary-safe.** Change the catalog extractor to `grep -ao` or an equally small binary-safe equivalent, retaining the schema file-existence check. **Required regression:** execute that documented extraction/existence gate inside `nix-shell gnome/shell.nix` on baseline and rework; both must pass. Record it as a repaired test command, not a package schema fix.
+6. **B7 — Correct the Cogl mask declaration to `c.ulong`.** Do not add a wrapper or alter current rendering behavior. **Required regression:** compile native consumers and add a real-header function-signature check for `cogl_framebuffer_clear4f`, so the mask parameter width cannot drift unnoticed; existing real GL tests must still pass.
+7. **B8 — Match baseline Unicode suffix folding for imported recents.** Recognize the case-fold-equivalent `.ſlangp` suffix without changing the stored path text. D1/D2 do not authorize dropping this entry. **Required regression:** `/a.ſlangp` retained byte-for-byte against baseline, with ordinary ASCII mixed-case and non-matching suffix controls.
+8. **B9 — Finish the API-version gate.** Add the missing real-header assertion for `LIBRASHADER_CURRENT_VERSION == 2`, consistent with the pinned private ABI and runtime option literals. Keep existing size/offset checks. **Required regression:** the ABI target passes with the actual header and rejects a deliberately mismatched expected version in an owned temporary negative control.
+9. **B10 — Persist the native argument-validation regression.** Add a small native-unit or C-level test of NULL and byte-FF arguments through actual exported mutators with valid effect instances; no production validation rewrite is needed. **Required regression:** FALSE plus non-NULL GError, domain `wayland-shader-error`, code 1 and exact `Invalid UTF-8 argument`, with correct cleanup. Include at least `set_outputs`, `import_settings` and `load_preset`; run baseline and port in separate processes.
+10. **B12 — Commit the first-frame anchor after source preparation succeeds.** Keep the baseline warm-up/timing behavior, but do not permanently advance `first_frame` before destination allocation and source copy. **Required regression:** a targeted failure-path test proves failed preparation leaves an unstarted anchor, then a permitted failure-clearing retry produces frame number 0; retain normal timing, history-reset and zero-allocation regressions. Prefer testing a small production state transition or existing failure seam over a new rendering abstraction.
+
+After the final rework, rerun the fresh GNOME build/checkPhase, T-KWIN, dual baseline/native contract, 107-case CLI comparison, the corrected T-WRAP gate and every new targeted regression above. Keep original baseline observations as the oracle; do not recapture expectations from the port. No new feature, compatibility shim, broad architecture rewrite or change to D1/D2 is requested.
+
+Not checked in this acceptance run: manual visual/accessibility/app_id/hardware observations and sign-offs; malformed-signal baseline behavior; real GL allocation/copy fault injection. No live compositor module load, extension installation/enabling, compositor restart or mutating live-session-bus call was performed. The remaining acceptance risk is concrete parser/path compatibility failure despite the current green headless suite.
+
+REJECTED

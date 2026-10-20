@@ -65,3 +65,59 @@ Checked without finding a defect:
 | `grep -nE 'Qt\|QFileDialog\|C\+\+\|libepoxy' README.md docs/GNOME.md` | hits reviewed (B14) |
 
 Not run: T-ISO-RENDER and T-GUI (manual observation that agents cannot do here; see B4) and T-HW (user only). I did not perform the T-SAFETY manual sign-off beyond reading the harness and the build log.
+
+## Round 2
+
+REJECT
+
+Reviewed rework commit `88c69ec` (`git rev-parse --short HEAD`, clean tree). The rework items are listed in `acceptance.md:178-188` and the builder's evidence in `build-log.md:290-372`. Per the main agent's ruling, manual-class tests are deferred to the user, so B4 no longer blocks on its own.
+
+I re-ran the full headless suite, T-KWIN and both isolated-session tests, and all pass. I then probed both builds side by side through standalone GI with about 120 parser inputs, 66 numbers, 27 paths, surrogates, outputs and the raw-`0xFF` symlink.
+
+**Fixed:** all seven rework items reproduce as fixed: A-01's six counterexamples, A-02's `.`/`..`/`//` cleanup, A-03, A-05, B2, B3 and B6. My round-1 B1 subset of `1.`, raw LF, `1e-4000`, `\u+123`, `{"a":`, `[1,]`, `{"a":[}`, `-`, `01`, `é` and the lone surrogates is also fixed. The new regressions can fail:
+- `native-contract.js` fails against the round-1 Odin build.
+- `cli-golden.sh check` fails case 107 on the round-1 ctl.
+- A wrong `GList` size breaks the C gate and the Odin `native` and `controller/gui` builds.
+
+**Why REJECT:** the rework introduced one REQ-068 regression (R2-1) and left REQ-068 and REQ-006 differences that the baseline reproduces (R2-2, R2-3).
+
+No module was loaded into the live Shell and nothing was installed or enabled. The native module ran only in standalone `gjs` and in `isolated-session.sh` sessions. Temporary fixtures and probes were created with `mktemp` and deleted afterwards.
+
+### Findings
+
+| ID | Severity | REQ | file:line | Evidence | Required fix |
+|---|---|---|---|---|---|
+| R2-1 | blocking (regression) | REQ-068 | `gnome/common/json_parse.odin:21-28,200-206` | **UTF-8 BOM.** A leading U+FEFF (`EF BB BF`) is accepted by the baseline and was also accepted by the round-1 Odin build (`94656d9`). The new byte scanner rejects it. `import_settings('\ufeff{}')` and `import_settings('\ufeff{"version":1,"enabled":false}')` give: baseline `ok` (export `enabled:false`), round 1 `ok`, round 2 `illegal number`. `set_outputs('\ufeff[]')` gives baseline `ok`, round 2 `illegal number`. The same parser feeds the client's status validation. [INFERENCE: Qt's `QJsonPrivate::Parser` skips a UTF-8 BOM before the first token; the behavior itself is reproduced.] | Skip one leading `EF BB BF` in `parse_json` before the first token. Add both BOM documents to `native-rework-baseline.json`, captured from the baseline first. |
+| R2-2 | blocking | REQ-068 (open part of round-1 B1) | `gnome/common/json_parse.odin:50-53,146-148,96,87`; top-level dispatch `:205-206` | **Accepted by the baseline, rejected by round 2:** `{"version":1,"x":.5}`, `-.5` and `{"version":.5e1}` (baseline: `Unsupported settings version`). Round 2 gives `illegal number` for all three, so Qt accepts numbers with a leading `.`. **Same verdict, different error text (baseline / round 2):** `{1:2}` and `{'version':1}` give `unterminated object` / `object is missing after a comma`; a string truncated after `\` or `\u` at end of input gives `invalid escape sequence` / `unterminated string`; a top-level `]` or `}` gives `object is missing after a comma` / `illegal value`. `{1:2}` and the single-quote case were already listed in round-1 B1. | Accept `.digits` and `-.digits` numbers as the baseline does. Make the non-string-key, truncated-escape and top-level close-token errors match the baseline. Pin all of these inputs from the baseline in `native-rework-baseline.json`/`json_parse_test.odin`. |
+| R2-3 | blocking | REQ-006/007 (open part of A-02) | `gnome/native/config.odin:102-120` (`clean_absolute`) | **Trailing slash on a missing saved preset.** The baseline keeps one trailing `/`; Odin drops it. Exported `preset` (status `preset`/`requestedPreset` are the same), baseline vs round 2: `/a/./` gives `/a/` vs `/a`; `/a//b//` gives `/a/b/` vs `/a/b`; `/a/b/` gives `/a/b/` vs `/a/b`; `/a/b/../` gives `/a/` vs `/a`; `/nx/x.slangp/` gives `/nx/x.slangp/` vs `/nx/x.slangp`. These match: `/a/b/.`, `/a/b/..`, `/a/..`, `/..`, `/../`, `/.`, `/a/b//.`, `/x/../../y.slangp`, `/../../tmp//m.slangp` and the three fixtures in `native-contract.js`. Saved presets in practice never end in `/`, but REQ-006 requires byte equality for fixed inputs, and A-02 was upheld as blocking on this exact contract. | Keep a single trailing `/` when the input ends in `/` and the cleaned result is not `/`. Pin the five inputs above from the baseline. |
+| R2-4 | minor | REQ-058 test validity (T-WRAP) | `docs/waterfall/01-requirements/requirements.md:190` | The catalog's T-WRAP `grep -o` command passes in the host shell for both the baseline and Odin (exit 0). Run inside `nix-shell gnome/shell.nix`, GNU grep 3.12 prints `binary file matches` for the ELF wrapper and the check fails, for the baseline too. This is a test-command fragility, not a build defect. | Use `grep -ao` in the catalog command. |
+| B7 | minor (open) | REQ-061/062 | `gnome/native/mutter.odin:101` | `cogl_framebuffer_clear4f(..., buffers: u32, ...)` vs `unsigned long` in `cogl-framebuffer.h:654-655`. Unchanged. | `buffers: c.ulong`. |
+| B8 | minor (open) | REQ-017 | `gnome/native/config.odin:152` | The baseline still keeps `/a.ſlangp` in `recent_presets`; round 2 drops it (probe `recentFold`). `/K.\u212Aslangp` and `/x.SLANGP\u0131` behave the same on both builds. | Unicode fold of the suffix, or an accepted deviation. |
+| B9 | minor (mostly closed) | REQ-061 | `gnome/native/abi-check.c:75-104`; `gnome/runtime/libra.odin:25-33` | Field-offset asserts were added on both sides. `LIBRASHADER_CURRENT_VERSION == 2` is still not asserted, while `runtime.odin` passes a literal `2`. | `VALUE(LIBRASHADER_CURRENT_VERSION, 2)`. |
+| B10 | minor (open) | REQ-016 | `gnome/tests/native-contract.js` | Still no test calls any entry point with NULL or invalid UTF-8 (`grep "Invalid UTF-8 argument" gnome/tests gnome/*/*_test.odin` finds nothing). | Add a native unit or C-level check. |
+| B11 | closed | REQ-063 | `gnome/native/paint.odin:174-185`; `native_test.odin:29-75` | The production `before_paint_output` loop is now measured: 100 warmed iterations of shader, color, nil, missing and disabled cases, with heap and temp delta 0. The builder's injected-allocation controls failed as intended (`build-log.md:342-343`). `discover`/`capture_context` (EGL calls) are still unmeasured; reading the code, I found no allocation in their steady state. | — |
+| B12 | minor (open) | REQ-032 | `gnome/native/paint.odin:166` | `first_frame` is still set before the source copy (baseline sets it after, `E:1141-1145`). | As in round 1. |
+| B13 | minor (open) | REQ-037 | `gnome/controller/client/client.odin:271-279` | A non-`(s)` `statusChanged` still raises a transport error [INFERENCE: Qt ignores it]. | As in round 1. |
+| B14 | minor (open) | REQ-066 | `docs/GNOME.md:148` | Still says the package runs only `gnome_effect_lifecycle`. | Update the sentence. |
+| B2, B3, B5→A-02, B6 | closed | REQ-005/006/041/043/009 | `common/json.odin:39-81`; `client.odin:55-63,174-178`; `config.odin:179-185,244-246`; `engine.odin:286-289` | **B2:** all 66 probed numbers, including the eight from round 1, export the same bytes on both builds. **B3:** `cli-golden.sh check` passes 107/107 (case 107: exact NoReply stderr, exit 3), and fails on the round-1 ctl. **B6:** a byte-verified `…bad\xff.slangp` target behind a UTF-8 symlink gives the same `bad�` text on both builds for `load_preset` status, `import_settings` export and status; output is valid UTF-8. Lone `\ud800`/`\udfff` in recents, parameter keys and output ids export identically. Mapping `IO_ERROR_CLOSED` to NoReply rests on libdbus's synthesized pending-call reply [INFERENCE, not reproduced]. | — |
+
+### Commands run (round 2)
+
+| Command | Result |
+|---|---|
+| `git rev-parse --short HEAD`; `git status --short` | `88c69ec`; clean tree (the `review-A.md` modification belongs to reviewer A) |
+| `nix-build gnome/default.nix -o /tmp/wsB2-gnome-result` | exit 0, `/nix/store/ywyrarmhrk5mpmq09fnj07ncwwb448lh-waylandshader-gnome-0.1.0`; `nix log` shows checkPhase 13/13 passed, 0 failed, GL and GL33 not skipped, cli_golden 16.75 s (T-NIX) |
+| `nix-build default.nix -o /tmp/wsB2-kwin-result` | exit 0, `/nix/store/wsr8a4prijih9xrwgrq7sjki9jpr3mx3-waylandshader-0.1.0` (T-KWIN) |
+| `nix-shell gnome/shell.nix --run 'cmake -S gnome -B /tmp/wsB2-build -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build /tmp/wsB2-build --parallel && cmake --build /tmp/wsB2-build --target gnome_abi_check gnome_native && LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir /tmp/wsB2-build --output-on-failure'` | exit 0; 13/13 passed in 46.76 s (T-ABI, T-LIFE, T-RECENT, T-CONTRACT, T-UNIT-*, T-GL, T-GL33, T-CLI-GOLDEN, T-ELF, T-BAN) |
+| `gnome/tests/elf-check.sh` on the installed `.so` and both wrapped binaries; T-GIR `diff`; T-LAYOUT `diff <(find…)`; T-UNCHANGED `git diff --exit-code b223c1a -- …` | all exit 0 |
+| T-WRAP catalog block in the host shell, for the baseline and for Odin | both exit 0. The same block inside `nix-shell` exits 1 for both (R2-4) |
+| `gjs -m gnome/tests/native-contract.js <native>` for the baseline, round 2 and round 1 (`/tmp/wsB-gnome-result`) | exit 0, 0, **1** (round 1 throws `String from C value is invalid UTF-8`), so the contract can fail |
+| `gnome/tests/cli-golden.sh check` with the round-1 ctl, then the round-2 ctl | round 1 fails on case 107 (`: Timeout was reached`); round 2 prints `cli-golden: 107 cases match` |
+| `gnome/tests/isolated-session.sh /tmp/wsB2-gnome-result -- sh -c "gjs -m gnome/tests/parameter-bypass.js \"\$WS_PRIVATE_BUS\""` | exit 0, `PASS: bypassed edits…` (T-BYPASS) |
+| T-ISO-CLI: `isolated-session.sh` + `iso-cli.sh` for the baseline and round 2, then `diff` | both exit 0; 515-line logs; diff empty |
+| Throwaway GI differential probe (about 120 `import_settings` documents, 12 + 15 missing-path imports, recents/parameter/output surrogates, 66 numbers, `set_outputs` edges) on the baseline and round 2, then `diff` | 122 lines each; the only differences are R2-1, R2-2, R2-3 and B8 |
+| Throwaway BOM/leading-dot probe on the baseline, round 1 and round 2 | R2-1 confirmed as a regression (round 1 accepted the BOM); leading `.` was rejected by both Odin rounds |
+| `mktemp -d` raw-`0xFF` target plus UTF-8 symlink (`readlink \| od -tx1` shows `…62 61 64 ff 2e…`); `load_preset`, `import_settings`, export and status on both builds | identical; output valid UTF-8 (`iconv` check) (B6 closed) |
+| Negative control on a `mktemp` copy: `SIZE(GList, 25)` in `abi-check.c`, `size_of(GList) == 25` in `glib/glib.odin`; `cmake --build … --target gnome_abi_check`; `odin build <copy>/gnome/{native,controller/gui} -build-mode:obj -vet -strict-style -define:GL_DEBUG=false` | C: `static assertion failed: "GList size"`; both Odin packages: `Compile time assertion: size_of(GList) == 25`. Copy removed |
+
+Not run: T-ISO-RENDER, T-GUI, T-HW and the T-SAFETY/T-DOCS sign-offs. These are manual-class tests deferred to the user by the main agent's ruling.
