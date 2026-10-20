@@ -623,3 +623,160 @@ The only repository file written by this review is this appended report. The own
 Not checked: deferred manual visual/accessibility/app_id/hardware sign-offs and actual driver allocation/copy fault injection. All ten requested Round-2 regressions have finite passing evidence, but that does not establish global Qt compatibility. R3-A-01 is independently reproduced using both observational comparisons and a failing assertion; it affects accepted input, stored parameter names and exported settings/history bytes.
 
 REJECT — blocking finding R3-A-01: raw-versus-escaped leading U+FEFF inside JSON strings still differs from the baseline, violating the fixed input/byte-preservation contract despite 16/16 passing headless tests.
+
+## Round 4
+
+ACCEPT
+
+| ID | Severity | REQ | File:line | Evidence | Required fix |
+|---|---|---|---|---|---|
+| None | — | — | — | No new requirement-violating defect found in the reviewed rework. Both R3-1 surfaces now match the exercised baseline cases, including the original failing assertion and repeated differential fuzz. Required test/safety evidence and the extra noncontract build-reproducibility observation are recorded below. | None for this review's acceptance scope. |
+
+### Revision and verdict scope
+
+Reviewed HEAD: **6f6709d** (`git rev-parse --short HEAD`, exit 0). This review covers R3-1's JSON extraction/provenance and native C-string boundaries, their ownership/callsite changes, the new `gnome_bom_contract` manifest entry, and the authorized devkit-only PipeWire exception. Earlier sections remain historical records, not current blockers.
+
+**R3-1 is closed for the specified and independently exercised cases.** My original raw-BOM parameter-name assertion now passes on both baseline and port. Real prefixed `load_preset`, output gamma and shader-toggle calls also pass the same assertions on both implementations. The expanded original-module contracts match on both sides: **1,285 BOM cases, 369 parser cases, 203 path/recents cases**, plus the original native byte/error contract.
+
+The exact deterministic Round-3 fuzzer, seed **0x51a7c0de**, was repeated with only the tested package changed to `/tmp/ws-review-a-r4-result`: **3,366 inputs, zero mismatches**. A second independent provenance-collision generator, seed **0x32bb7f91**, exercised **1,200 additional inputs, zero mismatches**. Its cases combine duplicate nested preset/parameter keys, literal/escaped/single/double/interior BOMs, later escapes, converted-key collisions, numeric survivors and recent-path extraction. Both compare actual original and port native outcomes/settings, not a port-derived expected model. Neither run crashed.
+
+Normal Nix invocations returned:
+
+```text
+/tmp/ws-review-a-r4-result -> /nix/store/61vxhhfjijiqknwl6q9sss8m58vz7l08-waylandshader-gnome-0.1.0
+/tmp/ws-review-a-r4-kwin   -> /nix/store/9bcgx2b5p9himxwn3dpc07h4ckdwv27r-waylandshader-0.1.0
+```
+
+The first GNOME invocation waited on another process building the same immutable derivation, so I did not claim that invocation independently executed its build. I additionally ran `nix-build ... --check`: that **actually rebuilt and ran all 17/17 checkPhase tests successfully, with no skips**, but its final output-byte comparison failed. This is disclosed separately below; it is not represented as a successful bit-reproducibility check. The required normal `nix-build` command exited 0. T-KWIN actually compiled/linked/installed successfully in my invocation.
+
+My independent external CMake tree compiled all targets. Its first CTest run passed 16/17; the CLI golden alone refused the existing exclusive fixture directory because I had concurrently run the baseline golden command. After that baseline command completed, I ran the CLI test serially: **1/1 passed, all 107 cases**. Thus all 17 external entries were independently exercised successfully across those runs; I do not claim the initial full external run was 17/17. Both real GL variants executed, not skipped. Both installed libraries separately passed the six direct NULL/byte-FF C-entry assertions.
+
+The main agent owns the concurrent visual T-GUI/T-ISO-RENDER work. I did **not** start a devkit session or claim its visual observations. Physical hardware acceptance and other deferred sign-offs remain outside my exercised evidence.
+
+### Code, lifetime and oracle review
+
+- **Document-owned provenance, not blanket trimming:** `JSON_Document` retains the core value, per-string encoding and originating allocator (`gnome/common/json_parse.odin:9–20`). Extraction removes exactly one leading BOM only for parsed UTF-8 storage (`:22–32`); raw lookup is unchanged. Any escape records UTF-16 storage for the whole string (`:77–96`). Duplicate keys update retained-key provenance, dispose the replaced value and remove discarded-string metadata (`:157–205`). This addresses raw/escaped distinctions and later-escape behavior rather than special-casing the original input.
+- **Persistent and temporary owners migrated:** native import/output parsing destroys its complete document after cloning retained engine strings/maps (`gnome/native/config.odin:150–224,233–269`); client status owns its document and destroys the replaced document after the listener (`gnome/controller/client/status.odin:18–23,31–48,124–130`). CLI serialization passes that document to the writer (`gnome/controller/ctl/main.odin:108–109`). Source searches found no remaining production caller using the old parsed-value lifetime convention.
+- **Allocator/lifetime checks:** the common provenance ownership test parses with a tracking allocator, disposes nested duplicate values, then destroys under the ordinary caller context and asserts no retained allocation (`gnome/common/json_bom_test.odin:91–105`). Parser-corpus tracking covers success/error cleanup (`gnome/common/parser_corpus_test.odin`). These passed in my independent units and Nix checkPhase. No ownership defect was found in the reviewed paths; this is bounded test evidence, not proof against every possible allocation failure.
+- **C-string conversion:** complete UTF-8 validation still precedes removal of exactly one leading BOM (`gnome/native/boundary.odin:31–38`). Existing NULL/invalid-UTF8 errors remain intact. The native corpus invokes real exported load/output mutators with single/double/interior/escaped controls (`gnome/tests/bom-contract.js:120–148`), and my additional original reproductions call those exports independently.
+- **Nonvacuous baseline oracle:** `bom-contract.js` uses fresh unattached real objects, real exported methods, exclusive readable-file fixtures and exact captured settings/status outcomes; it detects missing expected records as well as mismatches (`:150–200`). It passes unchanged on the original module and the port. Capture mode was not used in my checks. Common value/key tests and all client status-string fields also exercise the new representation. No new feature, public API, settings version or compatibility shim was found.
+
+### Requirements manifest and devkit isolation amendment
+
+Both amendments are justified, narrowly scoped test-infrastructure/documentation changes:
+
+| Amendment | Checked implementation and independent evidence | Result |
+|---|---|---|
+| New CTest manifest entry | `requirements.md:197` adds `gnome_bom_contract`; `gnome/CMakeLists.txt:97–105` actually registers `bom-contract.js` with the existing parser/path checks and a bounded timeout. Existing checks remain. I observed the new test run in both CTest environments and ran the same corpus directly on baseline and port. | **Justified and accurate.** It adds coverage rather than weakening an acceptance criterion. |
+| Devkit-only socket exception | `docs/GNOME.md:291–297` explicitly documents only the caller's `pipewire-0` socket. `isolated-session.sh:39–43` retains private bus/runtime/XDG checks before the sharing branch; `:55–60` requires devkit mode, an absolute caller runtime and a socket, then links one fixed entry. No lockfile, bus socket, arbitrary runtime entry or whole directory is linked. | **Justified by the authorization and accurately documented.** Not a production feature addition. |
+| Equal-bus refusal | Ran direct private-child entry with `WS_DEVKIT=1` and synthetic equal caller/child bus addresses. It exits 1 with `refusing caller bus or runtime directory` before socket sharing, gsettings or Shell startup. | **Pass.** |
+| Exactly-one-link positive branch without starting a devkit | Created an owned temporary caller directory with a synthetic Unix `pipewire-0` socket and sentinel `pipewire-0.lock`/`bus` files. Supplied fresh private XDG directories, keyfile settings and a guaranteed nonexistent host-Wayland socket. The harness passed the socket-sharing branch, then predictably exited at `devkit requires host Wayland socket`, **before launching any Shell/viewer**. Enumerating the private runtime with no symlink following found **only** `pipewire-0`, whose target was exactly the synthetic caller socket. No lockfile/bus entry was linked. Temporary files/socket were closed and removed. | **Pass.** No real host PipeWire/Wayland endpoint was used by this test. |
+| Ordinary headless behavior | Ran `WS_DEVKIT=0` through the harness, asserting no `pipewire-0` symlink and no PipeWire lockfile before the unchanged real GPU-runtime bypass/rebuild test. | **Pass.** A disposable headless Shell only; no devkit session started. |
+
+The synthetic positive-branch test verifies what is linked, not that the real viewer presents frames. The latter remains the main agent's separately exercised work. The source contains no additional sharing branch or `ln` operation, and cleanup removes the private tree rather than following the socket symlink into the caller's directory.
+
+### Commands run
+
+Repository root was the working directory. `R=/tmp/ws-review-a-r4-result`, `B=/tmp/ws-review-a-r4-build`, `BASE=/tmp/ws-baseline-result`, `EXT=share/gnome-shell/extensions/waylandshader@man33li.github.com` are table shorthand; actual build/native commands used the corresponding literal paths.
+
+| Command / check | Result independently observed |
+|---|---|
+| `git rev-parse --short HEAD`; `git diff --stat d50af2d HEAD` | Exit 0; **6f6709d**, provenance/harness/test/documentation slice inspected. |
+| `nix-build gnome/default.nix -o /tmp/ws-review-a-r4-result` | Exit **0**; waited for the same output's store lock and returned the package above. Not claimed as my own complete build execution. |
+| `nix-build gnome/default.nix --check -o /tmp/ws-review-a-r4-result` | Actually rebuilt the same derivation; checkPhase **17/17**, no skips, 16.69 seconds. Final command exit **1** solely at Nix's subsequent output comparison: `may not be deterministic ... output ... differs`. No successful bit-reproducibility claim. See noncontract observation below. |
+| `nix-build default.nix -o /tmp/ws-review-a-r4-kwin` | Exit **0**; actual KWin C++ compile/link/install. |
+| `nix-shell gnome/shell.nix --run 'cmake -S gnome -B /tmp/ws-review-a-r4-build -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build /tmp/ws-review-a-r4-build --parallel 2 && LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir /tmp/ws-review-a-r4-build --output-on-failure && <baseline/native-argument commands>'` | Full build succeeds. Initial external CTest exits **8**: **16/17 pass**, CLI test alone refuses `/tmp/ws-cli-golden` because my simultaneous baseline-golden command owns it. Chained C-argument commands therefore did not run in this invocation. No directory was deleted/reused to bypass its safety guard. |
+| `nix-shell gnome/shell.nix --run 'ctest --test-dir /tmp/ws-review-a-r4-build -R "^gnome_cli_golden$" --output-on-failure && /tmp/ws-review-a-r4-build/gnome_native_arguments /tmp/ws-baseline-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native/libwaylandshader-gnome.so && /tmp/ws-review-a-r4-build/gnome_native_arguments /tmp/ws-review-a-r4-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native/libwaylandshader-gnome.so'` | After the baseline fixture owner finishes: exit **0**, CLI **1/1** passes (107 cases), followed by all six exact C-entry argument assertions on each library in separate processes. |
+| Direct `gjs -m` executions of `bom-contract.js`, `parser-corpus.js`, `path-contract.js`, `native-contract.js` with prepended Mutter typelib path, separately for baseline and port | Exit **0**; on each: **1,285 BOM**, **369 parser**, **203 path/recents** records match, original native byte/error contract passes. No capture mode used. |
+| Exact Round-3 deterministic fuzzer with `/tmp/ws-review-a-r4-result` as the port root | Exit **0**, `seed=0x51a7c0de cases=3366 mismatches=0`. The full generator/child comparison is recorded in Round 3; only the port root changed. |
+| Additional provenance-collision fuzzer described below | Exit **0**, `provenance seed=0x32bb7f91 cases=1200 mismatches=0`. |
+| Independent three-case assertion body below, separately on baseline and port with explicit native GI/loader paths | Both exit **0**: original raw-BOM parameter-name assertion, prefixed real-file load acceptance, prefixed output gamma and shader-toggle mutations all match. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/cli-golden.sh check /tmp/ws-baseline-result/bin/waylandshader-gnomectl'` | Exit **0**, **107 cases match** on original CLI. Its exclusive fixture caused the concurrent external-suite collision disclosed above; serial port replay passed. |
+| `git diff --exit-code b223c1a -- <exact T-UNCHANGED protected paths>` and `git diff --exit-code d50af2d -- gnome/tests/golden/cli` | Both exit **0**, empty diffs. Protected shared/KWin paths and the existing CLI goldens remain unchanged. |
+| Installed `elf-check.sh` on final native library and both hidden wrapped binaries; baseline/port GIR diff; sorted relative installed path-set diff | All exit **0**; public ABI/GIR, installed layout and required ELF properties retained. |
+| Binary-safe `grep -ao` wrapper extraction through `Gio.Subprocess`, first matching schema path, and `Gio.File.query_file_type(...) == REGULAR` on the chooser schema | Exit **0**, baseline and port both report T-WRAP PASS. No GUI wrapper launch. |
+| Synthetic equal-bus refusal command below | Expected exit **1**, `refusing caller bus or runtime directory`, with `WS_DEVKIT=1`; no session starts. |
+| Synthetic socket/one-link/prelaunch refusal test below | Exit **0**, `PASS: exactly one synthetic pipewire-0 link; no lockfile/bus link; refused before Shell launch`. It creates/removes only owned temporary test files and never starts a devkit. |
+| `nix-shell gnome/shell.nix --run 'WS_DEVKIT=0 gnome/tests/isolated-session.sh /tmp/ws-review-a-r4-result -- sh -c '\''test ! -L "$XDG_RUNTIME_DIR/pipewire-0" && test ! -e "$XDG_RUNTIME_DIR/pipewire-0.lock" && gjs -m gnome/tests/parameter-bypass.js "$WS_PRIVATE_BUS"'\'''` | Exit **0**; no-link assertions and real bypass/edit/runtime-rebuild test PASS. Private auxiliary services emit environmental startup/shutdown warnings; no live module is loaded. |
+| Additional real shader-metadata text boundary probe, baseline then port through `WS_DEVKIT=0` harness | Exit **0** on both. Created an exclusive temporary one-pass GAIN shader whose quoted pragma description begins with literal U+FEFF; loaded it through each installed CLI and compared the returned description. Both report `"Gain"`, first code point `0x47`. Temporary shader/preset files are removed, each owned headless Shell shuts down. This checks the observed metadata result, not its internal cause or rendered pixels. |
+
+**Extra, noncontract build observation:** Nix `--check` detected different installed output bytes for the same derivation after all 17 required tests passed. I did not isolate the byte-level cause and do not infer a functional or ABI difference from that diagnostic. Bit-for-bit build reproducibility is not an acceptance requirement in this contract, so this optional comparison failure is not classified as a requirement blocker. It must not be quoted as a passed reproducibility check. The required normal Nix build returns 0, required tests were independently exercised, and installed semantic/ABI/layout checks pass.
+
+### Reproducible assertion and isolation probes
+
+The independent old-failure/native-argument assertion body, run separately under each installed native GI/loader environment, was:
+
+```js
+const W = imports.gi.WaylandShader;
+for (const check of [
+    e => {
+        e.import_settings(JSON.stringify({version: 1, parameters: {p: {["\ufeffGAIN"]: 0.5}}}));
+        if (JSON.parse(e.export_settings()).parameters.p.GAIN !== 0.5)
+            throw Error("raw BOM parameter mismatch");
+    },
+    e => {
+        const p = "/home/knd/AI/dodForPonytail/WaylandShader-gnome/tests/fixtures/temporal.slangp";
+        e.load_preset("\ufeff" + p);
+        if (JSON.parse(e.get_status()).requestedPreset !== p)
+            throw Error("BOM load argument mismatch");
+    },
+    e => {
+        e.set_outputs(JSON.stringify([{id: "A", name: "A", x: 0, y: 0, width: 1, height: 1, scale: 1}]));
+        e.set_output_gamma("\ufeffA", 2);
+        e.set_output_shader_enabled("\ufeffA", false);
+        const s = JSON.parse(e.export_settings()).outputs.A;
+        if (s.gamma !== 2 || s.shaderEnabled !== false)
+            throw Error("BOM output argument mismatch");
+    },
+]) {
+    const e = W.Effect.new();
+    try { check(e); } finally { e.shutdown(); }
+}
+print("PASS: original raw-BOM parameter, load and output mutator assertions");
+```
+
+The equal-bus guard command used synthetic, not live, addresses:
+
+```sh
+env WS_DEVKIT=1 WS_PRIVATE_ROOT=/tmp/ws-review-a-r4-refusal \
+    XDG_RUNTIME_DIR=/tmp/ws-review-a-r4-refusal/runtime \
+    WS_CALLER_RUNTIME=/tmp/ws-review-a-r4-caller \
+    WS_CALLER_BUS=unix:path=/tmp/ws-review-a-r4-refusal \
+    DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/ws-review-a-r4-refusal \
+    sh gnome/tests/isolated-session.sh --private-child true
+```
+
+The synthetic positive-sharing test ran a `gjs -c` body inside the project Nix shell. It:
+
+1. Used `GLib.dir_make_tmp("ws-review-a-r4-socket-XXXXXX")` and mode-0700 caller/private/XDG subdirectories.
+2. Bound `Gio.Socket.new(UNIX, STREAM, DEFAULT)` to the owned caller's `pipewire-0`, and created caller sentinel files named `pipewire-0.lock` and `bus`.
+3. Spawned the real unmodified `sh gnome/tests/isolated-session.sh --private-child true` with private XDG paths, `GSETTINGS_BACKEND=keyfile`, different synthetic caller/child bus addresses, `WS_DEVKIT=1`, and a guaranteed nonexistent `WS_HOST_WAYLAND_SOCKET`.
+4. Asserted exit 1 and the exact later guard message `devkit requires host Wayland socket`, proving the sharing branch was reached but Shell startup was not.
+5. Enumerated the private runtime with `NOFOLLOW_SYMLINKS`, asserted the complete name list was exactly `["pipewire-0"]`, and asserted its symlink target was exactly the synthetic caller socket.
+6. Closed the socket and removed only that owned temporary root in `finally`.
+
+This method deliberately exercises the authorized link without running or interfering with the main agent's devkit/manual sessions.
+
+The additional provenance generator used the same separate-process GI launcher/comparison approach as Round 3, with seed **0x32bb7f91** and the same LCG constants. For each of 1,200 settings documents it generated three preset-key entries, each with four parameter-key/value entries. Key bodies were selected from:
+
+```text
+P
+<literal BOM>P
+\ufeffP                 (ASCII JSON escape)
+<literal BOM><literal BOM>P
+<literal BOM>\u0050
+P<literal BOM>
+<literal BOM>P\q
+<literal BOM>
+\ufeff                  (ASCII JSON escape)
+```
+
+Values were selected from `0.5, 1, 2`; recent entries were selected from ordinary, raw-BOM, escaped-BOM and raw-BOM-plus-later-escape paths. Child argument lists were chunked at 100 inputs. Each child used a fresh real effect per document and compared `[accepted, export_settings()]` or `[rejected, exact_error]`; mismatches make the parent exit 1. Both children completed and all 1,200 comparisons matched.
+
+### Limits and disposition
+
+Only this report was changed in the repository. Probe fixtures were external, owned and cleaned up. No production source, oracle, requirements or documentation file was edited by this review. No devkit session was started by me. All actual compositor-hosted work used disposable headless sessions with the live-bus refusal already exercised; the single-socket branch test used only synthetic sockets and stopped before compositor launch.
+
+Not claimed: the main agent's concurrent manual GUI/render observations, physical hardware sign-off, exhaustive allocation-failure injection, or a successful bit-reproducibility check. Those limits do not reinstate the closed R3-1 compatibility failure. No new blocking requirement defect was found in the provenance/harness changes.
+
+ACCEPT — R3-1's exercised JSON and native-argument surfaces match the original baseline; the repeated 3,366-case fuzz and 1,200 additional provenance cases have zero mismatches; the manifest and single-socket devkit exception are justified and retain bus/runtime isolation. No blocking findings.

@@ -174,3 +174,57 @@ No module was loaded into the live Shell and nothing was installed or enabled. T
 | Targeted BOM probes: in-string and key BOMs through `import_settings`/`set_outputs`; BOM-prefixed `load_preset`/`set_output_gamma`/`set_output_shader_enabled` arguments, on the baseline and final, plus the same in-string probe on round 1 and round 2 | results as in R3-1; round 1, round 2 and final behave identically |
 
 Not run: T-ISO-RENDER, T-GUI, T-HW and the T-SAFETY/T-DOCS sign-offs (manual-class, deferred to the user).
+
+## Round 4
+
+ACCEPT
+
+Reviewed rework-round-3 commit `6f6709d` (`git rev-parse --short HEAD`, clean tree). The sole item is R3-1; the builder's evidence is `build-log.md` "Rework round 3". Manual-class tests remain deferred to the user, and the main agent is running T-GUI/T-ISO-RENDER itself, so I started no devkit session.
+
+**R3-1 is fixed on every surface I found in round 3, and on the client surface I had only inferred.** Native JSON values, iterated keys and C-string arguments now drop exactly one leading raw U+FEFF, as the baseline does. Escaped `\ufeff` and second or mid-string BOMs are kept, and raw-key lookup is unchanged.
+
+**Raw-BOM differential fuzz:**
+- 180 000 cases (import, export/status, `set_outputs`, `set_output_gamma`/`set_output_shader_enabled`/`set_parameter`/`load_preset` with BOM-prefixed arguments, colliding keys) gave **0** differences against the baseline.
+- The same generator gives 7 129 differences in 20 000 cases against the round-3 build, so it is sensitive to R3-1.
+
+**BOM-free regression fuzz:** 80 000 documents (random doubles, escapes, surrogates, suffix folds, truncations) gave 0 differences.
+
+**New client-side check:** a private-bus fake Shell returned BOM-bearing status strings, and the baseline and final `waylandshader-gnomectl status|outputs|parameters` produce identical stdout, stderr and exit codes for all 5 fixtures. The round-3 CLI differs on 3 of them. This confirms that my round-3 [INFERENCE] about the client path was real and is now fixed.
+
+**Process changes are justified:**
+- **CTest manifest:** the `requirements.md` amendment only adds the new `gnome_bom_contract` (`requirements.md:197`).
+- **PipeWire link:** the `docs/GNOME.md:291-297` devkit exception matches the harness. The harness refuses the caller bus or runtime directory before it links anything (`isolated-session.sh:39-41` precede `:55-60`). It links only `$WS_CALLER_RUNTIME/pipewire-0`, and only when `WS_DEVKIT=1`. It has no other `ln`.
+- **Why the link is needed:** it fixes the round-1 devkit `Failed to connect pipewire context` (`build-log.md:49`). It grants no new privilege, because the disposable Shell runs as the same user and could already reach that socket by absolute path [INFERENCE].
+- **Cleanup:** the private root is removed with `rm -rf`, which deletes the symlink without following it.
+
+No module was loaded into the live Shell and nothing was installed or enabled.
+
+### Findings
+
+| ID | Severity | REQ | file:line | Evidence | Required fix |
+|---|---|---|---|---|---|
+| R3-1 | closed | REQ-068, REQ-005/006/007/008, REQ-039 | `gnome/common/json_parse.odin:9-50,77-97,176-200,235-252`; `gnome/native/boundary.odin:31-38`; `gnome/native/config.odin:150-249`; `gnome/controller/client/status.odin:31-130`; `gnome/controller/ctl/main.odin:109,119,205` | Fuzz and fixtures as above. `bom-contract.js` (1 285 records), `parser-corpus.js` (369) and `path-contract.js` all pass on the baseline and final builds. Against round 3 they fail with 216, 16 and 8 mismatches, so the tests can fail. Provenance is document-scoped (`map[rawptr]` per parsed document). Entries are removed before strings are freed, and duplicate keys transfer the last encoding. I found no lifetime defect by reading the code, and fuzz across error paths showed no crash. | — |
+| R4-1 | minor (process) | — | `docs/waterfall/GATES.md` (last row "User decision") | Gate rows now exist for rework rounds 1–2 (closing my R3-2), but there is no row for implementation rework 3 or for this round's amendments to `requirements.md`/`docs/GNOME.md`. `README.md:3` requires a gate entry for changes to an earlier artifact. | Add the rework-3 gate row when recording this round's acceptance. |
+| PipeWire link | not a defect | REQ-065 | `gnome/tests/isolated-session.sh:55-60` | The refusal probe with equal caller/child bus and with the caller runtime as `XDG_RUNTIME_DIR`, both with `WS_DEVKIT=1`, exits 1 (`refusing caller bus or runtime directory`) and leaves the private runtime empty. Headless T-BYPASS/T-ISO-CLI are unchanged. | — |
+
+Still open from earlier rounds: B13/B14 were not upheld by acceptance, and nothing else is open. The deferred manual tests (T-ISO-RENDER, T-GUI, T-HW, T-SAFETY/T-DOCS sign-off) are not counted as passed.
+
+### Commands run (round 4)
+
+| Command | Result |
+|---|---|
+| `git rev-parse --short HEAD`; `git status --short`; `git diff d50af2d HEAD -- <harness, docs, native, client, parser>` | `6f6709d`; clean; diff reviewed |
+| `nix-build gnome/default.nix -o /tmp/wsB4-gnome-result` | exit 0, `/nix/store/61vxhhfjijiqknwl6q9sss8m58vz7l08-waylandshader-gnome-0.1.0`; `nix log` checkPhase **17/17** passed (incl. `gnome_bom_contract`), GL/GL33 not skipped (T-NIX) |
+| `nix-build default.nix -o /tmp/wsB4-kwin-result` | exit 0, `/nix/store/9bcgx2b5p9himxwn3dpc07h4ckdwv27r-waylandshader-0.1.0` (T-KWIN) |
+| Fresh `cmake` build tree `/tmp/wsB4-build`, ABI/native targets, `LIBGL_ALWAYS_SOFTWARE=1 ctest` | 17/17 passed in 48.36 s |
+| `gnome_native_arguments` on the installed final library; installed T-ELF, T-GIR, T-LAYOUT, T-WRAP (`grep -ao`), T-UNCHANGED | all exit 0 |
+| `gjs -m gnome/tests/{native-contract,parser-corpus,path-contract,bom-contract}.js` on the baseline, final and round 3 (`/tmp/wsB3-gnome-result`) | baseline and final: all exit 0 (`369 cases match`). Round 3: native-contract 0; parser **1** (16), path **1** (8), BOM **1** (216 mismatches) |
+| `isolated-session.sh` + `parameter-bypass.js` (final) | exit 0, `PASS: bypassed edits…` (T-BYPASS) |
+| `isolated-session.sh` + `iso-cli.sh` (baseline and final), `diff` | both exit 0; 515 lines; empty diff (T-ISO-CLI) |
+| Throwaway raw-BOM GI fuzz (BOM at start, middle or doubled in values and keys, escaped `\ufeff`, mutations; plus `set_outputs`, BOM-prefixed mutator arguments, `load_preset` of an existing `mktemp` file), 8 seeds, 180 000 cases, baseline vs final | **0** differences (about 1 380 accepted documents per 20 000 contained a raw BOM) |
+| Same fuzz, seed 1, baseline vs round 3 | 7 129 differences (the fuzz is sensitive) |
+| Throwaway BOM-free fuzz (random doubles, escapes, surrogates, suffix folds, truncations), 4 × 20 000 | 0 differences |
+| Private `dbus-run-session` with a fake `org.gnome.Shell` returning 5 BOM-bearing status fixtures (BOM before the document, in values/keys/ids, colliding after stripping, empty id after stripping, double document BOM); `waylandshader-gnomectl status/outputs/parameters` baseline vs final, then baseline vs round 3 | final: identical stdout/stderr/rc for all 15 runs. Round 3: differs for 3 fixtures (BOM kept in strings; duplicates and empty id not rejected) |
+| Harness refusal probe: `sh gnome/tests/isolated-session.sh --private-child true` with `WS_DEVKIT=1` and (a) child bus equal to the caller bus, (b) `XDG_RUNTIME_DIR` equal to the caller runtime | both exit 1 `refusing caller bus or runtime directory`; nothing linked into the private runtime |
+
+Not run: T-ISO-RENDER, T-GUI (the main agent is running them), T-HW and the sign-offs; no devkit session started by me. All throwaway probes and fixtures were deleted.
