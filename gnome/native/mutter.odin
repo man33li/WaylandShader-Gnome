@@ -30,11 +30,13 @@ Effect_Class :: struct {
     paint_node, pick: rawptr,
 }
 Effect :: struct { parent_instance: [3]rawptr, engine: ^Engine }
-#assert(size_of(Actor_Meta_Class) == 152 && offset_of(Actor_Meta_Class, set_actor) == 136)
-#assert(size_of(Effect_Class) == 200 && offset_of(Effect_Class, paint) == 176)
-#assert(size_of(Effect) == 32 && offset_of(Effect, engine) == 24)
-#assert(size_of(Mtk_Rectangle)==16 && size_of(Matrix)==64 && align_of(Matrix)==16)
-#assert(size_of(Luminance)==20 && offset_of(Luminance,reference)==12 && offset_of(Luminance,mastering_max)==16)
+#assert(size_of(Actor_Meta_Class) == 152 && offset_of(Actor_Meta_Class, set_actor) == 136 && offset_of(Actor_Meta_Class, set_enabled) == 144)
+#assert(size_of(Effect_Class) == 200 && offset_of(Effect_Class, pre_paint) == 152 && offset_of(Effect_Class, post_paint) == 160 && offset_of(Effect_Class, modify_paint_volume) == 168)
+#assert(offset_of(Effect_Class, paint) == 176 && offset_of(Effect_Class, paint_node) == 184 && offset_of(Effect_Class, pick) == 192)
+#assert(size_of(Effect) == 32 && size_of([3]rawptr) == 24 && offset_of(Effect, parent_instance) == 0 && offset_of(Effect, engine) == 24)
+#assert(size_of(Mtk_Rectangle) == 16 && offset_of(Mtk_Rectangle, x) == 0 && offset_of(Mtk_Rectangle, y) == 4 && offset_of(Mtk_Rectangle, width) == 8 && offset_of(Mtk_Rectangle, height) == 12)
+#assert(size_of(Matrix) == 64 && align_of(Matrix) == 16 && offset_of(Matrix, values) == 0)
+#assert(size_of(Luminance) == 20 && offset_of(Luminance, minimum) == 4 && offset_of(Luminance, maximum) == 8 && offset_of(Luminance, reference) == 12 && offset_of(Luminance, mastering_max) == 16)
 
 foreign import clutter "system:mutter-clutter-18"
 foreign clutter {

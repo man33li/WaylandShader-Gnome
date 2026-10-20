@@ -35,7 +35,7 @@ endforeach()
 set(NATIVE_LDFLAGS "${ODIN_LDFLAGS} -Wl,--no-undefined -Wl,-soname,libwaylandshader-gnome.so -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/native/exports.map")
 add_library(gnome_abi_check OBJECT native/abi-check.c)
 target_link_libraries(gnome_abi_check PRIVATE PkgConfig::NATIVE_LIBS)
-target_include_directories(gnome_abi_check PRIVATE ${LIBRASHADER_INCLUDE_DIR})
+target_include_directories(gnome_abi_check PRIVATE ${LIBRASHADER_INCLUDE_DIR} ${GTK3_INCLUDE_DIRS})
 
 target_compile_definitions(gnome_abi_check PRIVATE LIBRA_RUNTIME_OPENGL)
 file(GLOB_RECURSE ODIN_SOURCES CONFIGURE_DEPENDS native/*.odin runtime/*.odin common/*.odin glib/*.odin controller/*.odin)

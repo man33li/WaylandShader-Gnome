@@ -5,7 +5,6 @@ import "core:math"
 import "core:slice"
 import "core:strconv"
 import "core:strings"
-import "core:unicode/utf8"
 
 Error :: Maybe(string)
 Writer :: struct { bytes: [dynamic]u8, error: Error, indented: bool }
@@ -15,7 +14,9 @@ put :: proc(b: ^Writer, s: string) {
 }
 quote :: proc(b: ^Writer, s: string) {
     put(b,"\"")
-    for c in transmute([]u8)s {
+    for i:=0; i<len(s); {
+        c,width:=text_decode(s,i)
+        i+=width
         switch c {
         case '"': put(b,"\\\"")
         case '\\': put(b,"\\\\")
@@ -25,32 +26,58 @@ quote :: proc(b: ^Writer, s: string) {
         case '\r': put(b,"\\r")
         case '\t': put(b,"\\t")
         case:
-            if c < 32 { digits := "0123456789abcdef"; escaped := [6]u8{'\\','u','0','0',digits[c>>4],digits[c&15]}; put(b,string(escaped[:])) }
-            else { byte := [1]u8{c}; put(b,string(byte[:])) }
+            if c < 32 || c>=0xd800 && c<=0xdfff {
+                digits := "0123456789abcdef"
+                escaped := [6]u8{'\\','u',digits[(c>>12)&15],digits[(c>>8)&15],digits[(c>>4)&15],digits[c&15]}
+                put(b,string(escaped[:]))
+            } else if c==0xfffd && width==1 { put(b,"�") }
+            else { put(b,s[i-width:i]) }
         }
     }
     put(b,"\"")
 }
 shortest_float :: proc(buffer: []u8,n: f64) -> string {
-    // The pinned shortest formatter retains extra digits for some f32-promoted values.
+    // Find shortest round-tripping digits, then apply Qt qlocale_tools.cpp resolveFormat.
+    scientific:[32]u8
     precision:=1
     for precision<17 {
-        candidate:=strconv.write_float(buffer,n,'e',precision-1,64)
+        candidate:=strconv.write_float(scientific[:],n,'e',precision-1,64)
         parsed,ok:=strconv.parse_f64(candidate)
         if ok && parsed==n { break }
         precision+=1
     }
-    text:=strconv.write_float(buffer,n,'e',precision-1,64)
+    text:=strconv.write_float(scientific[:],n,'e',precision-1,64)
+    if len(text)>0 && text[0]=='+' { text=text[1:] }
     exponent_at:=strings.index_byte(text,'e')
     exponent,_:=strconv.parse_int(text[exponent_at+1:])
-    if exponent>=-4 && exponent<6 { text=strconv.write_float(buffer,n,'f',precision-1-exponent,64) }
-    if len(text)>0 && text[0]=='+' { text=text[1:] }
-    return text
+    decimal:=exponent+1
+    bias:=4
+    if precision<=decimal && precision>1 { bias+=1 }
+    else if precision==1 && decimal<=0 { bias-=1 }
+    fixed:=1-decimal<=bias if decimal<=0 else decimal<=precision+bias
+    if !fixed { copy(buffer,transmute([]u8)text); return string(buffer[:len(text)]) }
+    digits:[17]u8
+    count:=0
+    for c in text[:exponent_at] { if c>='0' && c<='9' { digits[count]=u8(c); count+=1 } }
+    length:=0
+    if n<0 { buffer[length]='-'; length+=1 }
+    if decimal<=0 {
+        buffer[length]='0'; buffer[length+1]='.'; length+=2
+        for _ in 0..<-decimal { buffer[length]='0'; length+=1 }
+        copy(buffer[length:],digits[:count]); length+=count
+    } else {
+        for i in 0..<max(decimal,count) {
+            if i==decimal { buffer[length]='.'; length+=1 }
+            buffer[length]=digits[i] if i<count else '0'; length+=1
+        }
+    }
+    return string(buffer[:length])
 }
 number :: proc(b: ^Writer, n: f64) {
     if math.is_nan(n) || math.is_inf(n) { put(b,"null"); return }
     buffer: [64]u8
-    if n >= -9223372036854775808.0 && n < 9223372036854775808.0 && math.trunc(n) == n { put(b,strconv.write_int(buffer[:],i64(n),10)); return }
+    // QJsonValue(double) avoids upgrading precision beyond double's integer mantissa.
+    if n >= -9007199254740992.0 && n <= 9007199254740992.0 && math.trunc(n) == n { put(b,strconv.write_int(buffer[:],i64(n),10)); return }
     put(b,shortest_float(buffer[:],n))
 }
 boolean :: proc(b: ^Writer, value: bool) { put(b,"true" if value else "false") }
@@ -59,7 +86,7 @@ Utf16_Iterator :: struct { remaining: string, pending: u16 }
 next_utf16 :: proc(it: ^Utf16_Iterator) -> (u16,bool) {
     if it.pending != 0 { result := it.pending; it.pending=0; return result,true }
     if len(it.remaining)==0 { return 0,false }
-    code, width := utf8.decode_rune(it.remaining)
+    code, width := text_decode(it.remaining,0)
     it.remaining = it.remaining[width:]
     if code < 0x10000 { return u16(code),true }
     value := u32(code)-0x10000

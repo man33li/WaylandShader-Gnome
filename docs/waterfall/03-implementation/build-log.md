@@ -286,3 +286,87 @@ Automated acceptance: **22/22 test IDs passed**. All five manual catalog IDs rem
 - Both isolated native crashes were fixed at their causes and covered by new regressions; neither is an accepted deviation.
 - Accepted behavioral deviations remain only D1 (monitor-popup item tooltips) and D2 (GTK stepping ≤1e-10; typed values remain exact).
 - No commit, live extension install/enable, live native-module load, or live compositor restart was performed. Do not install into the live session before phase-4 acceptance and the user's hardware check.
+
+## Rework round 1
+
+Round-1 acceptance rejected A-01, A-02, A-03, A-05 and imported B2/B3/B6 (`../04-verification/acceptance.md:178–188`). These independently observed failures are treated as ground truth; existing passing fixtures are not sufficient acceptance. Manual render/GUI/hardware and safety/docs signoff remain deferred as ruled in acceptance.
+
+### Disjoint ownership
+
+| Agent | Rework / owned files |
+|---|---|
+| Builder.ReworkCore | B2 and A-05: `common/json.odin`, `common/json_test.odin`, `native/paint.odin`, `native/native_test.odin` |
+| Builder.ReworkSecurity | A-01/A-02/B6: `common/json_parse.odin`, `common/text.odin`, parser/text tests, `native/boundary.odin`, `native/config.odin`, native-contract and its baseline/path fixtures |
+| Builder.ReworkABI | A-03: C ABI gate and concrete mirrors in native/Mutter, runtime EGL/librashader, shared GLib/GObject and GUI GTK |
+| Builder.ReworkBus | B3: client/GIO local error mapping, client units and appended private timeout golden |
+| Builder | CMake integration, baseline captures, positive/negative verification, final package/KWin builds and this log |
+
+No subagent runs builds/tests. String representation changes are coordinated across the parser, writer and C-string boundaries; raw canonical filename replacement remains distinct from escaped lone-surrogate preservation.
+
+### Baseline-first regression evidence
+
+1. Executed the existing native-contract command with `--capture` against `/tmp/ws-baseline-result` after adding the rework fixtures (standalone GJS, no Shell/session calls):
+
+   ```sh
+   nix-shell gnome/shell.nix --run 'GI_TYPELIB_PATH="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH" gjs -m gnome/tests/native-contract.js /tmp/ws-baseline-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native --capture'
+   ```
+
+   **PASS, exit 0.** Exact observations were saved to `local://rework1-native-baseline.json` and pinned without alteration in `gnome/tests/native-rework-baseline.json`. Covers all accepted parser counterexamples, high/low lone surrogates and ordering, all eight numeric counterexamples plus existing small/f32 numbers, three non-clean missing paths, and byte-verified raw-FF canonical filename direct-load and restored/export state. Qt preserves excess `..` above root (`/../../tmp//missing.slangp` → `/../../tmp/missing.slangp`); the fallback must not use a root-clamping normalizer.
+
+2. Executed `nix-shell gnome/shell.nix --run 'gnome/tests/cli-golden.sh capture-new /tmp/ws-baseline-result/bin/waylandshader-gnomectl'`. **PASS, exit 0**, 107 total cases after appending the per-call timeout. The new mode writes only absent cases and does not replace any existing baseline golden.
+
+CMake's compile-only ABI target now includes `${GTK3_INCLUDE_DIRS}`, so assertions against GTK headers compile with the existing real-header gate.
+
+### Integration execution
+
+| Command / check | Result |
+|---|---|
+| Baseline native-contract without `--capture`, first attempt | FAIL before assertions: GJS has no web `URL` constructor. Fixture loading corrected to `Gio.File.new_for_uri(import.meta.url)`; oracle unchanged. |
+| Same baseline native-contract command after loader correction | PASS, `Native byte/error contract passed.` |
+| `nix-build gnome/default.nix -o /tmp/ws-rework1-result`, first rework attempt | Build/ABI PASS; 12/13 tests PASS, including all new native differential cases, number/parser units, real GL and 107 CLI goldens. Existing client `"not json"` expectation exposed malformed literal dispatch (`illegal number` instead of `illegal value`). No golden was weakened. |
+| Standalone baseline GI `import_settings` for `"not json"`, `"tru"`, `"fals"`, and `{"version":1,"x":nul}` | All four baseline errors are exactly `illegal value`; exit 0 with caught GErrors. Parser keyword dispatch corrected and common regression added. |
+| `mktemp -d /tmp/ws-rework1-negative.XXXXXX`; `cp -a gnome <private-root>/gnome` through the tool subprocess API | Created `/tmp/ws-rework1-negative.AYoCtd` for deliberate source mutations only. Production sources remain untouched by negative controls. |
+
+The new parser uses checked byte scanning rather than the incompatible standard tokenizer. Internal WTF-8 preserves escaped UTF-16 surrogate code units, which the JSON writer emits as `\ud800`/`\udfff`; raw external filename bytes and actual C-string arguments are independently replacement-decoded to valid UTF-8. This distinction is covered by the baseline-pinned native cases and common text tests.
+
+### Positive and negative verification
+
+| Command / regression | Observed result |
+|---|---|
+| `nix-build gnome/default.nix -o /tmp/ws-rework1-result` after malformed-literal correction | **PASS**, real configure/build/checkPhase/install; **13/13 passed, no skips**, 16.66 seconds. Includes every new common/native/client regression and all 107 CLI goldens. |
+| `nix-build default.nix -o /tmp/ws-rework1-kwin` | **PASS**, actual KWin C++ compile/link/install. This is a build check, not a KWin runtime test. |
+| Acceptance's six assertion-presence checks, run with `nix-shell gnome/shell.nix --run 'gjs -c <coverage body from acceptance.md:97–110>'` | **PASS 6/6**: shared GList/GObject, GUI GError/GList and C GList/GObject assertions present. |
+| Copied C gate: change only `SIZE(GList, 24)` to `SIZE(GList, 25)`; `cmake -S <copy>/gnome -B <copy>/build -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build <copy>/build --target gnome_abi_check` | **EXPECTED FAIL**, exit 1, real-header `_Static_assert` reports `"GList size"`. |
+| Initial copied Odin invocation `odin check ... -build-mode:obj` | Invalid invocation: `check` does not accept `-build-mode`; not counted as a negative-control pass. Replaced with the supported build command below. |
+| Copied Odin gate: change only shared `#assert(size_of(GList) == 24 …)` to 25; `odin build <copy>/gnome/<package> -build-mode:obj -out:<copy>/<package>.o -vet -strict-style -define:GL_DEBUG=false`, for native, controller/gui, controller/ctl and runtime | **EXPECTED FAIL in all four**, exit 1 at the exact `size_of(GList) == 25` compile-time assertion. |
+| Restore both copied ABI assertions. Insert `probe,_:=make([]u8,1,context.allocator); delete(probe);` inside the actual `before_paint_output` loop; `ctest --test-dir <copy>/build -R '^gnome_native_units$' --output-on-failure` | **EXPECTED FAIL**, exit 8: measured `heap_delta` is **1400**, expected 0. No callback context reset hides the allocation. |
+| Replace that copied injection with `probe,_:=make([]u8,1,context.temp_allocator); delete(probe,context.temp_allocator);`; same native CTest | **EXPECTED FAIL**, exit 8: measured `temp_delta` is **1400**, expected 0. |
+| Remove copied allocation injection; `cmake --build <copy>/build --target gnome_abi_check && ctest --test-dir <copy>/build -R '^gnome_native_units$' --output-on-failure` | **PASS**, exit 0, real C gate and restored native regression pass. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh /tmp/ws-rework1-result -- sh -c '\''gjs -m gnome/tests/parameter-bypass.js "$WS_PRIVATE_BUS"'\'''` | **PASS**, unchanged real GPU-runtime bypass/rebuild regression in disposable Shell. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh /tmp/ws-rework1-result -- gnome/tests/iso-cli.sh /tmp/ws-rework1-result/bin/waylandshader-gnomectl'`, stdout captured to `/tmp/ws-rework1-iso.log`, then `diff /tmp/ws-iso-base.log /tmp/ws-rework1-iso.log` | **PASS**, both exit 0 and empty diff against the retained original-baseline transcript. |
+| T-UNCHANGED's exact protected-path `git diff --exit-code b223c1a -- …` command | **PASS**, no output. |
+| `rm -rf /tmp/ws-rework1-negative.AYoCtd` | Removed only the owned temporary negative-control copy after restoring and testing it. No deliberate mutations remain in production source. |
+
+`<copy>` above was `/tmp/ws-rework1-negative.AYoCtd`; all compiler/test commands ran inside the project's Nix shell. Negative and restored command outputs are retained as `local://rework1-negative-c.log`, `local://rework1-negative-odin-*.log`, `local://rework1-negative-heap.log`, `local://rework1-negative-temp.log` and `local://rework1-restored-controls.log`.
+
+### Per-item results
+
+| Item | Root fix and source | Baseline-pinned / required regression | Result |
+|---|---|---|---|
+| A-01 | Qt-compatible scanning/errors at `gnome/common/json_parse.odin:21,67,115,200`; lossless surrogate decoding at `gnome/common/text.odin:6`; escaped output at `gnome/common/json.odin:15` | `gnome/common/json_parse_test.odin:9–57`, `gnome/tests/native-contract.js:61–100` and exact `native-rework-baseline.json`: all six counterexamples plus malformed literal/separator controls, lone-high/low bytes and UTF-16 ordering | **PASS** baseline first, then Odin |
+| A-02 | Missing-path lexical cleanup at `gnome/native/config.odin:102–120,178–187`, preserving realpath for existing files and excess root-level `..` | Native contract's three missing/non-clean paths assert exact export, status preset and requestedPreset before async completion (`gnome/tests/native-contract.js:101–104`) | **PASS** baseline first, then Odin |
+| A-03 | Shared dual checks at `gnome/glib/glib.odin:11–12`, `gnome/glib/gobject.odin:19–22`, GUI shared aliases/assertions at `gnome/controller/gui/gtk.odin:21–26`, C at `gnome/native/abi-check.c:16–32`; expanded Mutter/librashader/EGL/GTK/GIO assertions in their mirror files | All six omitted-layout coverage checks; real-header and all consuming Odin builds; wrong GList size rejected by C and all four Odin consumers | **PASS**, including deliberate compile failures |
+| A-05 | Actual production loop extracted at `gnome/native/paint.odin:174–184`; warmed heap/temp measurements at `gnome/native/native_test.odin:29–75` | Active shader/color, nil/missing/inactive cases; positive zero deltas; separate injected heap/temp allocations each detected as 1400; restored source passes | **PASS**, including both negative controls |
+| B2 | Qt's precision-preserving integer and shortest-notation policy at `gnome/common/json.odin:39–81`, rather than guessed fixed/scientific thresholds | All eight required numeric exports plus retained small/f32 values, pinned from baseline in `native-rework-baseline.json` and common units | **PASS** byte equality |
+| B3 | Local GIO transport errors mapped to async libdbus/QDBus error name/text at `gnome/controller/client/client.odin:58–63,174–178`; GIO constants dual-asserted | Baseline-added `gnome/tests/golden/cli/107.{out,err,code}` from `cases.txt:109`: `--timeout 30 status` exits 3 with exact NoReply stderr and empty stdout. Existing overall-timeout exit-4 cases retained; client mapping units pass | **PASS**, 107/107 goldens |
+| B6 | Separate external UTF-8 replacement at `gnome/common/text.odin:20`, canonical paths at `gnome/native/config.odin:179–185,244–246`, worker filesystem boundary at `gnome/native/engine.odin:286–289`, GError and GTK boundaries | Byte-verified actual FF target behind valid UTF-8 symlink; direct load status and restored/committed preset export match baseline replacement text (`gnome/tests/native-contract.js:105–126`), without losing escaped-surrogate semantics | **PASS** baseline first, then Odin |
+
+B2's policy is grounded in Qt 6.10 [`resolveFormat`](https://raw.githubusercontent.com/qt/qtbase/6.10/src/corelib/text/qlocale_tools.cpp), [`doubleValueHelper`](https://raw.githubusercontent.com/qt/qtbase/6.10/src/corelib/serialization/qjsonvalue.cpp) and [`convertDoubleTo`](https://raw.githubusercontent.com/qt/qtbase/6.10/src/corelib/global/qnumeric_p.h), with captured baseline bytes as the test authority. B3's full timeout text is independently pinned by `107.err`; local-close unit handling follows the async libdbus queued-NoReply path, not its different blocking-call error path.
+
+### Rework handoff
+
+- GNOME: `/tmp/ws-rework1-result` → `/nix/store/ww4q6ac99g61ix13z9z21zkxm622nrxw-waylandshader-gnome-0.1.0`.
+- KWin: `/tmp/ws-rework1-kwin` → `/nix/store/xg5jjapnkvzd1192nk8d0hibmgiqb27w-waylandshader-0.1.0`.
+- All seven upheld items have passing required regressions. No existing baseline golden was changed to match the port; only observed new baseline cases were added.
+- Manual T-ISO-RENDER/T-GUI/T-HW and safety/docs signoff remain pending under the acceptance ruling. D1/D2 are unchanged.
+- No commit, live native-module load, live extension installation/enabling, compositor restart, or mutating live-session-bus call was performed in this rework round.

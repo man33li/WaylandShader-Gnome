@@ -52,6 +52,16 @@ classify :: proc(remote_name, message: string, local: bool) -> Error {
     if kind == .Unavailable { suffix = INSTALLATION_HINT }
     return {kind, fmt.tprintf("%s: %s%s", remote_name, message, suffix)}
 }
+// Async GIO failures without a remote name. libdbus completes both a call timeout and a connection
+// loss with the same synthesized NoReply (dbus-pending-call.c:390-395, dbus-connection.c:2302-2320,4251),
+// which QDBusError reports verbatim; "Failed" is QDBusError's generic name (qdbuserror.cpp:26).
+NO_REPLY :: "org.freedesktop.DBus.Error.NoReply"
+NO_REPLY_TEXT :: "Did not receive a reply. Possible causes include: the remote application did not send a reply, the message bus security policy blocked the reply, the reply timeout expired, or the network connection was broken."
+local_error :: proc(domain: u32, code: i32, message: string) -> (name, text: string) {
+    if domain == glib.g_io_error_quark() && (code == glib.IO_ERROR_TIMED_OUT || code == glib.IO_ERROR_CLOSED) { return NO_REPLY, NO_REPLY_TEXT }
+    return "org.freedesktop.DBus.Error.Failed", message
+}
+
 release :: proc(l: ^Life) { l.refs -= 1; if l.refs == 0 { glib.g_object_unref(l.cancel); glib.g_object_unref(l.bus); free(l) } }
 activation_release :: proc(a: ^Activation) { a.refs -= 1; if a.refs == 0 { release(a.life); free(a) } }
 transport :: proc(l: ^Life, e: Error) {
@@ -163,7 +173,9 @@ finished :: proc "c" (source: rawptr, result: ^glib.Async_Result, data: rawptr) 
         name := glib.g_dbus_error_get_remote_error(error)
         if name != nil { remote = string(name) }
         glib.g_dbus_error_strip_remote_error(error)
-        e = classify(remote, string(error.message), name == nil)
+        text := string(error.message)
+        if name == nil { remote, text = local_error(error.domain, error.code, text) }
+        e = classify(remote, text, name == nil)
         missing = remote == "org.freedesktop.DBus.Error.UnknownObject" || remote == "org.freedesktop.DBus.Error.UnknownMethod" || remote == "org.freedesktop.DBus.Error.UnknownInterface"
         if name != nil { glib.g_free(rawptr(name)) }
     }

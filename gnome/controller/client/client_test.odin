@@ -23,6 +23,25 @@ classification :: proc(t: ^testing.T) {
     testing.expect_value(t, classify("org.waylandshader.Error.InvalidArgument", "message", true).kind, Kind.Transport)
 }
 
+@(test)
+local_errors :: proc(t: ^testing.T) {
+    io := glib.g_io_error_quark()
+    name, text := local_error(io, glib.IO_ERROR_TIMED_OUT, "Timeout was reached")
+    testing.expect_value(t, name, "org.freedesktop.DBus.Error.NoReply")
+    testing.expect(t, strings.has_prefix(text, "Did not receive a reply. Possible causes include:"))
+    e := classify(name, text, true)
+    testing.expect_value(t, e.kind, Kind.Transport)
+    testing.expect(t, strings.has_prefix(e.message, "org.freedesktop.DBus.Error.NoReply: Did not receive a reply."))
+    for code in ([]i32{glib.IO_ERROR_TIMED_OUT, glib.IO_ERROR_CLOSED}) {
+        name, text = local_error(io, code, "gio text")
+        testing.expect_value(t, name, "org.freedesktop.DBus.Error.NoReply")
+        testing.expect_value(t, text, "Did not receive a reply. Possible causes include: the remote application did not send a reply, the message bus security policy blocked the reply, the reply timeout expired, or the network connection was broken.")
+    }
+    name, text = local_error(glib.g_quark_from_static_string("other"), glib.IO_ERROR_TIMED_OUT, "m")
+    testing.expect_value(t, name, "org.freedesktop.DBus.Error.Failed")
+    testing.expect_value(t, text, "m")
+}
+
 expect_invalid :: proc(t: ^testing.T, source, message: string) {
     c: Client
     if !testing.expect_value(t, accept_json(&c, VALID).kind, Kind.None) {

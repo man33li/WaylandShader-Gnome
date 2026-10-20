@@ -5,22 +5,64 @@ import "core:math"
 import "core:strconv"
 import "core:unicode/utf8"
 
-JSON_Parser :: struct { tokenizer: json.Tokenizer, token: json.Token, error: Error, depth: int }
+JSON_Parser :: struct { source: string, index: int, token: json.Token, error: Error, depth: int }
+json_digit :: proc(c: u8) -> bool { return c>='0' && c<='9' }
+json_hex :: proc(source: string) -> (u32,bool) {
+    value:u32
+    for c in transmute([]u8)source {
+        value<<=4
+        if c>='0' && c<='9' { value+=u32(c-'0') }
+        else if c>='a' && c<='f' { value+=u32(c-'a'+10) }
+        else if c>='A' && c<='F' { value+=u32(c-'A'+10) }
+        else { return 0,false }
+    }
+    return value,true
+}
 json_next :: proc(p: ^JSON_Parser) {
     if p.error!=nil { return }
-    for p.tokenizer.r==' ' || p.tokenizer.r=='\t' || p.tokenizer.r=='\n' || p.tokenizer.r=='\r' { json.next_rune(&p.tokenizer) }
-    if p.tokenizer.r=='\v' || p.tokenizer.r=='\f' || p.tokenizer.r==0 { p.token={kind=.Invalid}; return }
-    token,err:=json.get_token(&p.tokenizer)
-    p.token=token
-    #partial switch err {
-    case .None,.EOF:
-    case .String_Not_Terminated: p.error="unterminated string"
-    case .Invalid_String:
-        if len(token.text)<2 || token.text[len(token.text)-1]!='"' { p.error="unterminated string" }
-    case .Invalid_Rune: p.error="invalid UTF8 string"
-    case .Invalid_Number: p.error="illegal number"
-    case: p.error="illegal value"
+    s:=p.source
+    for p.index<len(s) && (s[p.index]==' ' || s[p.index]=='\t' || s[p.index]=='\n' || s[p.index]=='\r') { p.index+=1 }
+    if p.index==len(s) { p.token={kind=.EOF}; return }
+    start:=p.index; p.index+=1
+    c:=s[start]
+    p.token={kind=.Invalid}
+    switch c {
+    case '{': p.token.kind=.Open_Brace
+    case '}': p.token.kind=.Close_Brace
+    case '[': p.token.kind=.Open_Bracket
+    case ']': p.token.kind=.Close_Bracket
+    case ':': p.token.kind=.Colon
+    case ',': p.token.kind=.Comma
+    case '"':
+        p.token.kind=.String
+        for p.index<len(s) {
+            current:=s[p.index]; p.index+=1
+            if current=='"' { p.token.text=s[start:p.index]; return }
+            if current=='\\' && p.index<len(s) { p.index+=1 }
+        }
+        p.error="unterminated string"
+    case 't','f','n':
+        word:="true"; p.token.kind=.True
+        if c=='f' { word="false"; p.token.kind=.False }
+        if c=='n' { word="null"; p.token.kind=.Null }
+        if len(s)-start>=len(word) && s[start:start+len(word)]==word { p.index=start+len(word) }
+        else { p.error="illegal value" }
+    case '-','0','1','2','3','4','5','6','7','8','9':
+        i:=start
+        if s[i]=='-' { i+=1 }
+        if i>=len(s) || !json_digit(s[i]) { p.error="illegal number"; return }
+        if s[i]=='0' { i+=1 } else { for i<len(s) && json_digit(s[i]) { i+=1 } }
+        if i<len(s) && s[i]=='.' { i+=1; for i<len(s) && json_digit(s[i]) { i+=1 } }
+        if i<len(s) && (s[i]=='e' || s[i]=='E') {
+            i+=1
+            if i<len(s) && (s[i]=='+' || s[i]=='-') { i+=1 }
+            digits:=i
+            for i<len(s) && json_digit(s[i]) { i+=1 }
+            if i==digits { p.error="illegal number"; return }
+        }
+        p.index=i; p.token.kind=.Float
     }
+    p.token.text=s[start:p.index]
 }
 json_string :: proc(p: ^JSON_Parser) -> (string,Error) {
     source:=p.token.text
@@ -33,7 +75,14 @@ json_string :: proc(p: ^JSON_Parser) -> (string,Error) {
     count:=0
     for i:=0; i<len(source); i+=1 {
         c:=source[i]
-        if c!='\\' { bytes[count]=c; count+=1; continue }
+        if c!='\\' {
+            if c>=0x80 {
+                code,width:=utf8.decode_rune(source[i:])
+                if code==0xfffd && width==1 { return "","invalid UTF8 string" }
+                copy(bytes[count:],source[i:i+width]); count+=width; i+=width-1
+            } else { bytes[count]=c; count+=1 }
+            continue
+        }
         i+=1
         if i>=len(source) { return "","unterminated string" }
         c=source[i]
@@ -45,14 +94,14 @@ json_string :: proc(p: ^JSON_Parser) -> (string,Error) {
         case 't': bytes[count]='\t'
         case 'u':
             if i+4>=len(source) { return "","invalid escape sequence" }
-            code,ok:=strconv.parse_u64(source[i+1:i+5],16)
+            code,ok:=json_hex(source[i+1:i+5])
             if !ok { return "","invalid escape sequence" }
             i+=4
             if code>=0xd800 && code<=0xdbff && i+6<len(source) && source[i+1:i+3]=="\\u" {
-                low,valid:=strconv.parse_u64(source[i+3:i+7],16)
+                low,valid:=json_hex(source[i+3:i+7])
                 if valid && low>=0xdc00 && low<=0xdfff { code=0x10000+((code-0xd800)<<10)+(low-0xdc00); i+=6 }
             }
-            encoded,width:=utf8.encode_rune(rune(code))
+            encoded,width:=text_encode(rune(code))
             copy(bytes[count:],encoded[:width]); count+=width
             continue
         case: bytes[count]=c
@@ -72,6 +121,12 @@ json_node :: proc(p: ^JSON_Parser) -> (result: json.Value,failure: Error) {
     case .Float,.Integer:
         value,ok:=strconv.parse_f64(p.token.text)
         if !ok || math.is_nan(value) || math.is_inf(value) { return {},"illegal number" }
+        if value==0 {
+            for c in transmute([]u8)p.token.text {
+                if c=='e' || c=='E' { break }
+                if c>='1' && c<='9' { return {},"illegal number" }
+            }
+        }
         json_next(p)
         return json.Float(value),p.error
     case .String:
@@ -98,6 +153,8 @@ json_node :: proc(p: ^JSON_Parser) -> (result: json.Value,failure: Error) {
             if p.error!=nil { return {},p.error }
             if p.token.kind!=.Colon { return {},"missing name separator" }
             json_next(p)
+            if p.token.kind==.EOF { return {},"unterminated object" }
+            if p.token.kind==.Close_Brace || p.token.kind==.Close_Bracket { return {},"object is missing after a comma" }
             value,ve:=json_node(p)
             if ve!=nil { return {},ve }
             if previous,exists:=obj[key]; exists { json.destroy_value(previous); obj[key]=value }
@@ -124,6 +181,7 @@ json_node :: proc(p: ^JSON_Parser) -> (result: json.Value,failure: Error) {
         if p.token.kind==.Close_Bracket { json_next(p); if p.error!=nil { return {},p.error }; success=true; return array,nil }
         for {
             if p.token.kind==.EOF { return {},"unterminated array" }
+            if p.token.kind==.Close_Brace || p.token.kind==.Close_Bracket { return {},"object is missing after a comma" }
             value,err:=json_node(p)
             if err!=nil { return {},err }
             if _,ae:=append(&array,value); ae!=nil { json.destroy_value(value); return {},"Out of memory" }
@@ -133,7 +191,7 @@ json_node :: proc(p: ^JSON_Parser) -> (result: json.Value,failure: Error) {
             if p.token.kind!=.Comma { return {},"missing value separator" }
             json_next(p)
             if p.error!=nil { return {},p.error }
-            if p.token.kind==.Close_Bracket { return {},"illegal value" }
+            if p.token.kind==.Close_Bracket { return {},"object is missing after a comma" }
         }
     case .Invalid: return {},"illegal number"
     case: return {},"illegal value"
@@ -141,7 +199,7 @@ json_node :: proc(p: ^JSON_Parser) -> (result: json.Value,failure: Error) {
 }
 parse_json :: proc(source: string,allocator:=context.allocator) -> (json.Value,Error) {
     context.allocator=allocator
-    p:=JSON_Parser{tokenizer=json.make_tokenizer(source,spec=.JSON,parse_integers=false)}
+    p:=JSON_Parser{source=source}
     json_next(&p)
     if p.error!=nil { return {},p.error }
     if p.token.kind==.Invalid { return {},"illegal number" }

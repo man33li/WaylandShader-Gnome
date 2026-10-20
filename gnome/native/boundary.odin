@@ -2,6 +2,7 @@ package waylandshader
 
 import "base:runtime"
 import "core:c"
+import common "../common"
 import glib "../glib"
 
 Error :: Maybe(string)
@@ -36,14 +37,19 @@ text :: proc(value: cstring) -> (string, Error) {
 
 mutate :: proc(err: Error, destination: ^^glib.Error) -> b32 {
     if message, failed := err.?; failed {
+        safe,encoding_error:=common.text_utf8(message,context.temp_allocator)
+        if encoding_error!=nil {
+            boundary_set_error(destination,boundary_quark("wayland-shader-error"),1,"Out of memory")
+            return false
+        }
         // g_set_error_literal copies the string; never hand Odin memory to GLib.
-        buffer, allocation_error := make([]u8, len(message)+1)
+        buffer, allocation_error := make([]u8, len(safe)+1)
         if allocation_error != nil {
             boundary_set_error(destination, boundary_quark("wayland-shader-error"), 1, "Out of memory")
             return false
         }
         defer delete(buffer)
-        copy(buffer, message)
+        copy(buffer, safe)
         boundary_set_error(destination, boundary_quark("wayland-shader-error"), 1, cstring(raw_data(buffer)))
         return false
     }

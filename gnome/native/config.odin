@@ -99,6 +99,25 @@ recent_prepend :: proc(e: ^Engine,path: string) -> Error {
     free_recent(&e.recent); e.recent=next; success=true
     return nil
 }
+clean_absolute :: proc(path: string) -> (string,Error) {
+    bytes,ae:=make([]u8,len(path)+1,context.temp_allocator)
+    if ae!=nil { return "","Out of memory" }
+    bytes[0]='/'; count:=1
+    for start:=1; start<len(path); {
+        end:=start
+        for end<len(path) && path[end]!='/' { end+=1 }
+        part:=path[start:end]; start=end+1
+        if len(part)==0 || part=="." { continue }
+        if part==".." && count>1 {
+            previous:=count-1
+            for previous>0 && bytes[previous-1]!='/' { previous-=1 }
+            if string(bytes[previous:count])!=".." { count=max(1,previous-1); continue }
+        }
+        if count>1 { bytes[count]='/'; count+=1 }
+        copy(bytes[count:],part); count+=len(part)
+    }
+    return string(bytes[:count]),nil
+}
 import_settings :: proc(e: ^Engine,source: string) -> Error {
     if e.loading || e.job!=nil { return "Cannot import settings while a preset is compiling" }
     if e.renderer_failed { return e.error if len(e.error)>0 else "The GNOME renderer is unavailable" }
@@ -157,12 +176,13 @@ import_settings :: proc(e: ^Engine,source: string) -> Error {
     free_recent(&e.recent); e.saved_outputs=saved; e.overrides=overrides; e.recent=recent; e.enabled=enabled; success=true
     for output in e.outputs { settings,exists:=e.saved_outputs[output.id]; output.settings=settings if exists else common.DEFAULT_OUTPUT_SETTINGS }
     if len(preset)>0 {
-        p,ae:=strings.clone_to_cstring(preset,context.temp_allocator); if ae!=nil { return "Out of memory" }
+        filesystem,te:=common.text_utf8(preset,context.temp_allocator); if te!=nil { return te }
+        p,ae:=strings.clone_to_cstring(filesystem,context.temp_allocator); if ae!=nil { return "Out of memory" }
         canonical:cstring
         if !strings.contains_rune(preset,0) { canonical=sr.canonical_path(p,nil) }
-        restored:=preset
-        if canonical!=nil { restored=string(canonical) }
         defer if canonical!=nil { sr.c_free(rawptr(canonical)) }
+        restored,re:=clean_absolute(preset); if re!=nil { return re }
+        if canonical!=nil { restored,re=common.text_utf8(string(canonical),context.temp_allocator,internal=false); if re!=nil { return re } }
         if err:=request(e,restored); err!=nil { return err }
         if e.runtime==nil && len(e.preset)==0 { if err:=set_str(&e.preset,restored); err!=nil { return err } }
     } else { set_str(&e.preset,""); set_str(&e.requested,""); free_parameters(&e.last_parameters); if err:=reset(e,false); err!=nil { return err } }
@@ -221,7 +241,9 @@ load_preset :: proc(e: ^Engine,path: string) -> Error {
     canonical:=sr.canonical_path(cpath,nil)
     if canonical==nil { return "Unable to resolve preset filename" }
     defer sr.c_free(rawptr(canonical))
-    return request(e,string(canonical))
+    decoded,te:=common.text_utf8(string(canonical),context.temp_allocator,internal=false)
+    if te!=nil { return te }
+    return request(e,decoded)
 }
 set_enabled :: proc(e: ^Engine,value: bool) -> Error { if e.enabled==value { return nil }; e.enabled=value; if err:=reset(e,value); err!=nil { return err }; return sync_activity(e) }
 set_parameter :: proc(e: ^Engine,name: string,value: f64) -> Error {

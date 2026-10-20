@@ -16,8 +16,10 @@ GObject_Class :: struct {
     pdummy: [3]rawptr,
 }
 Type_Query :: struct { type: GType, type_name: cstring, class_size, instance_size: u32 }
+#assert(size_of(GObject) == 24 && offset_of(GObject, g_class) == 0 && offset_of(GObject, ref_count) == 8 && offset_of(GObject, qdata) == 16)
 #assert(size_of(GObject_Class) == 136 && offset_of(GObject_Class, dispose) == 40 && offset_of(GObject_Class, finalize) == 48)
-#assert(size_of(Type_Query) == 24)
+#assert(size_of(Type_Query) == 24 && offset_of(Type_Query, type) == 0 && offset_of(Type_Query, type_name) == 8 && offset_of(Type_Query, class_size) == 16 && offset_of(Type_Query, instance_size) == 20)
+#assert(size_of(GType) == 8)
 
 foreign import object "system:gobject-2.0"
 foreign object {

@@ -8,7 +8,8 @@ GMainLoop :: struct {}
 GSource :: struct {}
 Error :: struct { domain: u32, code: i32, message: cstring }
 GList :: struct { data: rawptr, next, prev: ^GList }
-#assert(size_of(Error) == 16)
+#assert(size_of(Error) == 16 && offset_of(Error, domain) == 0 && offset_of(Error, code) == 4 && offset_of(Error, message) == 8)
+#assert(size_of(GList) == 24 && offset_of(GList, data) == 0 && offset_of(GList, next) == 8 && offset_of(GList, prev) == 16)
 
 foreign import lib "system:glib-2.0"
 foreign lib {

@@ -31,7 +31,12 @@ NO_RESET_NOTIFICATION :: 0x31be
 VERSION :: 0x3054
 EXTENSIONS :: 0x3055
 PLATFORM_SURFACELESS_MESA :: 0x31dd
-
+#assert(size_of(Display) == 8 && size_of(Context) == 8 && size_of(Surface) == 8 && size_of(Config) == 8)
+#assert(NONE == 0x3038 && DRAW == 0x3059 && READ == 0x305a && OPENGL_API == 0x30a2 && OPENGL_BIT == 8 && PBUFFER_BIT == 1)
+#assert(SURFACE_TYPE == 0x3033 && RENDERABLE_TYPE == 0x3040 && WIDTH == 0x3057 && HEIGHT == 0x3056 && CONTEXT_CLIENT_TYPE == 0x3097)
+#assert(CONTEXT_MAJOR_VERSION == 0x3098 && CONTEXT_MINOR_VERSION == 0x30fb && CONTEXT_OPENGL_PROFILE_MASK == 0x30fd && CONTEXT_OPENGL_CORE_PROFILE_BIT == 1)
+#assert(CONTEXT_FLAGS == 0x30fc && CONTEXT_OPENGL_ROBUST_ACCESS_BIT == 4 && CONTEXT_OPENGL_RESET_NOTIFICATION_STRATEGY == 0x31bd)
+#assert(LOSE_CONTEXT_ON_RESET == 0x31bf && NO_RESET_NOTIFICATION == 0x31be && VERSION == 0x3054 && EXTENSIONS == 0x3055 && PLATFORM_SURFACELESS_MESA == 0x31dd)
 foreign import egl "system:EGL"
 foreign egl {
     @(link_name="eglGetDisplay") GetDisplay :: proc(native: rawptr) -> Display ---

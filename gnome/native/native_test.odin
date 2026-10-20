@@ -33,18 +33,46 @@ selection_and_zero_allocations :: proc(t: ^testing.T) {
     testing.expect_value(t,select_output(views[:],second,8),-1)
     testing.expect_value(t,select_output(views[:],nil,7),-1)
     c:=Frame_Clock{first_frame=-1,clear_history=true}
+    // Opaque identities are only compared by this loop; no fabricated handle reaches FFI.
+    rt:sr.Runtime
+    shader_output:=Output{view=first,settings={shader_enabled=true}}
+    color_output:=Output{view=second,settings={color_enabled=true,gamma=2,saturation=1}}
+    nil_output:Output
+    e:=Engine{enabled=true,stage=cast(^Actor)uintptr(1),runtime=&rt,ctx=cast(sr.Context)uintptr(1)}
+    append(&e.outputs,&nil_output,&shader_output,&color_output)
+    append(&e.views,Output_View{nil,-1},Output_View{first,7},Output_View{second,9})
+    defer delete(e.outputs)
+    defer delete(e.views)
+    testing.expect(t,before_paint_output(&e,first)==&e.views[1])
+    testing.expect(t,before_paint_output(&e,second)==&e.views[2])
+    testing.expect(t,before_paint_output(&e,nil)==nil)
+    testing.expect(t,before_paint_output(&e,cast(^Stage_View)uintptr(3))==nil)
+    e.enabled=false
+    testing.expect(t,before_paint_output(&e,first)==nil)
+    e.enabled=true
     frame_timing(&c,0,1000000,60); select_output(views[:],first,7)
     heap,temp:mem.Tracking_Allocator
     mem.tracking_allocator_init(&heap,context.allocator); mem.tracking_allocator_init(&temp,context.temp_allocator)
     old_heap,old_temp:=context.allocator,context.temp_allocator
     context.allocator=mem.tracking_allocator(&heap); context.temp_allocator=mem.tracking_allocator(&temp)
     before_heap,before_temp:=heap.total_allocation_count,temp.total_allocation_count
-    total:=0
-    for i in 0..<100 { frame_timing(&c,i64(i),1000000+i64(i)*17000,60); total+=select_output(views[:],second,9) }
+    total,paint_hits:=0,0
+    for i in 0..<100 {
+        frame_timing(&c,i64(i),1000000+i64(i)*17000,60)
+        total+=select_output(views[:],second,9)
+        if before_paint_output(&e,first)==&e.views[1] { paint_hits+=1 }
+        if before_paint_output(&e,second)==&e.views[2] { paint_hits+=1 }
+        if before_paint_output(&e,nil)!=nil { paint_hits+=1000 }
+        if before_paint_output(&e,cast(^Stage_View)uintptr(3))!=nil { paint_hits+=1000 }
+        e.enabled=false
+        if before_paint_output(&e,first)!=nil { paint_hits+=1000 }
+        e.enabled=true
+    }
     heap_delta,temp_delta:=heap.total_allocation_count-before_heap,temp.total_allocation_count-before_temp
     context.allocator=old_heap; context.temp_allocator=old_temp
     mem.tracking_allocator_destroy(&heap); mem.tracking_allocator_destroy(&temp)
-    testing.expect_value(t,total,100); testing.expect_value(t,heap_delta,i64(0)); testing.expect_value(t,temp_delta,i64(0))
+    testing.expect_value(t,total,100); testing.expect_value(t,paint_hits,200)
+    testing.expect_value(t,heap_delta,i64(0)); testing.expect_value(t,temp_delta,i64(0))
 }
 Thread_Check :: struct { engine: ^Engine, error: Error }
 wrong_thread :: proc(data: ^Thread_Check) { data.error=engine_check(data.engine) }

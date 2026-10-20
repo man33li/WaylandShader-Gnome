@@ -1,5 +1,6 @@
 import GIRepository from 'gi://GIRepository?version=3.0';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 const repository = GIRepository.Repository.dup_default();
 repository.prepend_search_path(ARGV[0]);
 repository.prepend_library_path(ARGV[0]);
@@ -53,6 +54,83 @@ const expected = {
     'stopped:set_output_gamma': 'The native effect has shut down',
     'stopped:set_output_saturation': 'The native effect has shut down',
 };
+// Rework observations are pinned only from the original native module.
+const [, baselineBytes] = Gio.File.new_for_uri(import.meta.url).get_parent().get_child('native-rework-baseline.json').load_contents(null);
+const reworkExpected = JSON.parse(new TextDecoder().decode(baselineBytes));
+const reworkActual = {};
+const reworkCases = [
+    ['trailingDecimal', '{"version":1.}'],
+    ['underflow', '{"version":1,"ignored":1e-4000}'],
+    ['overflow', '{"version":1,"ignored":1e4000}'],
+    ['signedUnicodeEscape', '{"version":1,"ignored":"\\u+123"}'],
+    ['spaceUnicodeEscape', '{"version":1,"ignored":"\\u 123"}'],
+    ['nonAsciiUnicodeEscape', '{"version":1,"ignored":"\\ué123"}'],
+    ['rawNewline', '{"version":1,"ignored":"a\nb"}'],
+    ['missingValue', '{"version":}'],
+    ['leadingZeroObject', '{"version":01}'],
+    ['leadingZeroArray', '[01]'],
+    ['keywordBoundary', '{"version":1,"ignored":truefalse}'],
+    ['missingObjectEnd', '{"a":'],
+    ['arrayTrailingComma', '[1,]'],
+    ['nestedMissingValue', '{"a":[}'],
+    ['loneHigh', '{"version":1,"recent_presets":["/x\\ud800.slangp"]}'],
+    ['loneLow', '{"version":1,"recent_presets":["/x\\udfff.slangp"]}'],
+    ['surrogateOrdering', '{"version":1,"parameters":{"/p":{"\\ud800":1,"😀":2,"\\ue000":3}}}'],
+    ...['0.0005', '0.0001', '1234567.5', '12345678.25', '1e16', '9.2e18',
+        '9223372036854776000', '123456789012345680000', '1.0', '-0.0', '1e-7',
+        '0.5', '1e20', '1.0000001e-7', '9007199254740991', '0.10000000149011612']
+        .map(n => [`number:${n}`, `{"version":1,"parameters":{"/p.slangp":{"GAIN":${n}}}}`]),
+];
+function observeImport(label, source, paths = false) {
+    const instance = WaylandShader.Effect.new();
+    try {
+        try {
+            instance.import_settings(source);
+            reworkActual[label] = {settings: instance.export_settings()};
+            if (paths) {
+                const status = JSON.parse(instance.get_status());
+                reworkActual[label].paths = {preset: status.preset, requestedPreset: status.requestedPreset, loading: status.loading};
+            }
+        } catch (error) {
+            if (!error.matches(GLib.quark_from_string('wayland-shader-error'), 1)) throw error;
+            reworkActual[label] = {error: error.message};
+        }
+    } finally { instance.shutdown(); }
+}
+for (const [label, source] of reworkCases) observeImport(label, source);
+for (const path of ['/tmp/ws-acceptance-absent/../missing.slangp',
+    '/nonexistent//a/./b/../c.slangp', '/../../tmp//missing.slangp']) {
+    observeImport(`missing:${path}`, JSON.stringify({version: 1, preset: path}), true);
+}
+// Shell printf operates on bytes; the private directory prevents fixture collisions.
+const fixture = GLib.dir_make_tmp('waylandshader-native-path-XXXXXX');
+try {
+    const [ok, bytes, stderr, status] = GLib.spawn_sync(null,
+        ['sh', '-c', 'target=$(printf "%s/rawbad\\\\377.slangp" "$1"); : > "$target"; ln -s "$target" "$1/link.slangp"; readlink "$1/link.slangp"', 'fixture', fixture],
+        null, GLib.SpawnFlags.SEARCH_PATH, null);
+    if (!ok || status !== 0 || !bytes.includes(255)) throw Error('Fixture target must contain actual byte FF');
+    const link = `${fixture}/link.slangp`;
+    const normalize = value => value.replaceAll(fixture, '<fixture>');
+    const instance = WaylandShader.Effect.new();
+    try {
+        instance.load_preset(link);
+        reworkActual.rawFilenameLoad = normalize(instance.get_status());
+    } finally { instance.shutdown(); }
+    observeImport('rawFilenameRestore', JSON.stringify({version: 1, preset: link}), true);
+    reworkActual.rawFilenameRestore = JSON.parse(normalize(JSON.stringify(reworkActual.rawFilenameRestore)));
+} finally {
+    const [, , , status] = GLib.spawn_sync(null,
+        ['sh', '-c', 'rm -f -- "$1/link.slangp" "$1"/rawbad*.slangp; rmdir -- "$1"', 'cleanup', fixture],
+        null, GLib.SpawnFlags.SEARCH_PATH, null);
+    if (status !== 0) throw Error('Could not remove private filename fixture');
+}
+if (capture) print('REWORK_CAPTURE=' + JSON.stringify(reworkActual));
+else {
+    for (const label of Object.keys(reworkActual)) {
+        if (JSON.stringify(reworkActual[label]) !== JSON.stringify(reworkExpected[label]))
+            throw Error(`${label}: ${JSON.stringify(reworkActual[label])} != ${JSON.stringify(reworkExpected[label])}`);
+    }
+}
 const actual = {};
 const effect = WaylandShader.Effect.new();
 if (!effect) throw Error('Effect.new returned null');

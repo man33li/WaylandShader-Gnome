@@ -106,3 +106,4 @@ toggle
 hang --timeout 1 status
 hang --timeout 1 parameters
 hang --timeout 2 toggle
+hang --timeout 30 status

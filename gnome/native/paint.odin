@@ -171,13 +171,17 @@ frame_timing :: proc(c: ^Frame_Clock,count,now: i64,refresh: f32) -> (render: bo
 select_output :: proc(views: []Output_View,view: ^Stage_View,frame: i64) -> int { for v,i in views { if v.view==view { return i if v.expanded_frame==frame else -1 } }; return -1 }
 continue_scene :: proc(e: ^Engine,pc: ^Paint_Context,continued: ^bool) { if actor:=clutter_actor_meta_get_actor(cast(^Actor_Meta)e.self); actor!=nil { continued^=true; clutter_actor_continue_paint(actor,pc) } }
 renderer_failure :: proc(e: ^Engine,err: Error) { e.renderer_failed=true; e.loading=false; set_str(&e.pending,""); e.generation+=1; fail(e,error_message(err)) }
+before_paint_output :: proc(e: ^Engine,view: ^Stage_View) -> ^Output_View {
+    for &v,i in e.views { if v.view==view && (shader(e,e.outputs[i])||color(e,e.outputs[i])) { return &v } }
+    return nil
+}
 before_paint :: proc "c" (stage: ^Actor,view: ^Stage_View,frame: ^Frame,data: rawptr) {
     context=boundary_context()
     runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
     e:=cast(^Engine)data
     if e.stopped || e.renderer_failed { return }
     if err:=discover(e,view); err!=nil { renderer_failure(e,err); return }
-    for &v,i in e.views { if v.view==view && (shader(e,e.outputs[i])||color(e,e.outputs[i])) { clutter_stage_view_add_redraw_clip(view,nil); v.expanded_frame=clutter_frame_get_count(frame); break } }
+    if v:=before_paint_output(e,view); v!=nil { clutter_stage_view_add_redraw_clip(view,nil); v.expanded_frame=clutter_frame_get_count(frame) }
 }
 engine_paint :: proc(e: ^Engine,pc: ^Paint_Context,flags: u32,continued: ^bool) -> Error {
     view:=clutter_paint_context_get_stage_view(pc); frame:=clutter_paint_context_get_frame(pc)

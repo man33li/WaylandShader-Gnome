@@ -283,7 +283,9 @@ compile_worker :: proc(job: ^Load_Job) { compile_entry(job) }
 compile_entry :: proc "c" (job: ^Load_Job) {
     context=boundary_context()
     runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
-    job.result,job.error=sr.load(job.display,job.ctx,job.path,job.keys,job.overrides)
+    filesystem,encoding_error:=common.text_utf8(job.path,context.temp_allocator)
+    // complete_load reports an empty failed job as Out of memory without borrowing a literal.
+    if encoding_error==nil { job.result,job.error=sr.load(job.display,job.ctx,filesystem,job.keys,job.overrides) }
     glib.g_source_attach(job.completion,job.main_ctx)
 }
 complete_idle :: proc "c" (data: rawptr) -> b32 {

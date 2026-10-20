@@ -1,6 +1,7 @@
 #!/bin/sh
 # Golden transcripts of waylandshader-gnomectl (REQ-041..044, T-CLI-GOLDEN).
 #   cli-golden.sh capture <ctl>   record golden/cli/NNN.{out,err,code} from <ctl> (the baseline binary)
+#   cli-golden.sh capture-new <ctl>  record only cases that have no golden yet (never overwrites)
 #   cli-golden.sh check   <ctl>   compare <ctl> with the recorded transcripts
 # Every case runs under its own `dbus-run-session` with an empty XDG_DATA_DIRS, so it never
 # reaches the caller's session bus. The invoked ctl path is replaced by @CTL@.
@@ -53,8 +54,8 @@ fi
 
 mode=${1:-}
 ctl=${2:-}
-case $mode in capture | check) ;; *)
-    echo "usage: $0 capture|check <ctl>" >&2
+case $mode in capture | capture-new | check) ;; *)
+    echo "usage: $0 capture|capture-new|check <ctl>" >&2
     exit 64
     ;;
 esac
@@ -89,6 +90,7 @@ while IFS= read -r line; do
     case $line in '' | '#'*) continue ;; esac
     n=$((n + 1))
     id=$(printf '%03d' "$n")
+    [ "$mode" = capture-new ] && [ -e "$golden/$id.code" ] && continue
     # Private per-case XDG directories and no gvfs daemon/FUSE: nothing leaks from the caller.
     cdir=$work/$id.home
     mkdir -m 700 "$cdir" "$cdir/runtime" "$cdir/config" "$cdir/cache" "$cdir/data" "$cdir/state"
@@ -109,7 +111,7 @@ while IFS= read -r line; do
     sed "s|$pattern|@CTL@|g" "$work/$id.raw.err" >"$work/$id.err"
     cp "$work/$id.raw.code" "$work/$id.code"
     for ext in out err code; do
-        if [ "$mode" = capture ]; then
+        if [ "$mode" != check ]; then
             cp "$work/$id.$ext" "$golden/$id.$ext"
         elif ! cmp -s "$work/$id.$ext" "$golden/$id.$ext"; then
             echo "FAIL case $id ($ext): $line" >&2
@@ -119,7 +121,7 @@ while IFS= read -r line; do
     done
 done <"$golden/cases.txt"
 
-if [ "$mode" = capture ]; then
+if [ "$mode" != check ]; then
     echo "captured $n cases from $ctl into $golden"
     exit 0
 fi

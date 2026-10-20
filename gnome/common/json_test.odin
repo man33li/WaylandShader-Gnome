@@ -22,6 +22,10 @@ expect_json :: proc(t: ^testing.T,source,expected: string,indented: bool=false) 
 @(test)
 json_strings_numbers :: proc(t: ^testing.T) {
     expect_json(t,`{"z":"é😀","a":"\"\\\b\f\n\r\t\u0001"}`,`{"a":"\"\\\b\f\n\r\t\u0001","z":"é😀"}`)
+    raw:Writer
+    quote(&raw,"raw\xff")
+    testing.expect_value(t,finish(&raw),`"raw�"`)
+    destroy(&raw)
     for pair in ([][2]string{{"1.0","1"},{"-0.0","0"},{"1e-7","1e-07"},{"0.5","0.5"},{"1e20","1e+20"},{"1.0000001e-7","1.0000001e-07"},{"9007199254740991","9007199254740991"}}) { expect_json(t,pair[0],pair[1]) }
     promoted:Writer
     number(&promoted,f64(f32(.1)))
@@ -32,6 +36,20 @@ json_strings_numbers :: proc(t: ^testing.T) {
     testing.expect_value(t,finish(&w),"null,null"); destroy(&w)
     value,err:=stringify(json.Value(json.Integer(-42)))
     testing.expect(t,err==nil); testing.expect_value(t,value,"-42"); delete(value)
+}
+@(test)
+json_baseline_number_bytes :: proc(t: ^testing.T) {
+    // Baseline native-contract captures retain these exact GAIN bytes.
+    for pair in ([][2]string{
+        {"0.0005","5e-04"},
+        {"0.0001","1e-04"},
+        {"1234567.5","1234567.5"},
+        {"12345678.25","12345678.25"},
+        {"1e16","1e+16"},
+        {"9.2e18","9.2e+18"},
+        {"9223372036854776000","9223372036854776000"},
+        {"123456789012345680000","123456789012345680000"},
+    }) { expect_json(t,pair[0],pair[1]) }
 }
 @(test)
 json_utf16_order :: proc(t: ^testing.T) {
@@ -78,7 +96,7 @@ json_document_compatibility :: proc(t: ^testing.T) {
     testing.expect_value(t,string(escaped_object["a"].(json.String)),"q")
     testing.expect_value(t,string(escaped_object["emoji"].(json.String)),"😀")
     json.destroy_value(escaped)
-    for pair in ([][2]string{{`{} []`,"garbage at the end of the document"},{`{"a":`,"illegal value"},{`[1,]`,"illegal value"},{`{"a" 1}`,"missing name separator"},{`{"a":1 "b":2}`,"unterminated object"},{`{"a":1,}`,"object is missing after a comma"}}) {
+    for pair in ([][2]string{{`{} []`,"garbage at the end of the document"},{`{"a":`,"unterminated object"},{`[1,]`,"object is missing after a comma"},{`{"a" 1}`,"missing name separator"},{`{"a":1 "b":2}`,"unterminated object"},{`{"a":1,}`,"object is missing after a comma"}}) {
         tracking:mem.Tracking_Allocator
         mem.tracking_allocator_init(&tracking,context.allocator)
         _,failure:=parse_json(pair[0],mem.tracking_allocator(&tracking))
@@ -97,4 +115,21 @@ json_document_compatibility :: proc(t: ^testing.T) {
     _,allocation_failure:=parse_json(`{"key":["value"]}`)
     context.allocator=old
     testing.expect_value(t,allocation_failure,Error("Out of memory"))
+}
+
+@(test)
+json_baseline_string_preservation :: proc(t: ^testing.T) {
+    for source in ([]string{
+        `{"recent_presets":["/x\ud800.slangp"]}`,
+        `{"recent_presets":["/x\udfff.slangp"]}`,
+        `{"\ud800":1,"😀":2,"":3}`,
+    }) {
+        value,err:=parse_json(source)
+        testing.expect(t,err==nil)
+        rendered,write_error:=stringify(value)
+        testing.expect(t,write_error==nil)
+        testing.expect_value(t,rendered,source)
+        delete(rendered)
+        json.destroy_value(value)
+    }
 }

@@ -20,9 +20,17 @@ Frame_Options :: struct {
     aspect_ratio, frames_per_second: f32,
     frametime_delta: u32,
 }
-#assert(size_of(Preset_Options) == 16 && size_of(Chain_Options) == 16)
-#assert(size_of(Preset_Parameter) == 32 && size_of(Parameter_List) == 16)
-#assert(size_of(Image) == 16 && size_of(Viewport) == 16 && size_of(Frame_Options) == 40)
+#assert(size_of(Libra_Error) == 8 && size_of(Preset) == 8 && size_of(Gl_Filter_Chain) == 8)
+#assert(size_of(Preset_Options) == 16 && offset_of(Preset_Options, version) == 0 && offset_of(Preset_Options, original_aspect_uniforms) == 8 && offset_of(Preset_Options, frametime_uniforms) == 9)
+#assert(size_of(Chain_Options) == 16 && offset_of(Chain_Options, version) == 0 && offset_of(Chain_Options, glsl_version) == 8 && offset_of(Chain_Options, use_dsa) == 10 && offset_of(Chain_Options, force_no_mipmaps) == 11 && offset_of(Chain_Options, disable_cache) == 12)
+#assert(size_of(Preset_Parameter) == 32 && offset_of(Preset_Parameter, name) == 0 && offset_of(Preset_Parameter, description) == 8 && offset_of(Preset_Parameter, initial) == 16)
+#assert(offset_of(Preset_Parameter, minimum) == 20 && offset_of(Preset_Parameter, maximum) == 24 && offset_of(Preset_Parameter, step) == 28)
+#assert(size_of(Parameter_List) == 16 && offset_of(Parameter_List, parameters) == 0 && offset_of(Parameter_List, length) == 8)
+#assert(size_of(Image) == 16 && offset_of(Image, handle) == 0 && offset_of(Image, format) == 4 && offset_of(Image, width) == 8 && offset_of(Image, height) == 12)
+#assert(size_of(Viewport) == 16 && offset_of(Viewport, x) == 0 && offset_of(Viewport, y) == 4 && offset_of(Viewport, width) == 8 && offset_of(Viewport, height) == 12)
+#assert(size_of(Frame_Options) == 40 && offset_of(Frame_Options, version) == 0 && offset_of(Frame_Options, clear_history) == 8 && offset_of(Frame_Options, frame_direction) == 12)
+#assert(offset_of(Frame_Options, rotation) == 16 && offset_of(Frame_Options, total_subframes) == 20 && offset_of(Frame_Options, current_subframe) == 24)
+#assert(offset_of(Frame_Options, aspect_ratio) == 28 && offset_of(Frame_Options, frames_per_second) == 32 && offset_of(Frame_Options, frametime_delta) == 36)
 
 foreign import libra "system:waylandshader-rashader"
 foreign libra {

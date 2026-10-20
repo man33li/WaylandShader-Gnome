@@ -10,8 +10,14 @@ Variant_Type :: struct {}
 Async_Ready_Callback :: #type proc "c" (source: rawptr, result: ^Async_Result, data: rawptr)
 DBus_Signal_Callback :: #type proc "c" (connection: ^DBus_Connection, sender, path, iface, signal: cstring, parameters: ^Variant, data: rawptr)
 
+IO_ERROR_CLOSED :: 18
+IO_ERROR_CANCELLED :: 19
+IO_ERROR_TIMED_OUT :: 24
+#assert(IO_ERROR_CLOSED == 18 && IO_ERROR_CANCELLED == 19 && IO_ERROR_TIMED_OUT == 24)
+
 foreign import gio "system:gio-2.0"
 foreign gio {
+    g_io_error_quark :: proc() -> u32 ---
     g_bus_get_sync :: proc(kind: c.int, cancel: ^Cancellable, error: ^^Error) -> ^DBus_Connection ---
     g_dbus_connection_call :: proc(connection: ^DBus_Connection, bus_name, path, iface, method: cstring, parameters: ^Variant, reply_type: ^Variant_Type, flags: u32, timeout: c.int, cancel: ^Cancellable, callback: Async_Ready_Callback, data: rawptr) ---
     g_dbus_connection_call_finish :: proc(connection: ^DBus_Connection, result: ^Async_Result, error: ^^Error) -> ^Variant ---

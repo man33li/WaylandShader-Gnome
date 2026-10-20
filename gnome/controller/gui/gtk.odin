@@ -6,6 +6,8 @@ package main
 import "base:runtime"
 import "core:c"
 import "core:strings"
+import common "../../common"
+import wsglib "../../glib"
 
 foreign import gtk "system:gtk-3"
 foreign import gobject "system:gobject-2.0"
@@ -15,17 +17,13 @@ Widget :: rawptr
 Adjustment :: rawptr
 Builder :: rawptr
 
-GError :: struct {
-	domain:  u32,
-	code:    c.int,
-	message: cstring,
-}
-
-GList :: struct {
-	data: rawptr,
-	next: ^GList,
-	prev: ^GList,
-}
+// Shared, ABI-checked mirrors (glib/glib.odin); aliases keep GUI callers unchanged.
+GError :: wsglib.Error
+GList :: wsglib.GList
+#assert(size_of(GError) == 16 && offset_of(GError, domain) == 0 && offset_of(GError, code) == 4 && offset_of(GError, message) == 8)
+#assert(size_of(GList) == 24 && offset_of(GList, data) == 0 && offset_of(GList, next) == 8 && offset_of(GList, prev) == 16)
+#assert(GTK_INPUT_ERROR == -1 && GTK_RESPONSE_ACCEPT == -3 && GTK_RESPONSE_CANCEL == -6 && GTK_FILE_CHOOSER_ACTION_OPEN == 0)
+#assert(G_LOG_LEVEL_CRITICAL == 8 && G_LOG_LEVEL_WARNING == 16 && G_SOURCE_REMOVE == 0)
 
 GTK_INPUT_ERROR :: -1
 GTK_RESPONSE_ACCEPT :: -3
@@ -146,7 +144,12 @@ gui_context :: proc "contextless" () -> runtime.Context {
 
 // Temp-allocated C string for action-critical uses; failure is logged and reported.
 cstr_try :: proc(s: string) -> (cstring, bool) {
-	r, err := strings.clone_to_cstring(s, context.temp_allocator)
+	text, text_err := common.text_utf8(s, context.temp_allocator)
+	if text_err != nil {
+		g_log(nil, G_LOG_LEVEL_WARNING, "Out of memory")
+		return "", false
+	}
+	r, err := strings.clone_to_cstring(text, context.temp_allocator)
 	if err != nil {
 		g_log(nil, G_LOG_LEVEL_WARNING, "Out of memory")
 		return "", false
