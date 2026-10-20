@@ -187,11 +187,11 @@ Commands that contain shell pipes (kept out of the table so they can be copied v
 # T-LAYOUT
 diff <(cd "$BASE" && find . | sort) <(cd "$R" && find . | sort)
 # T-WRAP
-d=$(grep -o '/nix/store/[^:"]*/share/gsettings-schemas/gtk+3-[^:"/]*' "$R/bin/waylandshader-gnome-controller" | head -n1) && test -f "$d/glib-2.0/schemas/org.gtk.Settings.FileChooser.gschema.xml"
+d=$(grep -ao '/nix/store/[^:"]*/share/gsettings-schemas/gtk+3-[^:"/]*' "$R/bin/waylandshader-gnome-controller" | head -n1) && test -f "$d/glib-2.0/schemas/org.gtk.Settings.FileChooser.gschema.xml"
 # T-DOCS
 grep -nE 'Qt|QFileDialog|C\+\+|libepoxy' README.md docs/GNOME.md
 ```
 
 ### REQ → test coverage
 
-Every test ID used in the requirement tables appears in the catalog above. CTest names, with their registering owner given in design.md §9, are: `gnome_effect_lifecycle`, `gnome_recent_presets`, `gnome_native_contract`, `gnome_common_units`, `gnome_native_units`, `gnome_client_units`, `gnome_ctl_units`, `gnome_gui_units`, `gnome_shader_runtime_gl`, `gnome_shader_runtime_gl33`, `gnome_cli_golden`, `gnome_elf`, `gnome_ban`.
+Every test ID used in the requirement tables appears in the catalog above. CTest names, with their registering owner given in design.md §9, are: `gnome_effect_lifecycle`, `gnome_recent_presets`, `gnome_native_contract`, `gnome_common_units`, `gnome_native_units`, `gnome_client_units`, `gnome_ctl_units`, `gnome_gui_units`, `gnome_shader_runtime_gl`, `gnome_shader_runtime_gl33`, `gnome_cli_golden`, `gnome_elf`, `gnome_ban`. Final-rework coverage adds `gnome_parser_corpus` and `gnome_path_contract` for baseline-pinned native differential cases, and `gnome_native_arguments` for direct C-entry NULL/invalid-UTF8 validation.

@@ -163,10 +163,15 @@ frame_timing :: proc(c: ^Frame_Clock,count,now: i64,refresh: f32) -> (render: bo
         if c.previous_time>0 && now>c.previous_time { fps=f32(1000000.0/f64(now-c.previous_time)) }
         else { c.previous_time=now; return false,0,0,0 }
     }
-    if c.first_frame<0 { c.first_frame=count }
     elapsed:i64=0
     if c.previous_time>0 { elapsed=max(i64(0),(now-c.previous_time)/1000) }
-    return true,fps,u32(min(elapsed,i64(0xffffffff))),u64(max(i64(0),count-c.first_frame))
+    number=u64(max(i64(0),count-c.first_frame)) if c.first_frame>=0 else 0
+    return true,fps,u32(min(elapsed,i64(0xffffffff))),number
+}
+frame_source_prepared :: proc(c: ^Frame_Clock,count: i64,err: Error) -> Error {
+    if err!=nil { return err }
+    if c.first_frame<0 { c.first_frame=count }
+    return nil
 }
 select_output :: proc(views: []Output_View,view: ^Stage_View,frame: i64) -> int { for v,i in views { if v.view==view { return i if v.expanded_frame==frame else -1 } }; return -1 }
 continue_scene :: proc(e: ^Engine,pc: ^Paint_Context,continued: ^bool) { if actor:=clutter_actor_meta_get_actor(cast(^Actor_Meta)e.self); actor!=nil { continued^=true; clutter_actor_continue_paint(actor,pc) } }
@@ -231,17 +236,18 @@ paint_output :: proc(e: ^Engine,o: ^Output,view: ^Stage_View,frame: ^Frame,pc: ^
         processed=&r.srgb
     }
     render_shader:=shader(e,o)
-    now:i64
+    now,frame_count:i64
     fps:f32
     elapsed:u32
     number:u64
     if render_shader {
+        frame_count=clutter_frame_get_count(frame)
         if !clutter_frame_get_expected_presentation_time(frame,&now) { now=glib.g_get_monotonic_time() }
-        render_shader,fps,elapsed,number=frame_timing(&o.clock,clutter_frame_get_count(frame),now,clutter_frame_clock_get_refresh_rate(clutter_stage_view_get_frame_clock(view)))
+        render_shader,fps,elapsed,number=frame_timing(&o.clock,frame_count,now,clutter_frame_clock_get_refresh_rate(clutter_stage_view_get_frame_clock(view)))
     }
     if render_shader {
         if err:=surface_allocate(&r.destination,ctx,width,height); err!=nil { return err }
-        if err:=copy_shader_source(r,processed); err!=nil { return err }
+        if err:=frame_source_prepared(&o.clock,frame_count,copy_shader_source(r,processed)); err!=nil { return err }
         destination,destination_error:=surface_name(&r.destination)
         if destination_error!=nil { return destination_error }
         input:=sr.Frame{number=number,source=r.source,destination=destination,format=gl.RGBA16F,width=width,height=height,fps=fps,elapsed_ms=elapsed,clear_history=o.clock.clear_history}

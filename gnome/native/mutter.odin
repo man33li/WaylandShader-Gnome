@@ -1,5 +1,6 @@
 package waylandshader
 
+import "core:c"
 import glib "../glib"
 
 Actor :: struct {}
@@ -98,7 +99,7 @@ foreign cogl {
     cogl_framebuffer_set_modelview_matrix :: proc(fb: ^Framebuffer, value: ^Matrix) ---
     cogl_framebuffer_orthographic :: proc(fb: ^Framebuffer, x1,y1,x2,y2,near,far: f32) ---
     cogl_framebuffer_set_viewport :: proc(fb: ^Framebuffer, x,y,width,height: f32) ---
-    cogl_framebuffer_clear4f :: proc(fb: ^Framebuffer, buffers: u32, r,g,b,a: f32) ---
+    cogl_framebuffer_clear4f :: proc(fb: ^Framebuffer, buffers: c.ulong, r,g,b,a: f32) ---
     cogl_framebuffer_get_context :: proc(fb: ^Framebuffer) -> ^Cogl_Context ---
     cogl_framebuffer_get_width :: proc(fb: ^Framebuffer) -> i32 ---
     cogl_framebuffer_get_height :: proc(fb: ^Framebuffer) -> i32 ---

@@ -94,7 +94,7 @@ if(WAYLANDSHADER_BUILD_TESTS)
             ${GJS} -m ${CMAKE_CURRENT_SOURCE_DIR}/tests/effect-lifecycle.js
             ${CMAKE_CURRENT_BINARY_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/temporal.slangp)
-    foreach(test recent_presets native_contract)
+    foreach(test recent_presets native_contract parser_corpus path_contract)
         string(REPLACE "_" "-" script "${test}")
         add_test(NAME gnome_${test}
             COMMAND ${CMAKE_COMMAND} -E env
@@ -102,6 +102,12 @@ if(WAYLANDSHADER_BUILD_TESTS)
                 ${GJS} -m ${CMAKE_CURRENT_SOURCE_DIR}/tests/${script}.js ${CMAKE_CURRENT_BINARY_DIR})
     endforeach()
     set_tests_properties(gnome_effect_lifecycle gnome_recent_presets gnome_native_contract PROPERTIES TIMEOUT 10)
+    set_tests_properties(gnome_parser_corpus gnome_path_contract PROPERTIES TIMEOUT 30)
+    pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
+    add_executable(gnome_native_arguments tests/native-arguments.c)
+    target_link_libraries(gnome_native_arguments PRIVATE PkgConfig::GOBJECT ${CMAKE_DL_LIBS})
+    add_test(NAME gnome_native_arguments COMMAND gnome_native_arguments ${CMAKE_CURRENT_BINARY_DIR}/libwaylandshader-gnome.so)
+    set_tests_properties(gnome_native_arguments PROPERTIES TIMEOUT 10)
     foreach(package common native controller/client controller/ctl controller/gui)
         get_filename_component(name "${package}" NAME)
         add_test(NAME gnome_${name}_units COMMAND ${ODIN} test ${CMAKE_CURRENT_SOURCE_DIR}/${package}

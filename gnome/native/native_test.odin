@@ -12,6 +12,9 @@ frame_clock_cases :: proc(t: ^testing.T) {
     c:=Frame_Clock{first_frame=-1,clear_history=true}
     render,fps,elapsed,number:=frame_timing(&c,100,1000000,60)
     testing.expect(t,render); testing.expect_value(t,fps,f32(60)); testing.expect_value(t,elapsed,u32(0)); testing.expect_value(t,number,u64(0)); testing.expect(t,c.clear_history)
+    testing.expect_value(t,c.first_frame,i64(-1))
+    testing.expect(t,frame_source_prepared(&c,100,nil)==nil)
+    testing.expect_value(t,c.first_frame,i64(100))
     c.previous_time=1000000
     render,fps,elapsed,number=frame_timing(&c,103,1017000,60)
     testing.expect(t,render); testing.expect_value(t,elapsed,u32(17)); testing.expect_value(t,number,u64(3))
@@ -24,6 +27,59 @@ frame_clock_cases :: proc(t: ^testing.T) {
     testing.expect(t,!render); testing.expect_value(t,c.previous_time,i64(1000000)); testing.expect_value(t,c.first_frame,i64(-1))
     render,fps,elapsed,number=frame_timing(&c,11,1020000,0)
     testing.expect(t,render); testing.expect_value(t,fps,f32(50)); testing.expect_value(t,elapsed,u32(20)); testing.expect_value(t,number,u64(0))
+    testing.expect_value(t,c.first_frame,i64(-1))
+    testing.expect(t,frame_source_prepared(&c,11,nil)==nil)
+    testing.expect_value(t,c.first_frame,i64(11))
+    c.clear_history=false
+    testing.expect(t,frame_source_prepared(&c,12,nil)==nil)
+    testing.expect_value(t,c.first_frame,i64(11)); testing.expect_value(t,c.previous_time,i64(1000000)); testing.expect(t,!c.clear_history)
+}
+@(test)
+source_preparation_failure_retry :: proc(t: ^testing.T) {
+    // Baseline waylandshader-effect.cpp:1122-1160: preparation precedes the anchor; no GL fault is injected here.
+    scenarios:=[4]struct {refresh: f32,copy_failed: bool}{{60,false},{0,false},{60,true},{0,true}}
+    for scenario in scenarios {
+        refresh:=scenario.refresh
+        // Unattached stage: the view identity is only compared, never passed to graphics FFI.
+        o:=Output{id="A",view=cast(^Stage_View)uintptr(1),settings={shader_enabled=true,gamma=1,saturation=1}}
+        reset_clock(&o)
+        e:=Engine{main_ctx=glib.g_main_context_ref_thread_default()}
+        _,allocation_error:=append(&e.outputs,&o)
+        testing.expect(t,allocation_error==nil)
+        defer {
+            remove_source(e.main_ctx,&e.status_source)
+            delete(e.outputs); delete(o.failure)
+            for key in e.saved_outputs { delete(key) }; delete(e.saved_outputs)
+            glib.g_main_context_unref(e.main_ctx)
+        }
+        if refresh==0 {
+            render,_,_,_:=frame_timing(&o.clock,99,980000,refresh)
+            testing.expect(t,!render); testing.expect_value(t,o.clock.first_frame,i64(-1))
+        }
+        previous:=o.clock.previous_time
+        render,_,_,number:=frame_timing(&o.clock,100,1000000,refresh)
+        testing.expect(t,render); testing.expect_value(t,number,u64(0))
+        // Allocation failure returns before the shared source-copy transition.
+        failure:Error="Out of memory"
+        if scenario.copy_failed {
+            failure=frame_source_prepared(&o.clock,100,"Incomplete shader source copy framebuffer")
+            testing.expect_value(t,error_message(failure),"Incomplete shader source copy framebuffer")
+        } else { testing.expect_value(t,error_message(failure),"Out of memory") }
+        testing.expect_value(t,o.clock.first_frame,i64(-1))
+        testing.expect_value(t,o.clock.previous_time,previous); testing.expect(t,o.clock.clear_history)
+        testing.expect(t,set_str(&o.failure,error_message(failure))==nil)
+        testing.expect(t,output_mutate(&e,"A",2,2)==nil)
+        testing.expect_value(t,o.failure,""); testing.expect_value(t,o.settings.gamma,f64(2))
+        testing.expect_value(t,o.clock.first_frame,i64(-1))
+        testing.expect_value(t,o.clock.previous_time,previous); testing.expect(t,o.clock.clear_history)
+        render,_,_,number=frame_timing(&o.clock,103,1051000,refresh)
+        testing.expect(t,render); testing.expect_value(t,number,u64(0))
+        testing.expect(t,frame_source_prepared(&o.clock,103,nil)==nil)
+        testing.expect_value(t,o.clock.first_frame,i64(103))
+        testing.expect_value(t,o.clock.previous_time,previous); testing.expect(t,o.clock.clear_history)
+        _,_,_,number=frame_timing(&o.clock,106,1102000,refresh)
+        testing.expect_value(t,number,u64(3))
+    }
 }
 @(test)
 selection_and_zero_allocations :: proc(t: ^testing.T) {
@@ -51,6 +107,7 @@ selection_and_zero_allocations :: proc(t: ^testing.T) {
     testing.expect(t,before_paint_output(&e,first)==nil)
     e.enabled=true
     frame_timing(&c,0,1000000,60); select_output(views[:],first,7)
+    frame_source_prepared(&c,0,nil)
     heap,temp:mem.Tracking_Allocator
     mem.tracking_allocator_init(&heap,context.allocator); mem.tracking_allocator_init(&temp,context.temp_allocator)
     old_heap,old_temp:=context.allocator,context.temp_allocator
@@ -59,6 +116,7 @@ selection_and_zero_allocations :: proc(t: ^testing.T) {
     total,paint_hits:=0,0
     for i in 0..<100 {
         frame_timing(&c,i64(i),1000000+i64(i)*17000,60)
+        frame_source_prepared(&c,i64(i),nil)
         total+=select_output(views[:],second,9)
         if before_paint_output(&e,first)==&e.views[1] { paint_hits+=1 }
         if before_paint_output(&e,second)==&e.views[2] { paint_hits+=1 }

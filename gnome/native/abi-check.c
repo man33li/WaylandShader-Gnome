@@ -157,3 +157,7 @@ VALUE(EGL_CONTEXT_OPENGL_ROBUST_ACCESS_BIT_KHR, 4);
 VALUE(EGL_NO_RESET_NOTIFICATION, 0x31be);
 VALUE(EGL_PLATFORM_SURFACELESS_MESA, 0x31dd);
 VALUE(COGL_BUFFER_BIT_COLOR, 1);
+VALUE(LIBRASHADER_CURRENT_VERSION, 2);
+/* Exact real-header prototype of the Odin cogl_framebuffer_clear4f declaration. */
+_Static_assert(__builtin_types_compatible_p(__typeof__(cogl_framebuffer_clear4f),
+    void(CoglFramebuffer *, unsigned long, float, float, float, float)), "cogl_framebuffer_clear4f signature");

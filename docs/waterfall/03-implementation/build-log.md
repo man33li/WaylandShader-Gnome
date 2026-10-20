@@ -370,3 +370,120 @@ B2's policy is grounded in Qt 6.10 [`resolveFormat`](https://raw.githubuserconte
 - All seven upheld items have passing required regressions. No existing baseline golden was changed to match the port; only observed new baseline cases were added.
 - Manual T-ISO-RENDER/T-GUI/T-HW and safety/docs signoff remain pending under the acceptance ruling. D1/D2 are unchanged.
 - No commit, live native-module load, live extension installation/enabling, compositor restart, or mutating live-session-bus call was performed in this rework round.
+
+## Rework round 2
+
+This final rework addresses the ten items in `../04-verification/acceptance.md:306–319`. Manual observations/signoffs remain deferred under that decision, and D1/D2 are unchanged. Baseline observations remain authoritative; previous goldens are retained.
+
+### Ownership and baseline authority
+
+| Owner | Disjoint work |
+|---|---|
+| Builder.FinalParser (security) | R2-1/R2-2/R2-A-02 shared parser, common corpus test, new parser differential script/oracle; reviews other slices' C boundaries |
+| Builder.FinalPaths (UX) | R2-3/B8 native path/suffix logic, new path/recents differential script/oracle |
+| Builder.FinalABI (UI/FFI) | B7 Cogl signature, B9 real-header API version assertion, B10 direct C-entry regression |
+| Builder.FinalTiming (code) | B12 frame-anchor transition and native failure/retry units |
+| Builder | CMake/test registration, binary-safe T-WRAP catalog repair, all baseline captures/builds/negative controls and this log |
+
+The parser follows the pinned baseline's [Qt 6.11.2 structural-token/cursor parser](https://raw.githubusercontent.com/qt/qtbase/v6.11.2/src/corelib/serialization/qjsonparser.cpp), not eager full-token lexing. Native `QString::fromUtf8` removes one initial BOM and the JSON parser can consume another; captured double-BOM behavior is represented as these two ordered stages, not arbitrary BOM trimming. UTF-8 conversion authority: [qstringconverter.cpp](https://raw.githubusercontent.com/qt/qtbase/v6.11.2/src/corelib/text/qstringconverter.cpp), and baseline native `text()` at `/tmp/ws-baseline/gnome/native/waylandshader-effect.cpp:76–83`.
+
+### Baseline-first executions
+
+| Command / check | Result |
+|---|---|
+| Repaired catalog T-WRAP inside `nix-shell gnome/shell.nix` with `R=/tmp/ws-baseline-result`, `grep -ao`, first extracted schema path, and the existing file-existence assertion | **PASS**, exit 0. This fixes binary extraction, not package schemas. |
+| Initial asynchronous tool-process capture launcher | Tool cell timed out and reset before saving output. Not counted as a baseline result; a bounded native capture below succeeded. |
+| `nix-shell gnome/shell.nix --run 'GI_TYPELIB_PATH="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH" timeout 30s gjs -m gnome/tests/parser-corpus.js /tmp/ws-baseline-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native --capture'` | **PASS**, exit 0 in 4.46 seconds. Full output retained; no baseline parser hang. |
+| Same parser capture through a synchronous subprocess, and analogous `path-contract.js … --capture` | **PASS**. Exact **269 parser records** and **60 path/recents records** saved as `local://final-parser-baseline.json` and `local://final-path-baseline.json`, then pinned unchanged in the corresponding test baseline JSON files. No unexpected-error records in parser capture. |
+| Baseline `parser-corpus.js`, `path-contract.js` and original `native-contract.js`, separately invoked without capture in one Nix-shell command | **PASS**: 269 cases match; 60 path/recents cases match; original byte/error contract passes. |
+| `nix-shell gnome/shell.nix --run 'cmake -S gnome -B /tmp/ws-final-build -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build /tmp/ws-final-build --target gnome_native_arguments && /tmp/ws-final-build/gnome_native_arguments /tmp/ws-baseline-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native/libwaylandshader-gnome.so'` | **PASS**, six direct baseline NULL/byte-FF calls return FALSE and exact non-NULL GError domain/code/message. Effect and errors cleaned up. |
+
+Corpus coverage includes initial/misplaced/repeated BOMs; leading-dot, exponent, overflow/underflow and truncated numbers; root/inner trailing-content precedence; object keys before/after commas; raw/truncated/Unicode escapes; container/depth limits; old duplicate/empty-key/surrogate controls; and valid whitespace controls. Common units consume the same captured parser table. Raw invalid UTF-8 bytes are rejected by the native argument guard, but a valid UTF-8 argument containing an unknown escape before a multibyte character can produce the parser's `invalid UTF8 string` error; additional native value/key cases below cover this distinction. Obsolete/non-emitted Qt error enumerators are not falsely claimed exercised.
+
+B12's baseline oracle is the original source ordering: destination allocation at E:1141, source copy at E:1142, anchor at E:1144–1145, previous-time/history after rendering at E:1159–1160. The new regression exercises the shared production state transition and real gamma failure-clear route; it is not represented as an injected driver/GL allocation failure.
+
+CMake registers three additional checks: `gnome_parser_corpus`, `gnome_path_contract`, `gnome_native_arguments`; the complete checkPhase now contains 16 entries. Existing lifecycle/contract timeouts are retained.
+
+### Integration diagnostics and negative ABI controls
+
+| Command / check | Result |
+|---|---|
+| `nix-build gnome/default.nix -o /tmp/ws-final-result`, first final-round attempt | FAIL at compile: BOM slicing reassigned an immutable Odin parameter. Changed to a local descriptor; baseline fixtures unchanged. Real C ABI/signature/version and C argument-test targets compiled. |
+| `nix-shell gnome/shell.nix --run 'cmake --build /tmp/ws-final-build --parallel && LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir /tmp/ws-final-build --output-on-failure'`, first attempt | FAIL at compile: inline compound-literal loop in the new frame regression needed a local binding. Corrected without changing assertions. |
+| Same build/tree-suite command after syntax corrections | Build PASS; **15/16 tests passed**. All 269 parser cases, shared parser corpus, native arguments, native timing/failure/retry tests, old contracts, 107 CLI goldens and real GL/GL33 passed. Broader path corpus exposed three additional baseline differences below; oracle was not weakened. |
+| Owned copied `abi-check.c`, expected API version deliberately changed from 2 to 3; C compile with the real pkg-config headers and private librashader include | EXPECTED FAIL, exit 1: `_Static_assert` reports `LIBRASHADER_CURRENT_VERSION value`. |
+| Same copy with version restored and expected Cogl mask changed from `unsigned long` to `unsigned int` | EXPECTED FAIL, exit 1: `_Static_assert` reports `cogl_framebuffer_clear4f signature`. |
+| Both copied assertions restored; same C compile | PASS, exit 0. Production sources were never mutated by these negative controls. |
+
+The negative copy is `/tmp/ws-final-abi-negative.DeFSju`; compiler invocation:
+
+```sh
+cc -DLIBRA_RUNTIME_OPENGL $(pkg-config --cflags libmutter-18 mutter-clutter-18 mutter-cogl-18 mutter-mtk-18 graphene-gobject-1.0 egl gio-2.0 gtk+-3.0) -I/nix/store/gl6nf7xzs0ifldc0h2bxplaw4g22pvs4-waylandshader-librashader-0.10.1/include/librashader -c /tmp/ws-final-abi-negative.DeFSju/abi-check.c -o /tmp/ws-final-abi-negative.DeFSju/abi.o
+```
+
+Each invocation ran inside `nix-shell gnome/shell.nix`; outputs retained in `local://final-api-version-negative.log`, `local://final-cogl-signature-negative.log` and `local://final-restored-abi.log`.
+
+The 60-case path matrix caught Qt-specific missing-path behavior beyond the original five cases: `/a/../` and `/a/..//` export `//` in the baseline, and `/a/../..//` exports `/..//`. The first correction emitted `/`, `/`, `/../`. Paths ownership was returned for a source-derived `QFileInfo::absoluteFilePath` correction and additional neighboring baseline controls, not special-case oracle changes.
+
+The path correction now follows Qt 6.11.2 [`QFileSystemEngine::absoluteName`](https://raw.githubusercontent.com/qt/qtbase/v6.11.2/src/corelib/io/qfilesystemengine_unix.cpp) and [`QDir::cleanPath`](https://raw.githubusercontent.com/qt/qtbase/v6.11.2/src/corelib/io/qdir.cpp), including normalization's moving root and the final slash re-append. It does not introduce input-string exceptions.
+
+Additional neighboring root-collapse/trailing-separator cases were captured from the original baseline. Before extending `path-contract-baseline.json`, the capture procedure required **all 60 existing records to remain exactly equal**; that check passed. The extended table contains **77 unique cases**. Baseline non-capture check passes all 77.
+
+`nix-shell gnome/shell.nix --run 'GI_TYPELIB_PATH="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH" gjs -m gnome/tests/path-contract.js /tmp/ws-baseline-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native && cmake --build /tmp/ws-final-build --parallel && ctest --test-dir /tmp/ws-final-build -R "^gnome_(path_contract|parser_corpus|native_units)$" --output-on-failure'`: **PASS**, baseline 77/77 and all three port tests, including parser 269/269 and the new frame transition. Existing baseline expectations were not changed.
+
+The copied C ABI file was restored and recompiled successfully, then `/tmp/ws-final-abi-negative.DeFSju` was removed. No negative-control mutation or throwaway source remains in the repository.
+
+### Final coverage closure and successful executions
+
+- The source-derived path correction passed all **77** baseline-pinned cases; all prior 60 observations were verified unchanged before extending the oracle.
+- Native and common parser suites initially passed 269 records. A final error-category check corrected an earlier reachability assumption: valid UTF-8 JSON containing an unknown escape before `é`, `€` or `😀` can still produce `invalid UTF8 string` inside Qt's parser. Baseline probes confirmed this, and six value/key cases were appended. All prior **269 records remained exactly equal**; the final **275-case** native corpus passes both baseline and port without a production-parser change.
+- `nix-build gnome/default.nix -o /tmp/ws-final-result` passed the complete **16/16** suite before and after caching the immutable frame count once for the B12 transition. No tests skipped. The subsequent fixture-only corpus extension is included in the final build rerun below.
+- `nix-build default.nix -o /tmp/ws-final-kwin` passed a fresh actual C++ compile/link/install: `/nix/store/pipxarlznnafsi31az8b4wg95y1dai28-waylandshader-0.1.0`.
+- The repaired documented `grep -ao`/schema-existence T-WRAP gate passed inside the Nix shell on both baseline and port.
+- Installed baseline and port were tested in separate processes with the original native contract, parser corpus, path contract and `gnome_native_arguments`: all passed, including six exact NULL/byte-FF assertions per library.
+- `gnome/tests/cli-golden.sh check` passed **107/107** on both original and final CLIs. The per-call timeout and overall deadline cases remain pinned.
+- T-BYPASS passed in the disposable Shell; fresh baseline and port T-ISO-CLI runs exited 0 and their captured transcript diff was empty. The final frame-count integration artifact was replayed with the same passing bypass and empty CLI diff.
+- Installed ELF checks passed; T-UNCHANGED's protected-path diff exited 0 with no output.
+
+The final parser oracle has all twelve reachable native parser-error categories. Raw invalid argument bytes are additionally checked through the C ABI. Obsolete/non-emitted error enumerators and real driver allocation/copy fault injection are not claimed exercised.
+
+### Final artifact verification and per-item results
+
+Final command `nix-build gnome/default.nix -o /tmp/ws-final-result`: **PASS**, fresh configure/build/checkPhase/install, **16/16 passed, no skips**, 16.67 seconds. This build includes the complete 275-case parser oracle, 77-case path/recents oracle, C-entry regression and frame-preparation transition tests.
+
+```text
+GNOME /tmp/ws-final-result -> /nix/store/zsiwskpgiapg0f6b9y54hq3vl52fhg66-waylandshader-gnome-0.1.0
+KWin  /tmp/ws-final-kwin   -> /nix/store/pipxarlznnafsi31az8b4wg95y1dai28-waylandshader-0.1.0
+```
+
+The final installed artifact was replayed with:
+
+```sh
+nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh /tmp/ws-final-result -- sh -c '\''gjs -m gnome/tests/parameter-bypass.js "$WS_PRIVATE_BUS"'\'''
+nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh /tmp/ws-final-result -- gnome/tests/iso-cli.sh /tmp/ws-final-result/bin/waylandshader-gnomectl'
+diff /tmp/ws-final-iso-baseline.log /tmp/ws-final-iso-port.log
+```
+
+**PASS:** bypass exit 0; final CLI exit 0; empty diff against the fresh original-baseline run. The tool subprocess API captured only the commanded stdout into `/tmp/ws-final-iso-port.log`; private service diagnostics were retained separately. Repaired T-WRAP, installed ELF, GIR byte diff and installed-path-set diff also passed on this final artifact.
+
+| Item | Root fix / source | Required regression | Final result |
+|---|---|---|---|
+| R2-1 | Baseline's ordered initial BOM stages at `gnome/common/json_parse.odin:184–191`; no arbitrary interior trimming | Actual BOM settings/output arrays, misplaced/repeated BOM and whitespace controls in shared **275-case** baseline corpus, through common parsing and real native methods | **PASS** baseline first, then port |
+| R2-2 | Qt structural cursor/value parsing, number grammar and contextual errors at `gnome/common/json_parse.odin:27–35,84–183` | All specified leading-dot, key, escape and closing-token cases; broad numeric/separator/escape/depth matrix; all twelve reachable parser-error categories; earlier overflow/underflow/`1.`/surrogate cases retained | **PASS**, 275/275 native records and common units |
+| R2-A-02 | Root completion checks remaining non-whitespace without lexing trailing content at `gnome/common/json_parse.odin:192–199` | `{}"`/`{}tru`, array equivalents, nested malformed tails, valid whitespace and primitive-root controls | **PASS**, exact baseline errors |
+| R2-3 | Qt `absoluteName`/`cleanPath` normalization and slash re-append at `gnome/native/config.odin:103–143`; realpath unchanged | Five failing paths, three required controls, old cases and expanded root-collapse/repeated-slash neighbors; exact export/preset/requestedPreset/loading comparisons | **PASS**, all 77 path/recents records |
+| R2-4 | Binary-safe catalog extraction at `docs/waterfall/01-requirements/requirements.md:190` | Exact `grep -ao` plus schema file-existence gate inside Nix shell on original and final binary wrappers | **PASS** both; repaired test command, not package schema behavior |
+| B7 | `buffers: c.ulong` at `gnome/native/mutter.odin:102`; exact real-header function type at `gnome/native/abi-check.c:161–163` | Native consumers and real GL/GL33 pass; copied expected `unsigned int` prototype fails the signature `_Static_assert` | **PASS**, including negative control |
+| B8 | Unicode suffix folding over final runes, retaining path bytes, at `gnome/native/config.odin:144–149` | `/a.ſlangp`, ASCII mixed case, Kelvin/dotless-i/nonmatching controls and combined recents ordering/dedup/cap in baseline path corpus | **PASS**, exact baseline retained text |
+| B9 | `VALUE(LIBRASHADER_CURRENT_VERSION, 2)` at `gnome/native/abi-check.c:160` | Real header compiles; owned copy expecting version 3 fails; restored copy compiles | **PASS**, including negative control |
+| B10 | Persistent raw C-entry test at `gnome/tests/native-arguments.c:20–53`, registered in CTest | Three real exported mutators × NULL/byte-FF: FALSE, non-NULL GError, exact domain/code/message and cleanup; baseline/port separate processes | **PASS**, six checks per implementation |
+| B12 | Tentative timing and post-preparation anchor transition at `gnome/native/paint.odin:160–175,239–254`; immutable frame count cached once | Four allocation/copy-failure scenarios with nominal/zero-refresh warm-up, real gamma failure clearing, first successful frame 0 and subsequent numbering; normal timing/history/zero-allocation retained (`gnome/native/native_test.odin:38–82`) | **PASS**; pure production-transition regression, not a claimed driver fault injection |
+
+### Final-round handoff
+
+- All ten requested items have passing required regressions; Security reviewed boundary and lifetime changes.
+- Fresh GNOME checkPhase: **16/16**; fresh KWin build: **PASS**; CLI goldens: **107/107** on both original and port; isolated bypass and fresh baseline/port transcript comparison: **PASS**.
+- Parser oracle: **275** cases; path/recents oracle: **77** cases. Existing expectations were checked unchanged before extensions. No expectations were captured from the port.
+- The API-version/prototype negative copies were removed after restoration and positive recompilation. No diagnostic mutation or throwaway source remains in production.
+- No commit or live GNOME installation/enabling/module load/restart/mutating live-session-bus call was performed. Manual render/GUI/hardware observations and safety/docs signoffs remain deferred to the user, not counted as passed. D1/D2 remain unchanged.
+- These are finite, executed compatibility and regression results; final phase-4 acceptance remains the reviewer's decision.

@@ -5,6 +5,7 @@ import json "core:encoding/json"
 import "core:fmt"
 import "core:math"
 import "core:slice"
+import "core:unicode/utf8"
 import "core:strings"
 import common "../common"
 import glib "../glib"
@@ -99,24 +100,52 @@ recent_prepend :: proc(e: ^Engine,path: string) -> Error {
     free_recent(&e.recent); e.recent=next; success=true
     return nil
 }
+// Port of Qt 6.11.2 QFileSystemEngine::absoluteName (qfilesystemengine_unix.cpp:745-777) for an absolute path:
+// QDir::cleanPath (qdir.cpp:2393-2532, local-path mode, prefix length 1), then one '/' re-appended when the input ended in '/'.
 clean_absolute :: proc(path: string) -> (string,Error) {
-    bytes,ae:=make([]u8,len(path)+1,context.temp_allocator)
+    n:=len(path)
+    if n<=1 { return "/",nil }
+    out,ae:=make([]u8,n+2,context.temp_allocator)
     if ae!=nil { return "","Out of memory" }
-    bytes[0]='/'; count:=1
-    for start:=1; start<len(path); {
-        end:=start
-        for end<len(path) && path[end]!='/' { end+=1 }
-        part:=path[start:end]; start=end+1
-        if len(part)==0 || part=="." { continue }
-        if part==".." && count>1 {
-            previous:=count-1
-            for previous>0 && bytes[previous-1]!='/' { previous-=1 }
-            if string(bytes[previous:count])!=".." { count=max(1,previous-1); continue }
+    at :: proc(p: string,i: int) -> u8 { return p[i] if i<len(p) else 0 }
+    is_dir:=path[n-1]=='/'
+    i,o,start:=0,0,1
+    for {
+        if at(path,i)=='/' { out[o]='/'; o+=1; i+=1; for i<n && path[i]=='/' { i+=1 } }
+        dot,dot_dot:=false,false
+        if at(path,i)=='.' {
+            if i+1==n || at(path,i+1)=='/' { dot=true } else if at(path,i+1)=='.' && (i+2==n || at(path,i+2)=='/') { dot_dot=true }
         }
-        if count>1 { bytes[count]='/'; count+=1 }
-        copy(bytes[count:],part); count+=len(part)
+        if !dot && !dot_dot {
+            for i<n && path[i]!='/' { out[o]=path[i]; o+=1; i+=1 }
+            if i>=n { break }
+            continue
+        }
+        if dot_dot {
+            if o==start { // cannot go above the root: keep ".." and re-root after it
+                out[o]='.'; out[o+1]='.'; o+=2
+                if i+2!=n { out[o]='/'; o+=1; i+=1 }
+                start=o; i+=2
+                if i>=n { break }
+                continue
+            }
+            o-=1
+            for o>start && out[o-1]!='/' { o-=1 }
+            i+=2
+        } else { i+=1 }
+        if i!=n && o>start && out[o-1]=='/' { o-=1 }
+        if o==start && i!=n && path[i]=='/' { i+=1 }
+        if i>=n { break }
     }
-    return string(bytes[:count]),nil
+    if o>1 && out[o-1]=='/' { o-=1 }
+    if is_dir { out[o]='/'; o+=1 }
+    return string(out[:o]),nil
+}
+// Unicode simple case folding over the last seven runes (Qt endsWith, e.g. ".ſlangp"); text stays unchanged.
+has_slangp_suffix :: proc(path: string) -> bool {
+    start:=len(path)
+    for _ in 0..<7 { if start==0 { return false }; _,width:=utf8.decode_last_rune_in_string(path[:start]); start-=width }
+    return strings.equal_fold(path[start:],".slangp")
 }
 import_settings :: proc(e: ^Engine,source: string) -> Error {
     if e.loading || e.job!=nil { return "Cannot import settings while a preset is compiling" }
@@ -168,7 +197,7 @@ import_settings :: proc(e: ^Engine,source: string) -> Error {
     if entries,is_array:=o["recent_presets"].(json.Array); is_array {
         for entry in entries {
             path,is_string:=entry.(json.String)
-            if is_string && len(path)>=7 && path[0]=='/' && strings.equal_fold(string(path)[len(path)-7:],".slangp") { if err:=recent_append(&recent,string(path)); err!=nil { return err } }
+            if is_string && len(path)>=7 && path[0]=='/' && has_slangp_suffix(string(path)) { if err:=recent_append(&recent,string(path)); err!=nil { return err } }
         }
     }
     for k in e.saved_outputs { delete(k) }; delete(e.saved_outputs)
