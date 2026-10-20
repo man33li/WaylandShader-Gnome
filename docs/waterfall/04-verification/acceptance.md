@@ -321,3 +321,124 @@ After the final rework, rerun the fresh GNOME build/checkPhase, T-KWIN, dual bas
 Not checked in this acceptance run: manual visual/accessibility/app_id/hardware observations and sign-offs; malformed-signal baseline behavior; real GL allocation/copy fault injection. No live compositor module load, extension installation/enabling, compositor restart or mutating live-session-bus call was performed. The remaining acceptance risk is concrete parser/path compatibility failure despite the current green headless suite.
 
 REJECTED
+
+## Round 3
+
+### Final decision and review selected
+
+**I side with review B (opus 5.5), and only review B, for Round 3.** I uphold **R3-1**, after independently reproducing both its JSON-conversion and native C-string-argument cases against the actual baseline. R3-A-01 describes the overlapping JSON-string defect, not a second independent blocker; no separate A finding is imported. B's broader account includes the independently verified native argument boundary.
+
+Reviewed HEAD: **`d50af2d`**, confirmed by `git rev-parse --short HEAD` (exit 0), with the main agent's subsequent `GATES.md` documentation correction present. **R3-2 is closed**, not upheld: `docs/waterfall/GATES.md:9-12` now records both verification rejections, both implementation reworks, and the authorized requirements-catalog amendment.
+
+**Final verdict: REJECTED under the current exact-compatibility requirements.** All ten numbered Round-2 rework items now have passing finite evidence. One additional string-conversion compatibility gap remains outside those tests. It has **low practical impact for ordinary inputs**, but causes actual acceptance and stored/status-byte differences and therefore fails REQ-005/006/007/008/017/068 as applicable (`docs/waterfall/01-requirements/requirements.md:34-38,132`). It is not an observed compositor crash, memory-safety issue, security vulnerability or ordinary rendering failure.
+
+The two permitted rework rounds are exhausted (`docs/waterfall/README.md:12`; `docs/waterfall/GATES.md:10-12`). **This decision ends the authorized automatic rework cycle.** The numbered remaining items below are a precise handoff for the user to either authorize an additional round or explicitly accept a new deviation; they do not themselves authorize further implementation. D1/D2 remain unchanged and do not cover this behavior (`docs/waterfall/02-design/decision.md:60-63`).
+
+Manual visual render/GUI observations, physical hardware tests and manual safety/docs sign-offs remain deferred to the user under the established ruling. They are not represented as passes and do not cause this rejection.
+
+### Commands run and results
+
+All commands ran from the repository root. Here `R=/tmp/ws-acceptance-r3-gnome`, `BASE=/tmp/ws-baseline-result` and `EXT=share/gnome-shell/extensions/waylandshader@man33li.github.com` are display shorthands; native commands used literal paths. Only this acceptance document was edited by this reviewer.
+
+| Command / check | Independently observed result |
+|---|---|
+| `git rev-parse --short HEAD` | Exit 0: `d50af2d`. |
+| **T-NIX:** `nix-build gnome/default.nix -o /tmp/ws-acceptance-r3-gnome` | Exit 0; actual fresh configure/build/checkPhase/install, not a cache-only lookup. **16/16 CTest entries passed, 0 failed, no skips**, 16.76 seconds. Both real GL variants executed. Output: `/nix/store/n3qrajfcvni1snm6bcjqsxkja3zxwp7r-waylandshader-gnome-0.1.0`. |
+| **T-KWIN:** `nix-build default.nix -o /tmp/ws-acceptance-r3-kwin` | Exit 0; actual compile/link/install. Output: `/nix/store/gb6xa2xk6lc411jqb9i9wyalgkwb5wz2-waylandshader-0.1.0`. No KWin runtime result is claimed. |
+| `nix-shell gnome/shell.nix --run 'export GI_TYPELIB_PATH="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH"; gjs -m gnome/tests/native-contract.js <native> && gjs -m gnome/tests/parser-corpus.js <native> && gjs -m gnome/tests/path-contract.js <native>'`, executed sequentially for the baseline and final package in one invocation | Exit 0. **Each library** prints `Native byte/error contract passed.`, `Parser corpus: 275 cases match.`, and `Path/recents contract passed (77 cases).` No capture mode or oracle edits used. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/cli-golden.sh check /tmp/ws-baseline-result/bin/waylandshader-gnomectl'` | Exit 0: **107 cases match** on the original C++ CLI. The final CLI independently passes the golden test in my fresh checkPhase. |
+| Standalone native GI JSON/output/C-argument matrix below, separately on baseline and final package using the explicit native GI/loader environment | Both observational probes exit 0 because errors are caught. **Compatibility comparison fails**, R3-1, as detailed below. |
+| Raw-BOM parameter-name assertion below, separately on baseline and final | Baseline **exit 0**, `Raw-BOM assertion PASS`; final **exit 1**, `raw BOM name not decoded like baseline`. This is an actual failing acceptance assertion despite the green suite. |
+| Standalone native `load_preset` probe below with a real temporary readable file and a U+FEFF-prefixed C-string argument, separately on baseline and final | Both observational probes exit 0. Baseline accepts and reports the unprefixed absolute `requestedPreset` with `loading:true`; final raises `Preset must be an absolute readable file`. Cleanup runs in `finally`. This checks request acceptance, not shader compilation or rendering. |
+| `nix-shell gnome/shell.nix --run 'gjs -c <binary-safe-wrapper-gate>'`, using the Round-2 `Gio.Subprocess` extraction/existence body with `grep -ao` and a throwing assertion | Exit 0: **both** baseline and final wrappers pass the schema-existence gate. Neither GUI wrapper was launched. |
+| Tool reads of corrected gates, real-header ABI assertions, C argument regression, frame-anchor transition and test registration | Confirmed the closure evidence summarized below. No additional production edits, copied-source negative controls, or real driver fault injection were performed by me. |
+
+The 16 checkPhase tests are the previous 13 plus `gnome_parser_corpus`, `gnome_path_contract`, and `gnome_native_arguments`, registered at `gnome/CMakeLists.txt:97-110`. Passing them establishes the current corpus passes, not complete equivalence for all strings.
+
+#### Reproduction environment and failing assertion
+
+Each standalone probe used a separate process, selecting exactly one installed implementation:
+
+```sh
+nix-shell gnome/shell.nix --run 'env GI_TYPELIB_PATH="<PACKAGE>/share/gnome-shell/extensions/waylandshader@man33li.github.com/native:$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH" LD_LIBRARY_PATH="<PACKAGE>/share/gnome-shell/extensions/waylandshader@man33li.github.com/native:$LD_LIBRARY_PATH" gjs -c '\''<BODY>'\'''
+```
+
+`<PACKAGE>` was `/tmp/ws-baseline-result` or `/tmp/ws-acceptance-r3-gnome`. The executed assertion body, shown without shell escaping, was:
+
+```js
+const e = imports.gi.WaylandShader.Effect.new();
+try {
+    e.import_settings(JSON.stringify({
+        version: 1,
+        parameters: {p: {["\ufeffGAIN"]: 0.5}},
+    }));
+    const saved = JSON.parse(e.export_settings());
+    if (saved.parameters.p.GAIN !== 0.5 ||
+        Object.keys(saved.parameters.p).length !== 1)
+        throw Error("raw BOM name not decoded like baseline");
+    print("Raw-BOM assertion PASS");
+} finally {
+    e.shutdown();
+}
+```
+
+Here the JavaScript string contains U+FEFF; `JSON.stringify` emits its **actual UTF-8 bytes EF BB BF inside the JSON string**, not the ASCII JSON escape. This distinction is essential.
+
+#### Independently reproduced R3-1 behavior
+
+Let **B** denote one actual U+FEFF character, and **escaped B** denote six ASCII JSON characters `\ufeff`. The matrix generated raw cases with `JSON.stringify`; escaped controls replaced each actual B in that serialized text with the ASCII escape. Every settings/output case used a fresh unattached native object and called `shutdown()` in `finally`.
+
+| Input / operation | Baseline b223c1a | Final d50af2d |
+|---|---|---|
+| Settings parameter preset key B+`p`, parameter name B+`GAIN`, value 0.5 | Exported keys `p` and `GAIN` | Export retains B on both keys |
+| Same parameter keys expressed with escaped B | Export retains B on both keys | Same, control |
+| Saved `preset` value B+`/tmp/ws-r3-acceptance-missing.slangp` | Accepted, export `/tmp/ws-r3-acceptance-missing.slangp` | `Saved preset must be an absolute filename` |
+| Same saved preset with escaped B | `Saved preset must be an absolute filename` | Same, control |
+| Recents `[B+"/a.slangp", B+B+"/b.slangp", "/m"+B+".slangp"]` | Keeps `/a.slangp` and `/m`+B+`.slangp`; drops the double-B path | Keeps only `/m`+B+`.slangp` |
+| Static object key B+`version`, value 1 | `Unsupported settings version` | Same, control: raw lookup keys are not globally normalized |
+| Saved output key consisting only of B, otherwise valid settings | `Invalid saved output settings` | Accepted and exported with key B |
+| `set_outputs` with id B, name B+`N`, valid unit geometry/scale | `Output IDs must be nonempty and unique` | Accepted, status retains id B and name B+`N` |
+| `set_outputs` with id B+`A`, name B+`N` | Status id `A`, name `N` | Status retains B on id and name |
+| First install ordinary output id `A`; call `set_output_gamma(B+"A", 2)` | Succeeds, status gamma 2 | `Unknown active output: `+B+`A` |
+| Same ordinary output; call `set_output_shader_enabled(B+"A", false)` | Succeeds, status shader disabled | `Unknown active output: `+B+`A` |
+| `load_preset(B + <existing absolute file>)` | Request accepted; `requestedPreset` is the unprefixed absolute path | `Preset must be an absolute readable file` |
+
+The output rows used `{x:0,y:0,width:1,height:1,scale:1}`. Saved-output settings used `{shaderEnabled:true,colorEnabled:false,gamma:1,saturation:1}`. For the C-argument load case, each process created a fresh `GLib.dir_make_tmp("ws-acceptance-r3-load-XXXXXX")` directory, wrote a readable `probe.slangp` containing `x`, called `load_preset("\ufeff" + path)`, and then shut down and executed `GLib.unlink(path)`/`GLib.rmdir(root)` in `finally`. No main-loop wait or compile-success claim was made.
+
+The observed raw/escaped, double-B, mid-string and raw-lookup controls mean **a blanket trim of U+FEFF from all decoded strings or all object keys would be wrong**. Matching baseline requires the relevant conversion semantics, not treating every U+FEFF as whitespace.
+
+### Closure of the ten Round-2 items
+
+| Items | Final finite evidence and disposition |
+|---|---|
+| R2-1, R2-2, imported R2-A-02 | **Requested cases fixed.** My baseline/final runs both pass the 275-case parser corpus and original native contract; my fresh common/native tests pass. The new defect concerns conversion inside strings and native arguments, not the repaired initial-document BOM or trailing-token checks. |
+| R2-3 and B8 | **Requested cases fixed.** Both real modules pass the 77-case path/recents contract, including final slashes and Unicode suffix folding. R3-1 is a distinct leading-character conversion case outside that finite coverage. |
+| R2-4 | **Fixed.** Catalog uses `grep -ao` (`docs/waterfall/01-requirements/requirements.md:190`), and my extraction/existence gate passes on both installed wrappers. |
+| B7 and B9 | **Fixed.** `buffers: c.ulong` is present (`gnome/native/mutter.odin:102`); the C gate asserts API version 2 and the real-header function prototype (`gnome/native/abi-check.c:160-163`); my fresh build compiles it. Reviewer A's copied-source negative controls are recorded at `review-A.md:484-486`, not claimed as my executions. |
+| B10 | **Fixed.** The persistent direct C-entry test asserts NULL/byte-FF rejection, exact domain/code/message and cleanup (`gnome/tests/native-arguments.c:20-53`), is registered at `gnome/CMakeLists.txt:107-110`, and passes in my fresh checkPhase. |
+| B12 | **Fixed for the required transition regression.** `frame_timing` leaves an unstarted anchor unchanged; `frame_source_prepared` commits it only on successful source preparation (`gnome/native/paint.odin:160-175,249-250`). My native units and both GL tests pass. No real driver failure was injected in this review. |
+
+B13/B14 are not reopened. R3-2's gate-recording concern is addressed as noted above. I do not adopt either reviewer's fuzz totals as my own verification, and do not infer global compatibility from their or my finite passing corpus.
+
+### Upheld finding: conformance and real-world impact
+
+| Finding | REQ conformance | Real-world impact | Evidence / scope |
+|---|---|---|---|
+| **R3-1 — leading-U+FEFF conversion differs at JSON extraction and C-string boundaries** | **Blocking under the unchanged exact baseline contract.** Reproduced accept/reject differences for saved presets/output ids and byte differences for parameter keys, recents and output status. It is outside D1/D2. | **Low practical severity / unusual-input compatibility edge case.** The mismatch requires an actual leading invisible U+FEFF at a converted string boundary. [INFERENCE] Normally generated connector ids, shader parameter names and absolute saved paths do not contain that prefix, so routine operation is unlikely to reach it. If reached, an otherwise accepted preset request or output mutation can be rejected, an invalid/empty-after-baseline-conversion id can be accepted, or saved/status names/history differ. No crash, ordinary rendering failure or security exploit was demonstrated. | JSON raw-byte copying and escaped decoding collapse the distinction (`gnome/common/json_parse.odin:35-82`); consumers directly use the strings/iterated keys (`gnome/native/config.odin:157-200`). Native `text()` validates UTF-8 but returns all bytes unchanged (`gnome/native/boundary.odin:31-35`), whereas the observed baseline calls `QString::fromUtf8` (`/tmp/ws-baseline/gnome/native/waylandshader-effect.cpp:74-84`) and converts extracted/iterated strings (`:1388-1409,1417-1421`). The direct matrix and failing assertion establish the bounded behavior without relying on a theory of Qt internals. |
+
+**Why reject despite low practical severity?** The accepted requirement explicitly demands matching documents/errors and fixed-input status/settings bytes; earlier rounds enforced that same rule on rare numeric/path inputs. There is no authorized severity-based waiver or new deviation for R3-1. Accepting it silently would change that contract. Conversely, the evidence does not justify presenting this edge case as a general stability or safety failure.
+
+### Numbered remaining items for user disposition
+
+These are the two verified surfaces of **one remaining finding**, not two unrelated defects:
+
+1. **R3-1 / JSON string extraction and iterated keys.** **Required fix if another round is authorized:** reproduce baseline conversion for literal leading U+FEFF in extracted JSON values and iterated output/preset/parameter keys, while retaining the observed distinction from ASCII `\ufeff`, raw static-key lookup, a second leading B and a mid-string B. Do not globally strip keys or all decoded U+FEFF characters. **Required regression:** capture baseline results for every JSON/settings/output row above; add the cases to common parser/conversion tests and the native parser/path contract corpus, asserting exact export/status bytes and exact errors. Include both raw and escaped parameter names/preset paths and a BOM-only id/key so a partial byte-format-only fix cannot pass.
+2. **R3-1 / native C-string arguments.** **Required fix if another round is authorized:** make the shared valid-UTF8 argument conversion match baseline handling of one leading B; preserve existing NULL/invalid-UTF8 errors and document-level BOM behavior. Cover all callers of that conversion rather than special-casing the three reproduced methods. **Required regression:** real exported calls on fresh standalone objects for U+FEFF-prefixed `load_preset`, `set_output_gamma` and `set_output_shader_enabled`, with ordinary/unprefixed and repeated/mid-string controls, matching the baseline's acceptance, error text and status. Keep the six existing C NULL/byte-FF assertions green.
+
+If the user instead accepts the edge case, the new deviation must **explicitly cover both numbered surfaces**: raw-versus-escaped JSON conversion and iterated-key/lookup behavior, plus native argument conversion and its acceptance/status/settings effects. Record the authorization in the design decision and applicable requirement/gate artifacts; merely adding another passing port-only expectation does not waive REQ conformance. No such authorization has been given in this cycle, so this review remains rejected.
+
+If an extra round is authorized, require fresh GNOME checkPhase and T-KWIN, the unchanged dual-baseline native/parser/path contracts and CLI goldens, and the added R3-1 regression corpus. Do not reopen the resolved items or add features. Otherwise hand the final rejected state and the narrowly scoped deviation choice to the user; do not start a third implementation rework automatically.
+
+Not checked: deferred manual visual/accessibility/app_id/hardware observations and sign-offs; real GL fault injection; the inferred extension/CLI/GUI propagation of malformed-prefix status outside the exercised native APIs. No live Shell module load, extension installation/enabling, compositor restart or mutating live-session-bus call was performed. The outstanding risk is this low-reach but demonstrated string-compatibility gap, not a failing package build or the absence of manual sign-off.
+
+REJECTED

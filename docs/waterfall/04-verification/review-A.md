@@ -376,3 +376,250 @@ try {
 Not checked in Round 2: deferred manual visual/accessibility/app_id/hardware observations and exhaustive unrelated fault/race cases. No installation, extension enablement, module load, compositor restart or mutating call targeted the live session. The remaining acceptance risk is specifically the shared parser's independently reproduced compatibility failures, not an unrun build or a presumed failure.
 
 REJECT — R2-A-01 (leading-BOM acceptance regression) and R2-A-02 (wrong trailing-content error precedence) block REQ-068. All seven requested original rework reproductions otherwise pass; A-04 remains deferred under the main reviewer's ruling.
+
+## Round 3
+
+REJECT
+
+| ID | Severity | REQ | File:line | Evidence | Required fix |
+|---|---|---|---|---|---|
+| R3-A-01 | blocking | REQ-006, REQ-007, REQ-017, REQ-068 | `gnome/common/json_parse.odin:35–82` (raw UTF-8 copy at 50–55, escape decoding at 66–76); consuming conversions in `gnome/native/config.odin:150–219`; baseline `b223c1a:gnome/native/waylandshader-effect.cpp:1388–1407,1417–1421` | Baseline behavior distinguishes a literal leading UTF-8 U+FEFF **inside a JSON string** from the ASCII JSON escape `\ufeff`. The port collapses them to the same string. With an actual U+FEFF before the parameter name `GAIN`, the baseline exports `GAIN` while the port exports U+FEFF+`GAIN`. With an actual U+FEFF before `/tmp/ws-r3-missing.slangp` in the preset value, the baseline imports the absolute path, while the port rejects it with `Saved preset must be an absolute filename`. A recent raw-U+FEFF-prefixed `/a.slangp` is retained as `/a.slangp` by baseline and dropped by the port. Escaped `\ufeff` controls match: it is preserved in names and rejected before an absolute preset path on both implementations. These are exercised byte/acceptance differences, not a suspected internal Qt representation issue. | Reproduce the baseline's representation-sensitive JSON/string conversion at the appropriate boundaries. Do not indiscriminately remove U+FEFF from every decoded string: the escaped controls must stay distinct, and document-level BOM handling must remain correct. Add baseline-pinned raw-versus-escaped U+FEFF cases for keys, parameter names, preset values and recents, with interior-character and known-key-lookup controls. |
+
+### Reviewed revision and outcome
+
+`git rev-parse --short HEAD` returned **d50af2d**. This final review covers the ten numbered items in `acceptance.md:306–319`, the final parser/path rewrites and their callers/tests. Earlier review sections are retained unchanged.
+
+Both Nix invocations actually configured, compiled, tested where applicable, and installed their outputs:
+
+```text
+/tmp/ws-review-a-r3-result -> /nix/store/fz2myjcnbvp6qq9fm7j8z5dji5jf7dwb-waylandshader-gnome-0.1.0
+/tmp/ws-review-a-r3-kwin   -> /nix/store/r5vq09z7v951xd3sq7d7f9xvzyx92mrc-waylandshader-0.1.0
+```
+
+GNOME checkPhase passed **16/16**, with no skips, including the added parser/path/C-argument regressions and both real GL variants. An independent external build tree also passed **16/16**. All explicitly requested Round-2 reproductions now pass their finite checks against the actual baseline. The final verdict is nevertheless **REJECT**, because independent differential fuzzing and direct follow-up assertions expose R3-A-01 outside that passing corpus.
+
+The manual-observation ruling remains as recorded in `acceptance.md:202`: visual GUI/render/hardware observations and safety/docs sign-offs are deferred, not automated passes and not blockers by themselves. D1/D2 are unchanged. This rejection does not depend on a deferred manual observation.
+
+### Every Round-2 rework item
+
+| Item | Independent verification / source | Disposition |
+|---|---|---|
+| **R2-1 — document BOM handling** | Ran the 275-case native parser corpus on baseline and final package without capture mode. It covers actual initial BOMs in settings/output arrays, repeated/misplaced BOMs and whitespace controls (`gnome/tests/parser-corpus.js:12–19`). Reviewed the two ordered initial decoding stages and root handling at `gnome/common/json_parse.odin:184–199`. | **Requested document-level cases fixed.** R3-A-01 concerns raw versus escaped U+FEFF *inside strings*, not rejection of the initial document BOM. |
+| **R2-2 — numeric grammar/contextual errors** | Same dual baseline/final corpus exercises `.5`, `-.5`, version `.5e1`, non-string keys, truncated backslash/Unicode escapes, closing tokens, overflow/underflow, leading zero and surrogate controls (`gnome/tests/parser-corpus.js:20–48`). Common units consume the baseline table and check cleanup under a tracking allocator (`gnome/common/parser_corpus_test.odin:10–35`); they passed independently. | **All requested matrix cases fixed.** Not a claim of complete parser equivalence. |
+| **R2-A-02 — trailing-content precedence** | The native corpus includes `{}"`/`{}tru` equivalents for object and array roots plus nested malformed tails and valid whitespace (`gnome/tests/parser-corpus.js:12–15,37–43`). Both real modules pass. The parser now checks remaining root input without lexing it (`gnome/common/json_parse.odin:192–199`). | **Fixed for requested root/nested cases.** |
+| **R2-3 — missing-path final slash** | Ran the 77-case path/recents contract separately on baseline and final package. It compares exact settings plus status `preset`, `requestedPreset` and `loading`, including the five required trailing-slash cases, `/.`, `/..`, root and neighboring root-collapse cases (`gnome/tests/path-contract.js:11–17,21–46`). Inspected the source-derived moving-root cleanup and final slash append (`gnome/native/config.odin:103–142`). The independent fuzz run also generated additional missing-path inputs and found no path mismatch. | **Requested cases fixed.** |
+| **R2-4 — binary-safe T-WRAP** | The documented command uses `grep -ao` (`requirements.md:190`). Independently spawned that extractor on each actual binary wrapper, selected the first extracted schema path, checked its existence, and then ran `test -f` on the common extracted GTK chooser schema path. Both packages pass; neither GUI wrapper was launched. | **Catalog test repaired; packaged schema exists.** |
+| **B7 — Cogl mask width** | Odin now declares `buffers: c.ulong` (`gnome/native/mutter.odin:102`). The real-header signature assertion is at `gnome/native/abi-check.c:161–163`. Production builds pass. In an owned copied C gate, changing only expected `unsigned long` to `unsigned int` makes the compiler reject the signature assertion. Restoring it passes. | **Fixed; signature gate demonstrably fails on a width mismatch.** |
+| **B8 — Unicode recent suffix** | Both modules pass the path/recents contract, including literal `/a.ſlangp`, ASCII mixed case and nonmatching Unicode/suffix controls (`gnome/tests/path-contract.js:18–19,34–46`). The production helper folds the last seven runes without changing the saved path (`gnome/native/config.odin:144–148`). | **Requested suffix cases fixed.** R3-A-01 independently exposes another recent-string conversion difference. |
+| **B9 — private API-version gate** | Real header gate now includes `VALUE(LIBRASHADER_CURRENT_VERSION, 2)` (`gnome/native/abi-check.c:160`). Actual package and independent builds pass. In the owned copy, changing expected 2→3 fails compilation with `LIBRASHADER_CURRENT_VERSION value`; restored expected 2 passes. | **Fixed; required negative control independently reproduced.** |
+| **B10 — persistent native argument checks** | Independently built and ran `gnome_native_arguments` against each installed library in separate processes. All six NULL/byte-FF calls per library return FALSE with non-NULL GError, exact domain, code 1 and `Invalid UTF-8 argument`; errors/effect are cleaned up (`gnome/tests/native-arguments.c:20–53`). The same test is registered in checkPhase. | **Fixed; actual exported C procedures are exercised, not mocked validation helpers.** |
+| **B12 — first-frame anchor ordering** | Independently ran native units and inspected production ordering. `frame_timing` leaves an unstarted anchor unchanged; `frame_source_prepared` commits only on success (`gnome/native/paint.odin:160–175`). Real paint performs destination allocation before the transition, passes the source-copy result into it, then renders (`:243–258`). The four nominal/zero-refresh preparation-failure/retry cases exercise that transition and the real gamma failure-clear route (`gnome/native/native_test.odin:38–82`). Existing timing/history/zero-allocation and real GL tests remain green. Baseline source orders preparation before anchor at `b223c1a:gnome/native/waylandshader-effect.cpp:1141–1145`. | **Required production-state-transition regression passes.** No actual driver allocation/copy fault is claimed injected. |
+
+The original native contract and 107 CLI goldens also pass against baseline and final implementation. CLI goldens are unchanged from 88c69ec. Installed GIR bytes, installed relative file list, required ELF properties and protected KWin/shared paths remain unchanged. No new feature or stub was found in these rework slices.
+
+### Additional differential fuzzing and concrete failure
+
+An independent deterministic generator used seed **0x51a7c0de**. It attempted:
+
+- 2,600 mutations of six JSON seeds using insertion/deletion/replacement with structural characters, numeric/literal characters, whitespace, U+FEFF and `é`;
+- 1,200 generated absolute missing-path inputs with `a`, `b`, empty, `.`, `..` and `...` segments and optional final separators;
+- 900 generated finite-double parameter settings across a wide exponent range.
+
+After deduplication and nonfinite-number filtering, **3,366 inputs** were sent to separate baseline and final GJS processes. Every input used a fresh unattached native object. The comparison checked acceptance/error text, complete exported settings bytes, status `preset` and status `requestedPreset`. Both processes completed without a crash. There was **one mismatch**:
+
+```text
+input:    {"version":1,"parameters":{"<literal U+FEFF>p":{"GAIN":0.5}}}
+baseline: {"enabled":true,"outputs":{},"parameters":{"p":{"GAIN":0.5}},"preset":"","recent_presets":[],"version":1}
+Odin:     {"enabled":true,"outputs":{},"parameters":{"<literal U+FEFF>p":{"GAIN":0.5}},"preset":"","recent_presets":[],"version":1}
+```
+
+`<literal U+FEFF>` here denotes the actual UTF-8 bytes EF BB BF *within the JSON string*, not six ASCII escape characters. The fuzz comparison exits **1**, so it is an actual failed differential check. The other 3,365 generated comparisons match; this is finite evidence, not a global equivalence proof.
+
+Fresh targeted probes then established:
+
+| JSON string position / representation | Baseline b223c1a | Final d50af2d |
+|---|---|---|
+| Parameter-preset key: literal U+FEFF + `p` | Export key `p` | Export retains U+FEFF + `p` |
+| Same key encoded as ASCII JSON `\ufeffp` | Export retains U+FEFF + `p` | Same, control |
+| Parameter name: literal U+FEFF + `GAIN` | Export name `GAIN` | Export retains U+FEFF + `GAIN` |
+| Same name encoded as ASCII JSON `\ufeffGAIN` | Export retains U+FEFF + `GAIN` | Same, control |
+| Preset value: literal U+FEFF + `/tmp/ws-r3-missing.slangp` | Accepted; exported preset `/tmp/ws-r3-missing.slangp` | Rejected: `Saved preset must be an absolute filename` |
+| Same preset encoded with ASCII JSON `\ufeff` | Rejected: `Saved preset must be an absolute filename` | Same, control |
+| Recents containing literal U+FEFF + `/a.slangp` and escaped `\ufeff/b.slangp` | Export recent list `["/a.slangp"]` | Export recent list `[]` |
+
+This smaller executable assertion separately exits **0 on baseline** and **1 on the final package**, with `raw BOM name not decoded like baseline`:
+
+```js
+const e = imports.gi.WaylandShader.Effect.new();
+try {
+    // JSON.stringify emits an actual U+FEFF in this string, not the ASCII \u escape.
+    e.import_settings(JSON.stringify({version: 1, parameters: {p: {["\ufeffGAIN"]: 0.5}}}));
+    const saved = JSON.parse(e.export_settings());
+    if (saved.parameters.p.GAIN !== 0.5 || Object.keys(saved.parameters.p).length !== 1)
+        throw Error("raw BOM name not decoded like baseline");
+} finally {
+    e.shutdown();
+}
+```
+
+The observed raw-versus-escaped distinction means a blanket “strip BOM from strings” patch would be unsafe. The current string representation makes raw and escaped U+FEFF identical; the baseline conversion behavior demonstrated above is not identical.
+
+### Round-3 commands run
+
+All commands ran from the repository root. Table shorthands are `B=/tmp/ws-review-a-r3-build`, `R=/tmp/ws-review-a-r3-result`, `BASE=/tmp/ws-baseline-result`, `EXT=share/gnome-shell/extensions/waylandshader@man33li.github.com`; executed native/build commands used literal expanded paths.
+
+| Command / check | Independently observed result |
+|---|---|
+| `git rev-parse --short HEAD`; `git diff --stat 88c69ec HEAD` | Exit 0; HEAD **d50af2d**, final rework source/test scope inspected. |
+| `nix-build gnome/default.nix -o /tmp/ws-review-a-r3-result` | Exit 0; actual build/install and **16/16** checkPhase entries, **no skips**, 16.84 seconds CTest time. |
+| `nix-build default.nix -o /tmp/ws-review-a-r3-kwin` | Exit 0; actual KWin C++ compile/link/install. No KWin runtime claim. |
+| Independent build/test command below | Exit 0; full external build and **16/16**, no skips, 46.96 seconds CTest time. It then ran the C argument executable against baseline and final library in separate processes: all six exact assertions pass on each. |
+| `nix-shell gnome/shell.nix --run 'export GI_TYPELIB_PATH="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH"; gjs -m gnome/tests/native-contract.js <PACKAGE>/$EXT/native && gjs -m gnome/tests/parser-corpus.js <PACKAGE>/$EXT/native && gjs -m gnome/tests/path-contract.js <PACKAGE>/$EXT/native'`, once for baseline and once for final package (executed together sequentially with literal paths) | Exit 0; both libraries: original native byte/error contract passes, **275 parser cases match**, **77 path/recents cases match**. No capture mode or oracle modification. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/cli-golden.sh check /tmp/ws-baseline-result/bin/waylandshader-gnomectl'` | Exit 0; **107 cases match** on original CLI. Final CLI independently passes the same golden suite in Nix and external CTest. |
+| Initial deterministic fuzz launcher, passing the entire generated JSON input list as one child argument | Exit 1 before child execution: `GLib.SpawnError ... Argument list too long`. Infrastructure failure only, not a compatibility result. Replaced with 200-record argument chunks below. |
+| Chunked deterministic fuzz launcher, seed 0x51a7c0de, body below | Exit **1** after both real native implementations completed: `cases=3366 mismatches=1`; raw-U+FEFF key counterexample above. |
+| Targeted seven-input raw/escaped U+FEFF native GI probes, separately on baseline and final | Both diagnostic probes exit 0 because GErrors are caught; actual outputs differ as shown in the seven-row table. |
+| Executable raw-BOM parameter-name assertion above, separately on baseline and final using the GI environment below | Baseline exit **0**; final exit **1**, `raw BOM name not decoded like baseline`. |
+| Binary-safe wrapper gate: `Gio.Subprocess` runs `grep -ao '/nix/store/[^:"]*/share/gsettings-schemas/gtk+3-[^:"/]*' <PACKAGE>/bin/waylandshader-gnome-controller`, selects first stdout line and checks schema existence; then `test -f` on the extracted path | Exit 0 on both wrappers. Both extract `/nix/store/6ipigl0rqnc2vrqf7y3y9gz6b3nrdcrq-gtk+3-3.24.52/share/gsettings-schemas/gtk+3-3.24.52`; direct `test -f .../glib-2.0/schemas/org.gtk.Settings.FileChooser.gschema.xml` exits 0. This exercises the repaired catalog extractor, not a GUI launch. |
+| `mkdir /tmp/ws-review-a-r3-abi && cp gnome/native/abi-check.c /tmp/ws-review-a-r3-abi/abi-check.c`; surgical copied version assertion 2→3; real-header compile below | Copy creation exit 0; expected compile exit **1**, exact static assertion `LIBRASHADER_CURRENT_VERSION value`. Production source unchanged. |
+| Restore copied API version; surgical copied expected Cogl signature `unsigned long`→`unsigned int`; same compile | Expected exit **1**, exact static assertion `cogl_framebuffer_clear4f signature`. |
+| Restore copied signature; same real-header compile; `rm -rf /tmp/ws-review-a-r3-abi` | Both exit 0; restored gate compiles and owned temporary negative-control source/object removed. |
+| Exact T-UNCHANGED protected-path `git diff --exit-code b223c1a -- …` from earlier review sections | Exit 0, empty diff. |
+| `git diff --exit-code 88c69ec -- gnome/tests/golden/cli` | Exit 0; all 107 CLI goldens/case definitions unchanged by final rework. |
+| Installed `gnome/tests/elf-check.sh` on final native `.so` and both hidden wrapped ELF binaries, inside the Nix shell | Exit 0; required exports/SONAME/dependencies and no forbidden Qt/libstdc++ or root runtime path. |
+| `diff "$BASE/$EXT/native/WaylandShader-1.0.gir" "$R/$EXT/native/WaylandShader-1.0.gir"`; sorted relative installed path-set comparison with `find -L … -printf '%P\n'` | Exit 0, no GIR or installed-layout differences. |
+| Synthetic equal-bus/runtime refusal command below | Expected exit **1**, `refusing caller bus or runtime directory`, before any Shell-hosted test. |
+| `nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh /tmp/ws-review-a-r3-result -- sh -c '\''gjs -m gnome/tests/parameter-bypass.js "$WS_PRIVATE_BUS"'\'''` | Exit 0; real bypass/edit/GPU-runtime reconstruction **PASS** in a disposable Shell. |
+| `set -o pipefail && nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh /tmp/ws-review-a-r3-result -- gnome/tests/iso-cli.sh /tmp/ws-review-a-r3-result/bin/waylandshader-gnomectl' \| tee /tmp/ws-review-a-r3-cli.log && diff /tmp/ws-review-a-cli-baseline.log /tmp/ws-review-a-r3-cli.log` | Exit 0; final transcript identical to my retained independently executed Round-1 baseline transcript. Private auxiliary services emit environmental startup/shutdown diagnostics; these are not represented as WaylandShader failures. |
+
+Independent build/test command:
+
+```sh
+nix-shell gnome/shell.nix --run 'cmake -S gnome -B /tmp/ws-review-a-r3-build -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build /tmp/ws-review-a-r3-build --parallel 2 && LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir /tmp/ws-review-a-r3-build --output-on-failure && /tmp/ws-review-a-r3-build/gnome_native_arguments /tmp/ws-baseline-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native/libwaylandshader-gnome.so && /tmp/ws-review-a-r3-build/gnome_native_arguments /tmp/ws-review-a-r3-result/share/gnome-shell/extensions/waylandshader@man33li.github.com/native/libwaylandshader-gnome.so'
+```
+
+Copied real-header ABI compile, executed inside `nix-shell gnome/shell.nix --run` for both failing mutations and the restored control:
+
+```sh
+cc -DLIBRA_RUNTIME_OPENGL \
+  $(pkg-config --cflags libmutter-18 mutter-clutter-18 mutter-cogl-18 mutter-mtk-18 graphene-gobject-1.0 egl gio-2.0 gtk+-3.0) \
+  -I/nix/store/gl6nf7xzs0ifldc0h2bxplaw4g22pvs4-waylandshader-librashader-0.10.1/include/librashader \
+  -c /tmp/ws-review-a-r3-abi/abi-check.c -o /tmp/ws-review-a-r3-abi/abi.o
+```
+
+Native direct probe environment (each package in its own process):
+
+```sh
+nix-shell gnome/shell.nix --run 'env GI_TYPELIB_PATH="<PACKAGE>/share/gnome-shell/extensions/waylandshader@man33li.github.com/native:$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18:$GI_TYPELIB_PATH" LD_LIBRARY_PATH="<PACKAGE>/share/gnome-shell/extensions/waylandshader@man33li.github.com/native:$LD_LIBRARY_PATH" gjs -c '\''<BODY>'\'''
+```
+
+Synthetic refusal command:
+
+```sh
+env WS_PRIVATE_ROOT=/tmp/ws-review-a-r3-refusal \
+    XDG_RUNTIME_DIR=/tmp/ws-review-a-r3-refusal/runtime \
+    WS_CALLER_RUNTIME=/tmp/ws-review-a-r3-caller \
+    WS_CALLER_BUS=unix:path=/tmp/ws-review-a-r3-refusal \
+    DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/ws-review-a-r3-refusal \
+    sh gnome/tests/isolated-session.sh --private-child true
+```
+
+For reproducibility, the successful fuzz launcher ran the following JavaScript body through `gjs -c` inside the project Nix shell, with `MUTTER_GIR="$(pkg-config --variable=prefix libmutter-18)/lib/mutter-18"`. Formatting below is expanded from the executed one-line body; generation and comparisons are unchanged:
+
+```js
+const {Gio, GLib} = imports.gi;
+let seed = 0x51a7c0de;
+function rnd(n) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed % n;
+}
+const sources = new Set();
+const bases = [
+    "{}", "[]", "{\"version\":1}",
+    "{\"version\":1,\"ignored\":[0,true,null,{\"x\":\"é\"}]}",
+    "[{},[],1,\"abc\"]",
+    "{\"version\":1,\"parameters\":{\"/p\":{\"GAIN\":0.5}}}",
+];
+const alphabet = Array.from("{}[],:\"\\+-.01eEtnful \t\n\r\ufeffé");
+for (let i = 0; i < 2600; i++) {
+    let a = Array.from(bases[rnd(bases.length)]);
+    for (let j = 0; j < 1 + rnd(3); j++) {
+        const p = rnd(a.length + 1), c = alphabet[rnd(alphabet.length)];
+        switch (rnd(3)) {
+        case 0: a.splice(p, 0, c); break;
+        case 1: a.splice(p, 1); break;
+        case 2: a.splice(p, 1, c); break;
+        }
+    }
+    sources.add(a.join(""));
+}
+for (let i = 0; i < 1200; i++) {
+    const segments = [];
+    for (let j = 0; j < 1 + rnd(12); j++)
+        segments.push(["a", "..", ".", "b", "", "..."][rnd(6)]);
+    const path = "/ws-review-a-r3-absent/" + segments.join("/") + (rnd(2) ? "/" : "");
+    sources.add(JSON.stringify({version: 1, preset: path}));
+}
+for (let i = 0; i < 900; i++) {
+    const n = ((rnd(0xffffffff) - 2147483648) / Math.max(1, rnd(0xffffffff)))
+        * Math.pow(10, rnd(620) - 310);
+    if (Number.isFinite(n))
+        sources.add(JSON.stringify({version: 1, parameters: {"/p": {GAIN: n}}}));
+}
+const inputs = Array.from(sources), chunks = [];
+for (let i = 0; i < inputs.length; i += 200)
+    chunks.push(JSON.stringify(inputs.slice(i, i + 200)));
+const body = String.raw`
+const values = ARGV.flatMap(s => JSON.parse(s));
+const W = imports.gi.WaylandShader;
+const results = [];
+for (const s of values) {
+    const e = W.Effect.new();
+    let result;
+    try {
+        e.import_settings(s);
+        const status = JSON.parse(e.get_status());
+        result = ["OK", e.export_settings(), status.preset, status.requestedPreset];
+    } catch (x) {
+        result = ["ERROR", x.message];
+    } finally {
+        e.shutdown();
+    }
+    results.push(result);
+}
+print(JSON.stringify(results));
+`;
+function run(root) {
+    const ext = "/share/gnome-shell/extensions/waylandshader@man33li.github.com/native";
+    const l = new Gio.SubprocessLauncher({
+        flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
+    });
+    l.setenv("GI_TYPELIB_PATH", root + ext + ":" + GLib.getenv("MUTTER_GIR")
+        + ":" + (GLib.getenv("GI_TYPELIB_PATH") || ""), true);
+    l.setenv("LD_LIBRARY_PATH", root + ext + ":"
+        + (GLib.getenv("LD_LIBRARY_PATH") || ""), true);
+    const p = l.spawnv(["gjs", "-c", body, ...chunks]);
+    const [ok, out, err] = p.communicate_utf8(null, null);
+    if (!p.get_successful()) throw Error(root + " failed: " + err);
+    return JSON.parse(out);
+}
+const a = run("/tmp/ws-baseline-result"), b = run("/tmp/ws-review-a-r3-result");
+let failures = 0;
+for (let i = 0; i < inputs.length; i++) {
+    if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) {
+        if (failures < 30)
+            print(JSON.stringify({input: inputs[i], baseline: a[i], odin: b[i]}));
+        failures++;
+    }
+}
+print("seed=0x51a7c0de cases=" + inputs.length + " mismatches=" + failures);
+imports.system.exit(failures ? 1 : 0);
+```
+
+### Limits and final disposition
+
+The only repository file written by this review is this appended report. The owned ABI mutation copy was restored, compiled and removed. No baseline fixture/golden, production source or requirements document was changed. Native probes used unattached objects; all compositor-hosted checks used the tested private-bus harness. No live module installation/load, extension enablement, compositor restart or mutating live-session-bus call occurred.
+
+Not checked: deferred manual visual/accessibility/app_id/hardware sign-offs and actual driver allocation/copy fault injection. All ten requested Round-2 regressions have finite passing evidence, but that does not establish global Qt compatibility. R3-A-01 is independently reproduced using both observational comparisons and a failing assertion; it affects accepted input, stored parameter names and exported settings/history bytes.
+
+REJECT — blocking finding R3-A-01: raw-versus-escaped leading U+FEFF inside JSON strings still differs from the baseline, violating the fixed input/byte-preservation contract despite 16/16 passing headless tests.

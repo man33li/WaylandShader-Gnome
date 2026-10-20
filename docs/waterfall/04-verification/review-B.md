@@ -121,3 +121,56 @@ No module was loaded into the live Shell and nothing was installed or enabled. T
 | Negative control on a `mktemp` copy: `SIZE(GList, 25)` in `abi-check.c`, `size_of(GList) == 25` in `glib/glib.odin`; `cmake --build … --target gnome_abi_check`; `odin build <copy>/gnome/{native,controller/gui} -build-mode:obj -vet -strict-style -define:GL_DEBUG=false` | C: `static assertion failed: "GList size"`; both Odin packages: `Compile time assertion: size_of(GList) == 25`. Copy removed |
 
 Not run: T-ISO-RENDER, T-GUI, T-HW and the T-SAFETY/T-DOCS sign-offs. These are manual-class tests deferred to the user by the main agent's ruling.
+
+## Round 3
+
+REJECT
+
+Reviewed final rework commit `d50af2d` (`git rev-parse --short HEAD`, clean tree). The ten items are listed in `acceptance.md` "Round 2" (numbered rework list) and the builder's evidence in `build-log.md` "Rework round 2". Manual-class tests remain deferred to the user per the main agent's ruling.
+
+All ten round-2 items reproduce as fixed. Every headless and isolated test passes. The new corpus tests can fail: `parser-corpus.js` reports 69 mismatches and `path-contract.js` 39 mismatches against the round-2 Odin build.
+
+I ran a differential fuzz against the baseline, about 230 000 generated inputs in total:
+- **JSON documents:** 80 000 malformed or mixed documents without raw BOMs gave 0 differences.
+- **Valid settings documents:** 40 000 documents with random doubles (raw bit patterns, scientific, fixed, f32-promoted, large integers), escaped and raw Unicode keys, lone surrogates, `ſ`/`K`/`ı` suffixes and output profiles gave 0 differences across export and status. About 24 000 of them were accepted.
+- **Preset paths:** 24 000 missing and existing paths, including symlinks, dangling links, `.`/`..`/`//`/trailing `/` and root escapes, through import, recents and `load_preset`, gave 0 differences.
+- **Raw-BOM documents:** 45 000 documents that included raw U+FEFF characters gave 3 differences, all from the same cause: R3-1.
+
+**Why REJECT:** R3-1 is a REQ-068/REQ-005/REQ-006 difference that every Odin round has had (`94656d9`, `88c69ec` and `d50af2d` behave identically). No previous review found it. It is a pre-existing gap, not a regression from this rework.
+
+No module was loaded into the live Shell and nothing was installed or enabled. The native module ran only in standalone `gjs`, in the C `gnome_native_arguments` runner and in `isolated-session.sh` sessions. Fixtures came from `mktemp` and were deleted afterwards.
+
+### Findings
+
+| ID | Severity | REQ | file:line | Evidence | Required fix |
+|---|---|---|---|---|---|
+| R3-1 | blocking | REQ-068, REQ-005/006, REQ-007/008 (accept/reject) | `gnome/common/json_parse.odin:35-83` (`json_string`); `gnome/native/boundary.odin:31-35` (`text`) | **A leading raw U+FEFF inside a JSON string or a C string argument.** The baseline drops one leading U+FEFF from each string it converts to QString: JSON string values, keys reached by iteration, and every `text()` argument. Odin keeps it. All results below are baseline vs Odin. **Accept/reject differs:** `set_outputs('[{"id":"\uFEFF",…}]')` gives `Output IDs must be nonempty and unique` vs accepted; `import_settings({"version":1,"outputs":{"\uFEFF":{…}}})` gives `Invalid saved output settings` vs accepted; `import_settings({"version":1,"preset":"\uFEFF/x.slangp"})` is accepted with `preset:"/x.slangp"` vs `Saved preset must be an absolute filename`; `load_preset("\uFEFF" + <existing absolute file>)` is accepted vs `Preset must be an absolute readable file`; `set_output_gamma("\uFEFFA", 2)` succeeds vs `Unknown active output: \uFEFFA`. **Export/status bytes differ:** `recent_presets:["\uFEFF/a.slangp",…]` keeps `/a.slangp` vs drops it; parameter keys `"\uFEFF/p.slangp"`/`"\uFEFFg"` export as `/p.slangp`/`g` vs keeping the BOM (which also changes key sort order); output id/name `"\uFEFFA"`/`"\uFEFFN"` show in status as `A`/`N` vs keeping it. **What matches:** escaped `\ufeff`, a BOM in mid-string, a second BOM (`"\uFEFF\uFEFF/c.slangp"` is dropped by both), and lookup by raw key (`{"\uFEFFversion":1}` gives `Unsupported settings version` on both; `"enabled"` plus `"\uFEFFenabled"` are distinct keys on both). The document-level BOM (R2-1) is fixed. [INFERENCE: the same parser feeds the client's `accept_json`, so a BOM-prefixed status string would differ in the CLI/GUI too; not reproduced.] Practical reachability is very low: GNOME connector ids and saved paths do not start with U+FEFF. But REQ-068 requires the same accept/reject decisions, and earlier rounds upheld equally rare inputs (leading `.`, trailing `/`) as blocking. | Strip one leading `EF BB BF` when `json_string` produces a value, and in `text()`. Keep object lookup on raw key bytes so `"\uFEFFversion"` still does not match `version`, but strip the BOM from keys when they are iterated for export, status, outputs and parameters. Add the cases above to `parser-corpus-baseline.json`/`path-contract-baseline.json` from a baseline capture. If the user prefers to accept the difference instead, it must be recorded as a new deviation in `decision.md`; no such deviation exists now. |
+| R3-2 | minor (process) | — | `docs/waterfall/GATES.md:5-8`; `docs/waterfall/README.md:3`; `requirements.md:190,197` | `requirements.md` (a phase-1 artifact) was edited in `d50af2d`: the T-WRAP command now uses `grep -ao`, and the CTest list adds three entries. Acceptance authorized the edit (R2-4), but `GATES.md` has no entry for it or for any rework round. README requires a new gate entry. | Add gate entries for rework rounds 1–2 and the catalog change. |
+| R2-1, R2-2, R2-A-02 | closed | REQ-068 | `json_parse.odin:84-108,109-183,184-200` | Document BOM (import and `set_outputs`), `.5`/`-.5`/`.5e1`, `{1:2}`/`'…'` keys, truncated `\`/`\u`, top-level `]`/`}`, `{}"`/`{}tru`: all match. 0 differences in 80 000 malformed BOM-free fuzz documents. `parser-corpus.js` passes 275/275 on the baseline and the final build, and fails on round 2 (69 mismatches) | — |
+| R2-3, B8 | closed | REQ-006/007, REQ-017 | `config.odin:103-149` | The trailing-slash cases, root escapes, `/a/../`-style cases and `ſ`/`K`/`ı` suffixes match. 0 differences in 24 000 path-fuzz cases (missing paths, existing files, symlinks, dangling links) and 40 000 recents/parameter documents. `path-contract.js` passes on the baseline and the final build, and fails on round 2 (39 mismatches) | — |
+| R2-4 | closed | T-WRAP | `requirements.md:190` | `grep -ao` gate inside `nix-shell` exits 0 for both the baseline and Odin | — |
+| B7, B9 | closed | REQ-061/062, REQ-020 | `mutter.odin:102`; `abi-check.c:160-163` | `buffers: c.ulong`; a real-header prototype `_Static_assert` and `VALUE(LIBRASHADER_CURRENT_VERSION, 2)` compile in my build. I did not repeat the builder's negative controls. | — |
+| B10 | closed | REQ-016 | `gnome/tests/native-arguments.c:20-53`; `CMakeLists.txt:107-110` | `gnome_native_arguments` checks NULL and byte `0xFF` on three mutators, and exits 0 against the baseline, round 2 and final libraries. It is coverage for behavior that already worked, and it would fail if `text()` validation regressed. | — |
+| B12 | closed | REQ-032 | `paint.odin:160-175,239-254` | The anchor is now set only after `copy_shader_source` succeeds. While the anchor is unset, `frame_timing` returns number 0, so the first successful frame is 0 as in the baseline (`E:1141-1148`). Checked by source reading plus the passing native unit; no GL fault was injected. | — |
+| B13, B14 | not upheld by acceptance | — | — | Not reopened. | — |
+
+### Commands run (round 3)
+
+| Command | Result |
+|---|---|
+| `git rev-parse --short HEAD`; `git status --short` | `d50af2d`; clean |
+| `nix-build gnome/default.nix -o /tmp/wsB3-gnome-result` | exit 0, `/nix/store/fz2myjcnbvp6qq9fm7j8z5dji5jf7dwb-waylandshader-gnome-0.1.0`; `nix log` shows checkPhase **16/16** passed (including `gnome_parser_corpus`, `gnome_path_contract`, `gnome_native_arguments`), GL and GL33 not skipped (T-NIX) |
+| `nix-build default.nix -o /tmp/wsB3-kwin-result` | exit 0, `/nix/store/r5vq09z7v951xd3sq7d7f9xvzyx92mrc-waylandshader-0.1.0` (T-KWIN) |
+| `nix-shell gnome/shell.nix --run 'cmake -S gnome -B /tmp/wsB3-build … && cmake --build … --parallel && cmake --build … --target gnome_abi_check gnome_native && LIBGL_ALWAYS_SOFTWARE=1 ctest --test-dir /tmp/wsB3-build --output-on-failure'` | exit 0, 16/16 passed in 47.36 s |
+| `/tmp/wsB3-build/gnome_native_arguments <lib>` for the baseline, round 2 and final | all exit 0 |
+| `gjs -m gnome/tests/{native-contract,parser-corpus,path-contract}.js <native>` for the baseline, final and round 2 | baseline and final: all exit 0 (`275 cases match`); round 2: native-contract 0, parser-corpus **1** (69 mismatches), path-contract **1** (39 mismatches) |
+| Installed T-ELF (`elf-check.sh`), T-GIR, T-LAYOUT, T-UNCHANGED; T-WRAP (`grep -ao`) inside `nix-shell` for the baseline and final | all exit 0 |
+| `isolated-session.sh` + `parameter-bypass.js` on the final build | exit 0, `PASS: bypassed edits…` (T-BYPASS) |
+| `isolated-session.sh` + `iso-cli.sh` for the baseline and final, then `diff` | both exit 0; 515 lines; empty diff (T-ISO-CLI) |
+| Throwaway GI fuzz `fuzz.js` (grammar plus byte mutation, raw BOM allowed), seeds 1–3 × 15 000, on the baseline and final, `diff` | 3 differences, all `set_outputs` with id `"\uFEFF"` (R3-1) |
+| Throwaway `fuzz2.js` (same, BOM-free, more escapes and numbers), seeds 11–14 × 20 000 | 0 differences (each seed about 1 250 accepted; every error category present) |
+| Throwaway `fuzz3.js` (valid settings: random doubles, Unicode/escaped keys, surrogates, suffix folds, outputs), seeds 21–24 × 10 000 | 0 differences (about 24 000 accepted) |
+| Throwaway `fuzz4.js` (preset paths over a `mktemp` tree with a file, a directory, symlinks and a dangling link; import, recents and `load_preset`), seeds 31–33 × 8 000 | 0 differences |
+| Targeted BOM probes: in-string and key BOMs through `import_settings`/`set_outputs`; BOM-prefixed `load_preset`/`set_output_gamma`/`set_output_shader_enabled` arguments, on the baseline and final, plus the same in-string probe on round 1 and round 2 | results as in R3-1; round 1, round 2 and final behave identically |
+
+Not run: T-ISO-RENDER, T-GUI, T-HW and the T-SAFETY/T-DOCS sign-offs (manual-class, deferred to the user).
