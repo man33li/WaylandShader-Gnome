@@ -1,0 +1,2 @@
+output saturation requires a finite number from 0 to 2.
+Use waylandshader-gnomectl --help for usage.

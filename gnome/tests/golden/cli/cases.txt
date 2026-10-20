@@ -1,0 +1,108 @@
+# One case per line: shell words appended to the ctl command. @FIX@ = fixture dir.
+# @NONE@ = no arguments. A leading "hang " runs the case while hang-shell.js owns org.gnome.Shell.
+--help
+-h
+-hh
+--h
+-?
+--help-all
+@NONE@
+--help --timeout x
+--help=1
+--help-all=3
+-h=1
+--h=1
+-x
+-hx
+-help
+-timeout 5 status
+--time 5 status
+--version
+---x
+--=
+-
+--
+-- status extra
+bogus
+''
+status extra
+parameters extra
+outputs extra
+enable extra
+disable extra
+toggle extra
+load
+load a b
+param X
+param X 1 2
+output a gamma
+output a gamma 1 2
+--timeout
+--timeout 5
+--timeout=
+--timeout= status
+--timeout=0 status
+--timeout 0 status
+--timeout=3601 status
+--timeout 99999999999 status
+--timeout x status
+--timeout 5.0 status
+--timeout 0x10 status
+--timeout " 5" status
+--timeout -5 status
+--timeout --help status
+--timeout 5 status
+--timeout=7 status
+status --timeout=7
+--timeout 3 --timeout x status
+--timeout 3600 outputs
+load @FIX@/missing.slangp
+load @FIX@/b.txt
+load @FIX@
+load ''
+load @FIX@/a.slangp
+load @FIX@/A.SLANGP
+param '' 1
+param X ''
+param X nan
+param X inf
+param X 1e400
+param X 1e-400
+param X 0x10
+param X 1,5
+param X 1_0
+param X ' 1 '
+param X .5
+param X 5.
+param X 1e-320
+param X -0
+param GAIN 0.5
+output '' shader on
+output a shader maybe
+output a color ON
+output a bogus 1
+output a gamma 0.05
+output a gamma 5.1
+output a gamma nan
+output a gamma 0.1
+output a gamma 5
+output a gamma 5.0000001
+output a saturation -1
+output a saturation 2.1
+output a saturation 0
+output a saturation 2
+output a saturation x
+output a shader on
+output a shader off
+output a color on
+output a color off
+status
+parameters
+outputs
+enable
+disable
+toggle
+--timeout 1 outputs
+hang --timeout 1 status
+hang --timeout 1 parameters
+hang --timeout 2 toggle

@@ -24,7 +24,7 @@ The KWin implementation has passed real OpenGL regressions and isolated, two-out
 - Load real `.slangp` presets through librashader, including multipass shaders, lookup textures, mipmaps, feedback, and previous-frame history.
 - Choose which monitors receive the preset. Each selected output has its own filter chain, frame counter, and history.
 - Adjust **gamma and saturation independently per monitor**, with a separate color-adjustment toggle. Color adjustments work without a preset or with that monitor's shader processing disabled.
-- Use a native Qt settings window or a JSON-printing CLI backed by asynchronous D-Bus calls.
+- Use a native settings window (Qt on KDE, GTK 3 on GNOME) or a JSON-printing CLI backed by asynchronous D-Bus calls.
 - Edit declared shader parameters at runtime. The preset and its parameters are shared across selected monitors; monitor selection and color settings are independent.
 - Persist the preset, parameter overrides, master enablement, and monitor profiles: KWin output UUIDs or GNOME connector IDs.
 - Compile replacement presets on a worker thread while retaining the working preset. A failed load does not replace it.
@@ -34,10 +34,10 @@ The KWin implementation has passed real OpenGL regressions and isolated, two-out
 
 | Layer | Technology |
 | --- | --- |
-| Application and effect code | C++20 |
+| Application and effect code | KWin: C++20. GNOME: [Odin](https://odin-lang.org/) (native effect, shader runtime, D-Bus client, CLI and GUI) plus a small GJS extension |
 | Desktop integration | KWin 6.6 native effect API, or GNOME 50 / Mutter ABI 18 with Clutter/Cogl and a GJS extension |
-| Settings UI and control | Qt 6.10+ Core, Gui, Widgets, and DBus; the KWin build also uses Qt Concurrent/private development headers |
-| GPU rendering | Desktop OpenGL/EGL, libepoxy, and compositor color-managed render targets |
+| Settings UI and control | KWin: Qt 6.10+ Core, Gui, Widgets, and DBus; the KWin build also uses Qt Concurrent/private development headers. GNOME: GTK 3 and GDBus (GtkBuilder layout) |
+| GPU rendering | Desktop OpenGL/EGL and compositor color-managed render targets; KWin uses libepoxy, GNOME uses Odin's `vendor:OpenGL` loaded through EGL |
 | Shader runtime | [librashader](https://github.com/SnowflakePowered/librashader) 0.10.1, a Rust runtime consumed through its C API |
 | Build system | CMake 3.25+, Extra CMake Modules 6.22+, Ninja, and pkg-config |
 | Packaging and development environment | Nix / NixOS: [default.nix](default.nix) for KWin; [gnome/default.nix](gnome/default.nix) for GNOME |
@@ -94,7 +94,7 @@ waylandshader-gnomectl output DP-1 gamma 1.2
 
 Replace `DP-1` with an ID reported by `outputs`. The GNOME CLI supports the same commands as the KWin CLI. Read-only commands do not activate anything; the GUI and mutation commands may enable only `waylandshader@man33li.github.com`. GNOME must allow user extensions.
 
-**Browse** uses Qt's native file picker—GTK 3 with GNOME's default Qt theme—not a separate Nautilus or Dolphin process. The GNOME package includes GTK's GSettings schemas in its Qt launcher environment. **Recent** lists the last 10 successfully loaded presets, from the GUI or CLI, by full path; status reports them as `recentPresets`. Choosing a file from either only fills the path; **Load preset** applies it. Closing the controller leaves the compositor effect running; uncheck **Enable desktop effects** to bypass it.
+**Browse** opens GTK 3's in-process file chooser, a modal dialog filtered to `*.slangp`, not a separate Nautilus or Dolphin process. The GNOME package includes GTK's GSettings schemas in the launcher environment. **Recent** lists the last 10 successfully loaded presets, from the GUI or CLI, by full path; status reports them as `recentPresets`. Choosing a file from either only fills the path; **Load preset** applies it. Closing the controller leaves the compositor effect running; uncheck **Enable desktop effects** to bypass it.
 
 The extension exports `/WaylandShader` on the session service `org.gnome.Shell`, using `org.waylandshader.Effect`. Settings are stored in the extension's GSettings schema, with monitor profiles keyed by connector ID. An unreadable saved preset reports an error without taking down the controls or independent color adjustments.
 
@@ -228,31 +228,33 @@ GNOME verification used isolated GNOME Shell/Mutter **50.4** sessions beside KDE
 
 Live GNOME 50.4 checks on an AMD Radeon RX 6800 XT exercised the controller's preset loading, parameter editing, primary-monitor color adjustment, and master bypass. Direct KMS scanout confirmed the primary monitor's shader/color result; the secondary monitor's settings were left unchanged. On this system, GNOME monitor screencasts captured the unfiltered scene, so they were useful for inspecting the GUI but **not** for proving the final native effect.
 
-For GNOME development:
+For GNOME development (Odin 2026-05 or newer):
 
 ```bash
-nix-shell gnome/shell.nix
-cmake -S gnome -B build/gnome -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON
-cmake --build build/gnome --parallel
-ctest --test-dir build/gnome --output-on-failure
+export B="$HOME/.cache/waylandshader/build-gnome"
+nix-shell gnome/shell.nix --run 'cmake -S gnome -B "$B" -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build "$B" --parallel'
+nix-shell gnome/shell.nix --run 'ctest --test-dir "$B" --output-on-failure'
 ```
 
-The opt-in [bypass-parameter regression](gnome/tests/parameter-bypass.js) requires a **fresh disposable GNOME session** with the extension enabled and no preset configured. Pass that session's private D-Bus address, never the address of your working desktop:
+The CTest list covers the unchanged GJS lifecycle and recent-preset regressions, the Odin unit tests (`gnome_common_units`, `gnome_native_units`, `gnome_client_units`, `gnome_ctl_units`, `gnome_gui_units`), the real-GL shader runtime tests (`gnome_shader_runtime_gl`, `_gl33`), the native contract, `gnome_cli_golden` (CLI help, usage errors and exit codes against transcripts recorded from the original C++ CLI, run on a private `dbus-run-session`), and the ELF and source-ban checks.
+
+Tests that need a running Shell never touch your desktop session. [gnome/tests/isolated-session.sh](gnome/tests/isolated-session.sh) starts a disposable headless GNOME Shell on a private D-Bus and runs the command against it:
 
 ```bash
-gjs -m gnome/tests/parameter-bypass.js "$PRIVATE_GNOME_DBUS_ADDRESS"
+nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh "$R" -- sh -c "gjs -m gnome/tests/parameter-bypass.js \"\$WS_PRIVATE_BUS\""'
+nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh "$R" -- gnome/tests/iso-cli.sh "$R/bin/waylandshader-gnomectl"'
 ```
 
-It loads a real Slang preset, edits it while bypassed, rejects invalid and unknown parameters without changing the saved value, and verifies the value survives re-enabling and GPU-runtime reconstruction. It failed on the previous native module and passed on the corrected module. It is separate from CTest because it controls a running compositor.
+Here `$R` is the result of `nix-build gnome/default.nix -o "$R"`. The [bypass-parameter regression](gnome/tests/parameter-bypass.js) loads a real Slang preset, edits it while bypassed, rejects invalid and unknown parameters without changing the saved value, and verifies the value survives re-enabling and GPU-runtime reconstruction. [iso-cli.sh](gnome/tests/iso-cli.sh) drives every CLI command against the isolated Shell. Neither is part of CTest because they control a running compositor.
 
-C++ sources use clang-format's **WebKit** style. When reporting a rendering problem, include the compositor version, GPU/driver, preset and relevant settings, reproduction steps, and status output from the matching backend's CLI.
+C++ sources use clang-format's **WebKit** style; Odin sources build with `-vet -strict-style`. When reporting a rendering problem, include the compositor version, GPU/driver, preset and relevant settings, reproduction steps, and status output from the matching backend's CLI.
 
 ### Source layout
 
 | Path | Contents |
 | --- | --- |
 | [src/effect.cpp](src/effect.cpp) | KWin integration, per-output processing, persistence, and D-Bus service |
-| [gnome/](gnome/) | Native GNOME stage effect, Shell extension, lifecycle regression, and separate packaging |
+| [gnome/](gnome/) | GNOME stage effect and shader runtime (Odin), Shell extension (GJS), D-Bus client, CLI and GTK 3 controller (`gnome/controller/`), tests, and separate packaging |
 | [src/shader_runtime.cpp](src/shader_runtime.cpp) | librashader runtime and shared EGL context handling |
 | [src/controller_main.cpp](src/controller_main.cpp) | Native Qt settings application |
 | [src/controller_client.cpp](src/controller_client.cpp) / [src/ctl_main.cpp](src/ctl_main.cpp) | Asynchronous control client and CLI |

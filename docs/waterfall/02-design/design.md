@@ -13,7 +13,7 @@ Phase 2 exit artifact (`../README.md:10`). This is Plan B (`plan-B.md`) with the
 | GL | `vendor:OpenGL`, loaded once via `eglGetProcAddress`, built with `-define:GL_DEBUG=false`. No libepoxy. |
 | EGL | Own foreign block in `gnome/runtime/egl.odin`, because `vendor:egl` lacks current-context, query, error and pbuffer procedures. |
 | librashader | Direct link to the private `libwaylandshader-rashader.so`, with an Odin foreign block mirroring `librashader.h` 0.10.1. |
-| JSON | Parsing uses `core:encoding/json` with `parse_integers=false`. Output uses a house writer that reproduces Qt 6 compact and indented output; keys are sorted by UTF-16 code unit **[A6]**. `json.marshal` is unusable because it writes floats as fixed 16-decimal numbers. |
+| JSON | Parsing uses `common.parse_json` in `common/json_parse.odin` **[C6]**. It reuses the `core:encoding/json` tokenizer, unquoting and `json.Value` types, with numbers as `f64`, but has its own object/array loop. It reproduces Qt's behavior, confirmed against the baseline: the last duplicate key wins, empty keys are kept, trailing content is rejected, nesting depth 1024 is accepted and 1025 rejected, and unknown escapes are accepted (`\q` → `q`). The core `json.parse` is unusable because it rejects duplicate keys, drops empty keys, skips the end-of-input check and has no depth bound (§2). Output uses a house writer that reproduces Qt 6 compact and indented output; keys are sorted by UTF-16 code unit **[A6]**. `json.marshal` is unusable because it writes floats as fixed 16-decimal numbers. |
 | Worker | `core:thread` plus a GSource completion, as at E:821–831. |
 | D-Bus client | GDBus through hand-written bindings, shared by the CLI and GUI. |
 | GUI | GTK 3 with hand-written bindings. The layout is GtkBuilder XML embedded with `#load`. Browse uses the in-process `GtkFileChooserDialog`, matching the dialog Qt's GTK 3 theme showed. |
@@ -26,7 +26,8 @@ Phase 2 exit artifact (`../README.md:10`). This is Plan B (`plan-B.md`) with the
 |---|---|
 | Nix package versions | `<nixpkgs>` = GLF-OS flake pkgs: mutter 50.5, gnome-shell 50.5 (the same store path as the running system), odin `dev-2026-05` (the binary reports `dev-2026-09` **[C4]**), librashader 0.10.1, gtk3 3.24.52, glib 2.88.3, kwin 6.6.6 |
 | Headers | `nixpkgs#mutter.dev` exists. The probe compiled against `$(pkg-config --cflags libmutter-18 mutter-clutter-18)` inside `mkShell { buildInputs = [mutter] ++ mutter.buildInputs; }` |
-| Odin store path | `/nix/store/lfmgkvmpihwnn96yy74m8dirrksrz074-odin-dev-2026-05` (`share/` holds `base core vendor`) |
+| Odin store path | `/nix/store/lfmgkvmpihwnn96yy74m8dirrksrz074-odin-dev-2026-05`; its `share/` holds `base core vendor`. Citations of the form `core/…`, `vendor/…` and `base/…` in the phase docs are relative to this share root (`$ODIN_ROOT`). |
+| Core JSON parser | `core/encoding/json/parser.odin`: `parse_string` returns after `parse_value` with no end-of-input check (:35–50); `parse_array`/`parse_object` recurse with no depth bound (:179–201); a duplicate key returns `.Duplicate_Object_Key` (:261–264); an empty key is not inserted (:270–275). Verified by the main planner. |
 | dll mode | `odin build . -build-mode:dll` gives DT_INIT/DT_FINI, general-dynamic TLS and a working `dlopen` (temp allocator used). With `-extra-linker-flags:"-Wl,--version-script=… -Wl,--no-undefined -Wl,-soname,…"`, `nm -D --defined-only` shows only the API, and INIT is kept. |
 | Layouts | Listed in §5.2; all measured from real headers |
 | Baseline CLI | `-h` exits 0. `-?` gives `Unknown option '?'.` and exit 2. `--help-all` gives `A command is required.` and exit 2. With no Shell on a private bus, `status` exits 3 with the install hint. The usage line prints argv0 as invoked. |
@@ -53,7 +54,7 @@ gnome/
     runtime.odin  egl.odin  libra.odin
     gltest/main.odin              real-GL regression (port of tests/shader_runtime_test.cpp)
   common/                         package common
-    json.odin  json_test.odin  output_settings.odin
+    json.odin  json_parse.odin  json_test.odin  output_settings.odin
   glib/                           package glib: glib.odin gobject.odin gio.odin
   controller/
     client/  client.odin status.odin client_test.odin
@@ -108,7 +109,7 @@ Engine :: struct {                  // fields 1:1 with E:418-444
     outputs: [dynamic]^Output, views: [dynamic]Output_View,      // index-aligned; rebuilt only in map_outputs/set_outputs
     saved_outputs: map[string]common.Output_Settings, overrides: map[string]map[string]f64,
     preset, requested, error, pending, last_status: string, recent: [dynamic]string,
-    display: egl.Display, ctx: egl.Context, draw, read: egl.Surface,
+    display: shader_runtime.Display, ctx: shader_runtime.Context, draw, read: shader_runtime.Surface,  // egl.odin is in package shader_runtime
     generation: u64, next_key: uintptr,
     enabled, stopped, cursor_inhibited, mapping_dirty, loading, renderer_failed: bool,
 }
@@ -164,12 +165,12 @@ Parameter :: struct { name, description: string, minimum, maximum, step, default
 Frame :: struct { number: u64, source, destination, format: u32, width, height: i32, fps: f32, elapsed_ms: u32, clear_history: bool }
 #assert(size_of(Frame) == 40)
 Runtime :: struct {
-    display: egl.Display, ctx, host: egl.Context, surface: egl.Surface, surfaceless: bool,
+    display: Display, ctx, host: Context, surface: Surface, surfaceless: bool,   // EGL handles declared in egl.odin (same package)
     max_texture_size: i32,
-    keys: []uintptr, chains: []libra.Gl_Filter_Chain,   // parallel: render scans keys, touches one chain
+    keys: []uintptr, chains: []Gl_Filter_Chain,         // parallel: render scans keys, touches one chain
     parameters: []Parameter, names: []cstring,          // names cloned once at load (R:395-398)
 }
-load          :: proc(display: egl.Display, share: egl.Context, path: string, keys: []uintptr, overrides: map[string]f64) -> (^Runtime, string)
+load          :: proc(display: Display, share: Context, path: string, keys: []uintptr, overrides: map[string]f64) -> (^Runtime, string) // failure text is heap-owned by the caller; "" with nil runtime = out of memory
 render        :: proc(rt: ^Runtime, key: uintptr, f: ^Frame) -> Error   // hot; zero Odin allocations on success
 set_parameter :: proc(rt: ^Runtime, name: string, value: f64) -> Error
 destroy       :: proc(rt: ^Runtime)                                       // R:182-209; leak+log if the context cannot be entered
@@ -196,6 +197,15 @@ ensure_gl_loaded :: proc()                                                // gl.
   - **Numbers:** a value that is integral and fits `i64` exactly is written as an integer. Anything else uses shortest `'g'` with a C-style exponent (`1e-07`). Non-finite values are written as `null` [INFERENCE about Qt; pinned by T-CONTRACT and T-UNIT-COMMON].
   - **Strings:** escape `"`, `\`, `\b\f\n\r\t`, and other characters below 0x20 as `\u00XX`. UTF-8 passes through.
   - **`write_value(b, json.Value, indent)`** gives Qt `Indented` output: 4 spaces, `"k": v`, an empty array as `[\n<indent>]`, and a trailing newline. The CLI reprints status with it (CTL:160–162, :199–200).
+- **`json_parse.odin`** **[C6]** is the one input parser, used by native (`import_settings`, `set_outputs`) and the client (`accept_json`, status signals). Its frozen API is `parse_json(source: string, allocator := context.allocator) -> (json.Value, Maybe(string))`. It reuses the `core:encoding/json` tokenizer and unquoting and produces ordinary `json.Value`/`json.Object` values, with numbers as `json.Float`. Rules, all confirmed against the baseline by Security's T-CONTRACT captures:
+  - a duplicate key replaces the earlier value, and the old value is freed;
+  - an empty key `""` is stored;
+  - any token after the top-level value is an error;
+  - depth 1024 is accepted and 1025 rejected, checked before recursing;
+  - an unknown string escape yields the escaped character (`\q` → `q`);
+  - the top level may be any value, and each caller checks for an object or array, as the C++ does.
+  
+  The error-text matrix recorded by Security from the baseline is authoritative for every caller-visible message. T-UNIT-COMMON covers each rule plus failure cleanup under a tracking allocator (no leaks on error).
 
 ### 4.4 D-Bus client (`gnome/controller/client`): API frozen before Step 2
 
@@ -277,7 +287,7 @@ classify    :: proc(remote_name, message: string, local: bool) -> Error  // pure
 |---|---|
 | `QString`, `QByteArray`, `QStringList` | `string`, `[]u8`, `[dynamic]string` (recents: remove, prepend, truncate to 10, E:866–868) |
 | `QMap`, `QSet` | `map[K]V` with sorted emission; linear duplicate checks (n is small) |
-| `QJson*` | `core:encoding/json` for parsing, the `common` writer for output |
+| `QJson*` | `common/json_parse.odin` (Qt parse semantics over core tokenizer) for parsing, the `common` writer for output |
 | `QFileInfo` | `core:sys/posix` `stat`/`access(R_OK)`/`realpath`. Absolute means a leading `/`. The NUL check is `strings.contains_rune(path, 0)` (R:314). |
 | `qWarning`, `g_warning` | `g_log(nil, LEVEL, "%s", msg)`; the C++ compiled without `G_LOG_DOMAIN` |
 | `.arg` formatting | `fmt.tprintf` on the temp allocator, cold paths only |
@@ -354,7 +364,7 @@ wayland_shader_effect_get_type :: proc "c" () -> GType {
 
 ### 5.4 librashader mirrors
 
-`libra.odin` mirrors `librashader.h` 0.10.1 (lines 189–318), with C `bool` as Odin `bool`. `libra_gl_filter_chain_frame` takes `libra_image_gl_t` (16 B, `{u32×4}`) **by value**, and the `"c"` convention must pass it in two integer registers [INFERENCE; Spike S2 checks this with a pixel result]. The loader argument is `egl.GetProcAddress` (`proc "c" (cstring) -> rawptr`).
+`libra.odin` mirrors `librashader.h` 0.10.1 (lines 189–318), with C `bool` as Odin `bool`. `libra_gl_filter_chain_frame` takes `libra_image_gl_t` (16 B, `{u32×4}`) **by value**, and the `"c"` convention must pass it in two integer registers [INFERENCE; Spike S2 checks this with a pixel result]. The loader argument is the EGL `GetProcAddress` foreign proc from `egl.odin` (`proc "c" (cstring) -> rawptr`).
 
 ### 5.5 EGL, GL, fences and the worker
 
@@ -375,6 +385,8 @@ wayland_shader_effect_get_type :: proc "c" () -> GType {
 - **`boundary_context()`** is `runtime.default_context()` with `assertion_failure_proc` replaced by one that logs `g_log(CRITICAL)` and then traps. Bounds checks stay **on**.
 - **Error values.** `Error :: Maybe(string)`. Messages are static or `fmt.tprintf` on the temp allocator. Anything persisted (`engine.error`, `output.failure`, `job.error`) is cloned to the heap before the guard ends.
 - **Banned constructs.** `panic`, `assert`, `unreachable`, `#no_bounds_check` and `or_panic` are banned in the non-test code of native/runtime/common/glib (checked by `ban-check.sh`). Allocation errors from `new`/`make`/`append` are checked and become `"Out of memory"`.
+- **Map lookups** use comma-ok (`v, ok := m[k]`) whenever the key may be absent. Never range over, or take the address of, an indexed map entry directly (`for x in m[k]` on a map-valued entry). With the pinned compiler at `-o:speed`, this ranged the storage `map_get` returned, which is nil when the key is missing, and crashed a disposable Shell in phase 3 (`e.overrides[e.pending]`, found by Builder and Core with objdump). Fixed by materializing the entry first; `native_test` covers a load-job snapshot for a preset with no override entry.
+- **Returned error strings** that outlive the call (`shader_runtime.load` → `job.error`, freed by `job_destroy`) are cloned explicitly into the caller's allocator before the `return`. Never return a temp-allocator or static string and rely on a `defer` that assigns a named result to fix it up: after an explicit `return expr`, that assignment did not change the returned value with the pinned compiler. In phase 3 this freed a static string and aborted a disposable Shell. The same rule applies to `create_context`'s context-restore result. Tests: a native guard/read/free unit test, and a real-GL test that loads a broken preset, frees its error after the guard ends, and checks the old runtime's pixels are unchanged.
 - **GError mapping.** `mutate` maps an Error to `g_set_error_literal(err, g_quark_from_static_string("wayland-shader-error"), 1, msg)` and returns false (E:1218–1230). `text()` rejects NULL or invalid UTF-8 with `Invalid UTF-8 argument` (E:74–78).
 - **Controller binaries** are ordinary executables, and use the same Error-value style.
 
@@ -400,11 +412,15 @@ pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 find_path(LIBRASHADER_INCLUDE_DIR librashader.h PATH_SUFFIXES librashader REQUIRED)
 find_library(LIBRASHADER_LIBRARY waylandshader-rashader REQUIRED)
 set(ODIN_FLAGS -o:speed -vet -strict-style -define:GL_DEBUG=false)
-# -L and a matching -Wl,-rpath for every NATIVE_LIBS_LIBRARY_DIRS entry and the librashader directory
+# -L and a matching -Wl,-rpath for every NATIVE_LIBS_LIBRARY_DIRS entry and the librashader directory.
+# ODIN_LDFLAGS (all three artifacts and gltest) also carry -Wl,--library-path=/ : Odin links vendor
+# archives as -l:/absolute/path, and the Nix cc-wrapper strips a bare -L/. "/" is a link-time search
+# path only; it never appears in RUNPATH (checked by T-ELF). [Builder, phase 3]
 set(NATIVE_LDFLAGS "-Wl,--no-undefined -Wl,-soname,libwaylandshader-gnome.so -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/native/exports.map ${NATIVE_L} ${NATIVE_RPATH}")
 add_library(gnome_abi_check OBJECT native/abi-check.c)
 target_link_libraries(gnome_abi_check PRIVATE PkgConfig::MUTTER)
 target_include_directories(gnome_abi_check PRIVATE ${LIBRASHADER_INCLUDE_DIR})
+target_compile_definitions(gnome_abi_check PRIVATE LIBRA_RUNTIME_OPENGL)   # the GL records in librashader.h are hidden without it
 file(GLOB NATIVE_ODIN_SOURCES CONFIGURE_DEPENDS native/*.odin runtime/*.odin common/*.odin glib/*.odin)
 add_custom_command(OUTPUT libwaylandshader-gnome.so
     COMMAND ${ODIN} build ${CMAKE_CURRENT_SOURCE_DIR}/native -build-mode:dll
@@ -425,8 +441,14 @@ add_custom_target(gnome_native ALL DEPENDS libwaylandshader-gnome.so)
 
 ```nix
 nativeBuildInputs = with pkgs; [ cmake ninja pkg-config gobject-introspection glib gjs odin wrapGAppsHook3 ];
-buildInputs = with pkgs; [ mutter gtk3 expat isocodes lerc libdeflate libevdev libwebp xz libGL shaderLibrary ]
+buildInputs = with pkgs; [ mutter gtk3 expat isocodes lerc libdeflate libevdev libwebp xz
+                           libXdmcp pcre2 util-linux libselinux libsepol libthai libdatrie libxml2 zstd libXtst
+                           libGL shaderLibrary ]
               ++ pkgs.mutter.buildInputs;            # removed: kdePackages.qtbase, qtwayland, libepoxy
+# libXdmcp … zstd: Mutter's private pkg-config closure, which Qt's inputs used to supply indirectly;
+# libXtst: GTK 3's private atspi-2 requirement (xtst) [Builder, phase 3]
+# postPatch: the CLI golden runner calls dbus-run-session --config-file=${pkgs.dbus}/share/dbus-1/session.conf,
+# because the sandbox has no /etc/dbus-1. Outside Nix the default session config is used.
 nativeCheckInputs = with pkgs; [ dbus mesa ];        # dbus-run-session for gnome_cli_golden; llvmpipe for gltest
 preCheck = ''
   export HOME=$TMPDIR __EGL_VENDOR_LIBRARY_FILENAMES=${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1
@@ -446,7 +468,7 @@ Exact commands and pass criteria are in the requirements.md catalog. This sectio
 | CTest name | Command registered by the builder | Owner of the test code |
 |---|---|---|
 | `gnome_effect_lifecycle`, `gnome_recent_presets` | unchanged (`gnome/CMakeLists.txt:100–111`); library dir = binary dir | n/a |
-| `gnome_native_contract` | `env GI_TYPELIB_PATH=<mutter-18 gir dir> gjs -m tests/native-contract.js <binary dir>`, TIMEOUT 10 | security |
+| `gnome_native_contract` | `env GI_TYPELIB_PATH=<mutter-18 gir dir>:$ENV{GI_TYPELIB_PATH} gjs -m tests/native-contract.js <binary dir>`, TIMEOUT 10 (prepend, as at `gnome/CMakeLists.txt:102`) | security |
 | `gnome_common_units`, `gnome_native_units`, `gnome_client_units`, `gnome_ctl_units`, `gnome_gui_units` | `odin test <pkg> …` | code, code, security, ux, ux |
 | `gnome_shader_runtime_gl`, `_gl33` (env `MESA_GL_VERSION_OVERRIDE=3.3`) | `<bin>/shader-runtime-gltest <src>/../tests/fixtures`, `SKIP_RETURN_CODE 77` | code |
 | `gnome_cli_golden` | `tests/cli-golden.sh check <bin>/waylandshader-gnomectl` | ux |
@@ -463,6 +485,14 @@ Exact commands and pass criteria are in the requirements.md catalog. This sectio
   - every mutator after `shutdown()`.
   
   It also requires a byte-exact `export_settings()` and `get_status()` for a fixed configuration: two outputs, gamma 0.1, saturation 2, overrides 1e-7 and 0.5 under a preset key containing `é` and a non-BMP character, and recents. The literals are recorded by running the script against the baseline native dir. **The script must pass on the baseline first** (T-CONTRACT runs both).
+  
+  It also pins the parser edge cases **[C6]**, recording accept/reject plus the resulting `export_settings()` or the GError text from the baseline:
+  - `import_settings` with a duplicate `enabled` key (`false`, then `true`);
+  - `set_outputs` with an entry whose `""` key is extra;
+  - `import_settings('{"version":1} x')` with trailing content;
+  - `import_settings` nested 1024 and 1025 levels deep inside `parameters`;
+  - an unknown escape (`\q`) in a preset string;
+  - the parse-error text matrix Security recorded from the baseline.
 - **`cli-golden.sh capture|check <ctl>`** runs each line of `golden/cli/cases.txt` under `env XDG_DATA_DIRS=$(mktemp -d) dbus-run-session --`. It writes or compares `<n>.out`, `<n>.err` and `<n>.code`, with the invoked ctl path replaced by `@CTL@`. Fixed fixtures go in `/tmp/ws-cli-golden/`: `a.slangp`, `A.SLANGP`, `b.txt`, and a missing path. The cases are:
   - `--help`, `-h`, `-?`, `--help-all`, no arguments, unknown command;
   - wrong arity for every command;
@@ -530,8 +560,8 @@ The file sets are disjoint, and no agent edits another agent's files. Missing fo
 
 | Owner | Files (create, edit or delete) | Done when |
 |---|---|---|
-| **builder** (Astra 6) | `gnome/CMakeLists.txt`, `gnome/default.nix`, `gnome/shell.nix`, `docs/waterfall/03-implementation/build-log.md`; the S0 baseline worktree | Steps 0, 3, 4 and 5. Every catalog test is run once and its result recorded (pass, fail, skip or manual). |
-| **ws-code** (sol 6.1) | `gnome/native/{effect,engine,paint,config,mutter,native_test}.odin`, `gnome/native/exports.map`; `gnome/runtime/{runtime,egl,libra}.odin`, `gnome/runtime/gltest/main.odin`; `gnome/common/*`; `gnome/glib/{glib,gobject}.odin`; delete `gnome/native/waylandshader-effect.cpp` | S1, S2; T-ABI (Odin side), T-LIFE, T-RECENT, T-UNIT-COMMON, T-UNIT-NATIVE, T-GL, T-GL33 |
+| **builder** (Astra 6) | `gnome/CMakeLists.txt`, `gnome/default.nix`, `gnome/shell.nix`, `gnome/native/exports.map` (a link input, so it sits with the build files); `docs/waterfall/03-implementation/build-log.md`; the S0 baseline worktree | Steps 0, 3, 4 and 5. Every catalog test is run once and its result recorded (pass, fail, skip or manual). |
+| **ws-code** (sol 6.1) | `gnome/native/{effect,engine,paint,config,mutter,native_test}.odin`; `gnome/runtime/{runtime,egl,libra}.odin`, `gnome/runtime/gltest/main.odin`; `gnome/common/*`; `gnome/glib/{glib,gobject}.odin`; delete `gnome/native/waylandshader-effect.cpp` | S1, S2; T-ABI (Odin side), T-LIFE, T-RECENT, T-UNIT-COMMON, T-UNIT-NATIVE, T-GL, T-GL33 |
 | **ws-security** (sol 6.1) | `gnome/native/boundary.odin`, `gnome/native/abi-check.c`; `gnome/glib/gio.odin`; `gnome/controller/client/*`; `gnome/tests/{native-contract.js,elf-check.sh,ban-check.sh,isolated-session.sh}`; `gnome/tests/golden/{exports.txt,snippet-decl.glsl,snippet-body.glsl}` (the GLSL transcribed from E:320–330, decoding the C string escapes) | T-CONTRACT (baseline first, then Odin), T-UNIT-CLIENT, T-ELF, T-BAN, T-ABI (C side). Reviews C-boundary ownership (`transfer full` strings, callback lifetimes) in the code and ui files and reports findings by message. |
 | **ws-ux** (sonnet 5.5) | `gnome/controller/ctl/*`; `gnome/controller/gui/{view.odin,view_test.odin}`; `gnome/tests/{cli-golden.sh,hang-shell.js,iso-cli.sh}`, `gnome/tests/golden/cli/**`; `README.md` and `docs/GNOME.md` GNOME sections (§7) | T-UNIT-CTL, T-CLI-GOLDEN (goldens captured from `$BASE`), T-UNIT-GUI; `iso-cli.sh` ready for T-ISO-CLI; T-DOCS hits reviewed |
 | **ws-ui** (sonnet 5.5) | `gnome/controller/gui/{main,window,gtk}.odin`, `gnome/controller/gui/controller.ui` | The GUI builds and links; S3 passes; T-GUI checklist items are implementable as written |
@@ -541,7 +571,7 @@ The file sets are disjoint, and no agent edits another agent's files. Missing fo
 - **Step 0 (builder).** `git worktree add /tmp/ws-baseline b223c1a && nix-build /tmp/ws-baseline/gnome/default.nix -o /tmp/ws-baseline-result`. Write the initial CMake and Nix changes so that `gnome_native`, `gnome_abi_check`, GIR/typelib and `shader-runtime-gltest` build from the spike sources.
 - **Step 1 (spikes, in parallel):**
   - **S1** (ws-code, with ws-security's `boundary.odin` API and `abi-check.c`):
-    - Build the real `effect.odin` registration (gates 1–3) with `new`, `get_status`, `shutdown` and `exports.map`.
+    - Build the real `effect.odin` registration (gates 1–3) with `new`, `get_status` and `shutdown`, linked with the builder's `exports.map`.
     - Pass criteria: `gnome_abi_check` compiles; g-ir-scanner succeeds and the GIR has `glib:signal name="status-changed"`; `gjs -m` imports the typelib, and `Effect.new()` is non-null and `get_status()` returns a string; `nm -D` shows only `wayland_shader_effect_*`.
     - This is the first slice of the real implementation, completed in Step 2, not a throwaway stub.
   - **S2** (ws-code): gltest creates a surfaceless llvmpipe context in `nix-build` and in `nix-shell`, and runs one `libra_gl_filter_chain_frame` with the fixture preset. Pass: the pixel readback matches the C++ expectation (this proves the by-value `libra_image_gl_t` lowering).

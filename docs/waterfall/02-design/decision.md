@@ -55,6 +55,7 @@ Main planner (opus 5.5). Inputs: `plan-A.md` (sol 6.1), `plan-B.md` (opus 5.5), 
 3. Gamma and saturation commits are rounded to 2 decimals before the D-Bus call, as `QDoubleSpinBox` does.
 4. Plan B's R8 is dropped (there is no compiler drift). The json.marshal rationale is restated as data loss, not invalid JSON.
 5. The Wayland app_id comes from `g_set_prgname` and stays [INFERENCE], checked manually in T-GUI.
+6. **(Phase 3 discovery, by Security/Core, verified by me.)** The pinned `core/encoding/json/parser.odin` cannot parse what Qt parses. It rejects duplicate keys (:261–264), drops empty keys (:270–275), ignores trailing content (:35–50) and has no depth bound (:179–201). The fix is the shared `common.parse_json` (`common/json_parse.odin`). It reuses the core tokenizer and value types and gives the Qt semantics that baseline captures confirmed: the last duplicate wins, empty keys are kept, trailing content is rejected, depth 1024 is accepted and 1025 rejected, and unknown escapes are accepted.
 
 ## Accepted deviations (need Main or user confirmation; recorded, not hidden)
 
