@@ -1,0 +1,2 @@
+param requires a nonempty parameter name and a finite numeric value.
+Use waylandshader-gnomectl --help for usage.

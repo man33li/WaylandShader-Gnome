@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk+" version="3.24"/>
+  <!-- Gamma and saturation ranges are set from common/output_settings.odin at startup. -->
+  <object class="GtkAdjustment" id="gamma_adjustment">
+    <property name="upper">1</property>
+    <property name="step-increment">0.05</property>
+    <property name="page-increment">0.5</property>
+  </object>
+  <object class="GtkAdjustment" id="saturation_adjustment">
+    <property name="upper">1</property>
+    <property name="step-increment">0.05</property>
+    <property name="page-increment">0.5</property>
+  </object>
+  <object class="GtkWindow" id="window">
+    <property name="title">WaylandShader — GNOME Shell Desktop Effects</property>
+    <property name="default-width">740</property>
+    <property name="default-height">620</property>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">6</property>
+        <property name="margin">10</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="label">Native desktop shader and color effects for GNOME Shell / Mutter</property>
+            <property name="xalign">0</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkEntry" id="preset">
+                <property name="placeholder-text">Select a RetroArch .slangp preset</property>
+                <child internal-child="accessible">
+                  <object class="AtkObject" id="preset_a11y">
+                    <property name="accessible-name">Shader preset path</property>
+                  </object>
+                </child>
+              </object>
+              <packing><property name="expand">True</property></packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="browse">
+                <property name="label">Browse…</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkMenuButton" id="recent">
+                <property name="sensitive">False</property>
+                <property name="tooltip-text">Choose a recently used preset, then click Load preset.</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label">Recent ▾</property>
+                  </object>
+                </child>
+                <child internal-child="accessible">
+                  <object class="AtkObject" id="recent_a11y">
+                    <property name="accessible-name">Recently used shader presets</property>
+                  </object>
+                </child>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="load">
+                <property name="label">Load preset</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkCheckButton" id="enabled">
+                <property name="label">Enable desktop effects</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="reconnect">
+                <property name="label">Reconnect / refresh</property>
+              </object>
+              <packing><property name="expand">False</property><property name="pack-type">end</property></packing>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkLabel" id="monitor_label">
+                <property name="label">Monitor:</property>
+                <property name="mnemonic-widget">output</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkComboBoxText" id="output">
+                <child internal-child="accessible">
+                  <object class="AtkObject" id="output_a11y">
+                    <property name="accessible-name">Monitor</property>
+                  </object>
+                </child>
+              </object>
+              <packing><property name="expand">True</property></packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="output_state"/>
+              <packing><property name="expand">False</property></packing>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">12</property>
+            <child>
+              <object class="GtkCheckButton" id="output_shader">
+                <property name="label">Apply preset on this monitor</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="output_color">
+                <property name="label">Enable color adjustments</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkLabel" id="gamma_label">
+                <property name="label">Gamma:</property>
+                <property name="mnemonic-widget">gamma</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkSpinButton" id="gamma">
+                <property name="adjustment">gamma_adjustment</property>
+                <property name="digits">2</property>
+                <property name="tooltip-text">1.00 is neutral; higher values brighten the image.</property>
+                <child internal-child="accessible">
+                  <object class="AtkObject" id="gamma_a11y">
+                    <property name="accessible-name">Gamma</property>
+                  </object>
+                </child>
+              </object>
+              <packing><property name="expand">True</property></packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="saturation_label">
+                <property name="label">Saturation:</property>
+                <property name="mnemonic-widget">saturation</property>
+                <property name="margin-start">16</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkSpinButton" id="saturation">
+                <property name="adjustment">saturation_adjustment</property>
+                <property name="digits">2</property>
+                <property name="tooltip-text">0.00 is grayscale; 1.00 is neutral; 2.00 doubles saturation.</property>
+                <child internal-child="accessible">
+                  <object class="AtkObject" id="saturation_a11y">
+                    <property name="accessible-name">Saturation</property>
+                  </object>
+                </child>
+              </object>
+              <packing><property name="expand">True</property></packing>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkLabel" id="summary">
+            <property name="label">Connecting to GNOME Shell…</property>
+            <property name="xalign">0</property>
+            <property name="wrap">True</property>
+            <property name="selectable">True</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkLabel" id="error">
+            <property name="xalign">0</property>
+            <property name="wrap">True</property>
+            <property name="selectable">True</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow">
+            <property name="shadow-type">in</property>
+            <property name="hscrollbar-policy">never</property>
+            <child>
+              <object class="GtkGrid" id="parameters">
+                <property name="margin">8</property>
+                <property name="row-spacing">6</property>
+                <property name="column-spacing">12</property>
+              </object>
+            </child>
+          </object>
+          <packing><property name="expand">True</property><property name="fill">True</property></packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="note">
+            <property name="label">Shader geometry changes pixels, not mouse hit regions. Curvature and distortion can make pointing inaccurate.</property>
+            <property name="xalign">0</property>
+            <property name="wrap">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

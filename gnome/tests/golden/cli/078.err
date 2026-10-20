@@ -1,0 +1,2 @@
+output requires a nonempty monitor id or name.
+Use waylandshader-gnomectl --help for usage.

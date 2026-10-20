@@ -1,0 +1,4 @@
+{
+    global: wayland_shader_effect_*;
+    local: *;
+};

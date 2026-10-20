@@ -1,0 +1,33 @@
+Usage: @CTL@ [options] command [arguments…]
+Control the native WaylandShader GNOME extension over the session D-Bus.
+Commands:
+  status                         Print complete JSON status (does not load the effect)
+  parameters                     Print declared parameters as JSON (does not load the effect)
+  outputs                        Print connected monitors as JSON (does not load the effect)
+  load FILE                      Load a .slangp preset and wait for compilation
+  param NAME VALUE               Set a declared shader parameter
+  output ID_OR_NAME shader on|off Enable/bypass the preset on one monitor
+  output ID_OR_NAME color on|off  Enable/bypass color adjustments on one monitor
+  output ID_OR_NAME gamma NUMBER  Set monitor gamma (0.1–5; 1 is neutral)
+  output ID_OR_NAME saturation NUMBER
+                                 Set monitor saturation (0–2; 1 is neutral)
+  enable | disable               Set master desktop-effect enablement
+  toggle                         Invert master desktop-effect enablement
+
+Monitor selectors match an exact id first, otherwise a unique exact name.
+Master disable bypasses both presets and color adjustments on all monitors.
+Monitor controls preserve other settings and never enable the master switch.
+Color adjustments work without a preset; shader and color switches are independent.
+Mutation commands may enable only the waylandshader@man33li.github.com GNOME extension.
+Exit codes: 0 success, 1 rejected/shader failure, 2 usage error,
+3 unavailable/transport/protocol error, 4 timeout (operation may still finish).
+
+Options:
+  -h, --help           Displays help on commandline options.
+  --help-all           Displays help, including generic Qt options.
+  --timeout <seconds>  Overall deadline in seconds, including asynchronous
+                       compilation (1–3600).
+
+Arguments:
+  command              One of the commands above.
+  arguments            Command-specific arguments.

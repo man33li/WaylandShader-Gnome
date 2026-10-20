@@ -1,0 +1,2585 @@
+[
+  {
+    "id": "root:\"\"",
+    "source": "",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\" \"",
+    "source": " ",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\"\\t\\r\\n\"",
+    "source": "\t\r\n",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\"{}\"",
+    "source": "{}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "root:\"[]\"",
+    "source": "[]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "root:\"null\"",
+    "source": "null",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\"true\"",
+    "source": "true",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\"false\"",
+    "source": "false",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\"1\"",
+    "source": "1",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\"\\\"text\\\"\"",
+    "source": "\"text\"",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\"}\"",
+    "source": "}",
+    "method": "import_settings",
+    "error": "object is missing after a comma",
+    "parseError": "object is missing after a comma"
+  },
+  {
+    "id": "root:\"]\"",
+    "source": "]",
+    "method": "import_settings",
+    "error": "object is missing after a comma",
+    "parseError": "object is missing after a comma"
+  },
+  {
+    "id": "root:\",\"",
+    "source": ",",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\":\"",
+    "source": ":",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "root:\"not json\"",
+    "source": "not json",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "root:\"\\u000b{}\"",
+    "source": "\u000b{}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "root:\"\\f{}\"",
+    "source": "\f{}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "bom:\"﻿\":{\"version\":1,\"enabled\":false}",
+    "source": "﻿{\"version\":1,\"enabled\":false}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":false,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "bom:\" ﻿\":{\"version\":1,\"enabled\":false}",
+    "source": " ﻿{\"version\":1,\"enabled\":false}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "bom:\"﻿﻿\":{\"version\":1,\"enabled\":false}",
+    "source": "﻿﻿{\"version\":1,\"enabled\":false}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":false,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "bom:\"﻿ \\t\":{\"version\":1,\"enabled\":false}",
+    "source": "﻿ \t{\"version\":1,\"enabled\":false}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":false,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\" \"",
+    "source": "{\"version\":1,\"enabled\":false} ",
+    "method": "import_settings",
+    "settings": "{\"enabled\":false,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\"\\t\\r\\n\"",
+    "source": "{\"version\":1,\"enabled\":false}\t\r\n",
+    "method": "import_settings",
+    "settings": "{\"enabled\":false,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\"\\\"\"",
+    "source": "{\"version\":1,\"enabled\":false}\"",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\"tru\"",
+    "source": "{\"version\":1,\"enabled\":false}tru",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\"\\\\\"",
+    "source": "{\"version\":1,\"enabled\":false}\\",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\"﻿\"",
+    "source": "{\"version\":1,\"enabled\":false}﻿",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\"{}\"",
+    "source": "{\"version\":1,\"enabled\":false}{}",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\"[]\"",
+    "source": "{\"version\":1,\"enabled\":false}[]",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\"1e\"",
+    "source": "{\"version\":1,\"enabled\":false}1e",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:{\"version\":1,\"enabled\":false}:\"/*x*/\"",
+    "source": "{\"version\":1,\"enabled\":false}/*x*/",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "bom:\"﻿\":[]",
+    "source": "﻿[]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "bom:\" ﻿\":[]",
+    "source": " ﻿[]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "bom:\"﻿﻿\":[]",
+    "source": "﻿﻿[]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "bom:\"﻿ \\t\":[]",
+    "source": "﻿ \t[]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "tail:[]:\" \"",
+    "source": "[] ",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "tail:[]:\"\\t\\r\\n\"",
+    "source": "[]\t\r\n",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "tail:[]:\"\\\"\"",
+    "source": "[]\"",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:[]:\"tru\"",
+    "source": "[]tru",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:[]:\"\\\\\"",
+    "source": "[]\\",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:[]:\"﻿\"",
+    "source": "[]﻿",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:[]:\"{}\"",
+    "source": "[]{}",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:[]:\"[]\"",
+    "source": "[][]",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:[]:\"1e\"",
+    "source": "[]1e",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "tail:[]:\"/*x*/\"",
+    "source": "[]/*x*/",
+    "method": "import_settings",
+    "error": "garbage at the end of the document",
+    "parseError": "garbage at the end of the document"
+  },
+  {
+    "id": "bom-only",
+    "source": "﻿",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "bom-output",
+    "source": "﻿[]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "bom-output-object",
+    "source": "﻿{}",
+    "method": "set_outputs",
+    "error": "Outputs must be a JSON array",
+    "parseError": ""
+  },
+  {
+    "id": "bom-inside",
+    "source": "{﻿\"version\":1}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "number:.5",
+    "source": "{\"version\":1,\"ignored\":.5}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:.5",
+    "source": "[.5]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:-.5",
+    "source": "{\"version\":1,\"ignored\":-.5}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:-.5",
+    "source": "[-.5]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:.5e1",
+    "source": "{\"version\":1,\"ignored\":.5e1}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:.5e1",
+    "source": "[.5e1]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:-.5E+1",
+    "source": "{\"version\":1,\"ignored\":-.5E+1}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:-.5E+1",
+    "source": "[-.5E+1]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:.",
+    "source": "{\"version\":1,\"ignored\":.}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:.",
+    "source": "[.]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:-.",
+    "source": "{\"version\":1,\"ignored\":-.}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:-.",
+    "source": "[-.]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:-",
+    "source": "{\"version\":1,\"ignored\":-}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:-",
+    "source": "[-]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:+1",
+    "source": "{\"version\":1,\"ignored\":+1}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:+1",
+    "source": "[+1]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:01",
+    "source": "{\"version\":1,\"ignored\":01}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "array-number:01",
+    "source": "[01]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "number:-01",
+    "source": "{\"version\":1,\"ignored\":-01}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "array-number:-01",
+    "source": "[-01]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "number:00",
+    "source": "{\"version\":1,\"ignored\":00}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "array-number:00",
+    "source": "[00]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "number:0.",
+    "source": "{\"version\":1,\"ignored\":0.}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:0.",
+    "source": "[0.]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:1.",
+    "source": "{\"version\":1,\"ignored\":1.}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:1.",
+    "source": "[1.]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:1.e2",
+    "source": "{\"version\":1,\"ignored\":1.e2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:1.e2",
+    "source": "[1.e2]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:1e",
+    "source": "{\"version\":1,\"ignored\":1e}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:1e",
+    "source": "[1e]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:1e+",
+    "source": "{\"version\":1,\"ignored\":1e+}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:1e+",
+    "source": "[1e+]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:1e-",
+    "source": "{\"version\":1,\"ignored\":1e-}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:1e-",
+    "source": "[1e-]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:1e2",
+    "source": "{\"version\":1,\"ignored\":1e2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:1e2",
+    "source": "[1e2]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:0e9999",
+    "source": "{\"version\":1,\"ignored\":0e9999}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:0e9999",
+    "source": "[0e9999]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:-0e-9999",
+    "source": "{\"version\":1,\"ignored\":-0e-9999}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:-0e-9999",
+    "source": "[-0e-9999]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:1e4000",
+    "source": "{\"version\":1,\"ignored\":1e4000}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:1e4000",
+    "source": "[1e4000]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:1e-4000",
+    "source": "{\"version\":1,\"ignored\":1e-4000}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:1e-4000",
+    "source": "[1e-4000]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:5e-324",
+    "source": "{\"version\":1,\"ignored\":5e-324}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:5e-324",
+    "source": "[5e-324]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:1e-324",
+    "source": "{\"version\":1,\"ignored\":1e-324}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:1e-324",
+    "source": "[1e-324]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:2.2250738585072014e-308",
+    "source": "{\"version\":1,\"ignored\":2.2250738585072014e-308}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:2.2250738585072014e-308",
+    "source": "[2.2250738585072014e-308]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:1.7976931348623157e308",
+    "source": "{\"version\":1,\"ignored\":1.7976931348623157e308}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "array-number:1.7976931348623157e308",
+    "source": "[1.7976931348623157e308]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "number:1.7976931348623159e308",
+    "source": "{\"version\":1,\"ignored\":1.7976931348623159e308}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:1.7976931348623159e308",
+    "source": "[1.7976931348623159e308]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:NaN",
+    "source": "{\"version\":1,\"ignored\":NaN}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:NaN",
+    "source": "[NaN]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:Infinity",
+    "source": "{\"version\":1,\"ignored\":Infinity}",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "array-number:Infinity",
+    "source": "[Infinity]",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "number:0x1",
+    "source": "{\"version\":1,\"ignored\":0x1}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "array-number:0x1",
+    "source": "[0x1]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "version-leading-dot",
+    "source": "{\"version\":.5e1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "structure:{",
+    "source": "{",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{1:2}",
+    "source": "{1:2}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{'version':1}",
+    "source": "{'version':1}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{true:1}",
+    "source": "{true:1}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{null:1}",
+    "source": "{null:1}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{[]:1}",
+    "source": "{[]:1}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{\"\":1}",
+    "source": "{\"\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "structure:{\"version\":1,\"version\":1}",
+    "source": "{\"version\":1,\"version\":1}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "structure:{\"version\":1,\"\":0}",
+    "source": "{\"version\":1,\"\":0}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "structure:{\"a\"}",
+    "source": "{\"a\"}",
+    "method": "import_settings",
+    "error": "missing name separator",
+    "parseError": "missing name separator"
+  },
+  {
+    "id": "structure:{\"a\" 1}",
+    "source": "{\"a\" 1}",
+    "method": "import_settings",
+    "error": "missing name separator",
+    "parseError": "missing name separator"
+  },
+  {
+    "id": "structure:{\"a\":",
+    "source": "{\"a\":",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{\"a\":}",
+    "source": "{\"a\":}",
+    "method": "import_settings",
+    "error": "object is missing after a comma",
+    "parseError": "object is missing after a comma"
+  },
+  {
+    "id": "structure:{\"a\":]",
+    "source": "{\"a\":]",
+    "method": "import_settings",
+    "error": "object is missing after a comma",
+    "parseError": "object is missing after a comma"
+  },
+  {
+    "id": "structure:{\"a\":,}",
+    "source": "{\"a\":,}",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "structure:{\"a\":1",
+    "source": "{\"a\":1",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{\"a\":1,",
+    "source": "{\"a\":1,",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{\"a\":1,}",
+    "source": "{\"a\":1,}",
+    "method": "import_settings",
+    "error": "object is missing after a comma",
+    "parseError": "object is missing after a comma"
+  },
+  {
+    "id": "structure:{\"a\":1 2}",
+    "source": "{\"a\":1 2}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:{\"a\":1,true:2}",
+    "source": "{\"a\":1,true:2}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "structure:[",
+    "source": "[",
+    "method": "import_settings",
+    "error": "unterminated array",
+    "parseError": "unterminated array"
+  },
+  {
+    "id": "structure:[1",
+    "source": "[1",
+    "method": "import_settings",
+    "error": "unterminated array",
+    "parseError": "unterminated array"
+  },
+  {
+    "id": "structure:[1,",
+    "source": "[1,",
+    "method": "import_settings",
+    "error": "unterminated array",
+    "parseError": "unterminated array"
+  },
+  {
+    "id": "structure:[1,]",
+    "source": "[1,]",
+    "method": "import_settings",
+    "error": "object is missing after a comma",
+    "parseError": "object is missing after a comma"
+  },
+  {
+    "id": "structure:[}",
+    "source": "[}",
+    "method": "import_settings",
+    "error": "object is missing after a comma",
+    "parseError": "object is missing after a comma"
+  },
+  {
+    "id": "structure:[1 2]",
+    "source": "[1 2]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "structure:[1 x",
+    "source": "[1 x",
+    "method": "import_settings",
+    "error": "unterminated array",
+    "parseError": "unterminated array"
+  },
+  {
+    "id": "structure:[1 x]",
+    "source": "[1 x]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "structure:[1}",
+    "source": "[1}",
+    "method": "import_settings",
+    "error": "unterminated array",
+    "parseError": "unterminated array"
+  },
+  {
+    "id": "structure:[1]",
+    "source": "[1]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\"",
+    "source": "{\"version\":1,\"ignored\":\"\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"a\\nb\"",
+    "source": "{\"version\":1,\"ignored\":\"a\nb\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"a\\rb\"",
+    "source": "{\"version\":1,\"ignored\":\"a\rb\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"a\\tb\"",
+    "source": "{\"version\":1,\"ignored\":\"a\tb\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\q\"",
+    "source": "{\"version\":1,\"ignored\":\"\\q\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\u0000\"",
+    "source": "{\"version\":1,\"ignored\":\"\\u0000\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\u+123\"",
+    "source": "{\"version\":1,\"ignored\":\"\\u+123\"}",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "string:\"\\\\u 123\"",
+    "source": "{\"version\":1,\"ignored\":\"\\u 123\"}",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "string:\"\\\\ué123\"",
+    "source": "{\"version\":1,\"ignored\":\"\\ué123\"}",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "string:\"\\\\ud800\"",
+    "source": "{\"version\":1,\"ignored\":\"\\ud800\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\udfff\"",
+    "source": "{\"version\":1,\"ignored\":\"\\udfff\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\ud83d\\\\ude00\"",
+    "source": "{\"version\":1,\"ignored\":\"\\ud83d\\ude00\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\ud800\\\\u0041\"",
+    "source": "{\"version\":1,\"ignored\":\"\\ud800\\u0041\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\ud800\\\\ud800\"",
+    "source": "{\"version\":1,\"ignored\":\"\\ud800\\ud800\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"é😀\"",
+    "source": "{\"version\":1,\"ignored\":\"é😀\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\\\\"\"",
+    "source": "{\"version\":1,\"ignored\":\"\\\"\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\\\\\\"",
+    "source": "{\"version\":1,\"ignored\":\"\\\\\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "string:\"\\\\b\\\\f\\\\n\\\\r\\\\t\\\\/\"",
+    "source": "{\"version\":1,\"ignored\":\"\\b\\f\\n\\r\\t\\/\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "truncated:\"\"",
+    "source": "{\"version\":1,\"ignored\":\"",
+    "method": "import_settings",
+    "error": "unterminated string",
+    "parseError": "unterminated string"
+  },
+  {
+    "id": "truncated:\"\\\\\"",
+    "source": "{\"version\":1,\"ignored\":\"\\",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "truncated:\"\\\\u\"",
+    "source": "{\"version\":1,\"ignored\":\"\\u",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "truncated:\"\\\\u1\"",
+    "source": "{\"version\":1,\"ignored\":\"\\u1",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "truncated:\"\\\\u12\"",
+    "source": "{\"version\":1,\"ignored\":\"\\u12",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "truncated:\"\\\\u123\"",
+    "source": "{\"version\":1,\"ignored\":\"\\u123",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "truncated:\"\\\\u1234\"",
+    "source": "{\"version\":1,\"ignored\":\"\\u1234",
+    "method": "import_settings",
+    "error": "unterminated string",
+    "parseError": "unterminated string"
+  },
+  {
+    "id": "truncated:\"\\\\uX\"",
+    "source": "{\"version\":1,\"ignored\":\"\\uX",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "truncated:\"\\\\q\"",
+    "source": "{\"version\":1,\"ignored\":\"\\q",
+    "method": "import_settings",
+    "error": "unterminated string",
+    "parseError": "unterminated string"
+  },
+  {
+    "id": "truncated:\"\\\\\\\"\"",
+    "source": "{\"version\":1,\"ignored\":\"\\\"",
+    "method": "import_settings",
+    "error": "unterminated string",
+    "parseError": "unterminated string"
+  },
+  {
+    "id": "escape:\\u",
+    "source": "{\"version\":1,\"ignored\":\"\\u\"}",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "escape:\\u1",
+    "source": "{\"version\":1,\"ignored\":\"\\u1\"}",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "escape:\\u12",
+    "source": "{\"version\":1,\"ignored\":\"\\u12\"}",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "escape:\\u123",
+    "source": "{\"version\":1,\"ignored\":\"\\u123\"}",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "escape:\\uXXXX",
+    "source": "{\"version\":1,\"ignored\":\"\\uXXXX\"}",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "depth-array:1",
+    "source": "[]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "depth-object:1",
+    "source": "{\"a\":0}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "depth-array:2",
+    "source": "[[]]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "depth-object:2",
+    "source": "{\"a\":{\"a\":0}}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "depth-array:1023",
+    "source": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "depth-object:1023",
+    "source": "{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":0}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "depth-array:1024",
+    "source": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "depth-object:1024",
+    "source": "{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":0}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "depth-array:1025",
+    "source": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+    "method": "import_settings",
+    "error": "too deeply nested document",
+    "parseError": "too deeply nested document"
+  },
+  {
+    "id": "depth-object:1025",
+    "source": "{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":0}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
+    "method": "import_settings",
+    "error": "too deeply nested document",
+    "parseError": "too deeply nested document"
+  },
+  {
+    "id": "recent-high",
+    "source": "{\"version\":1,\"recent_presets\":[\"/x\\ud800.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[\"/x\\ud800.slangp\"],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "recent-low",
+    "source": "{\"version\":1,\"recent_presets\":[\"/x\\udfff.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[\"/x\\udfff.slangp\"],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "empty-duplicate",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"\":1,\"x\":1,\"x\":2}}}",
+    "method": "import_settings",
+    "error": "Saved parameters must have finite numeric values",
+    "parseError": ""
+  },
+  {
+    "id": "nested-object:{}:\"tru\"",
+    "source": "{\"version\":1,\"x\":{}tru}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:{}:\"tru\"",
+    "source": "[{}tru]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:{}:\"\\\"\"",
+    "source": "{\"version\":1,\"x\":{}\"}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:{}:\"\\\"\"",
+    "source": "[{}\"]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:{}:\"\\\\\"",
+    "source": "{\"version\":1,\"x\":{}\\}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:{}:\"\\\\\"",
+    "source": "[{}\\]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:{}:\":\"",
+    "source": "{\"version\":1,\"x\":{}:}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:{}:\":\"",
+    "source": "[{}:]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:{}:\"x\"",
+    "source": "{\"version\":1,\"x\":{}x}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:{}:\"x\"",
+    "source": "[{}x]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:{}:\"\"",
+    "source": "{\"version\":1,\"x\":{}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "nested-array:{}:\"\"",
+    "source": "[{}]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "nested-object:[]:\"tru\"",
+    "source": "{\"version\":1,\"x\":[]tru}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:[]:\"tru\"",
+    "source": "[[]tru]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:[]:\"\\\"\"",
+    "source": "{\"version\":1,\"x\":[]\"}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:[]:\"\\\"\"",
+    "source": "[[]\"]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:[]:\"\\\\\"",
+    "source": "{\"version\":1,\"x\":[]\\}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:[]:\"\\\\\"",
+    "source": "[[]\\]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:[]:\":\"",
+    "source": "{\"version\":1,\"x\":[]:}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:[]:\":\"",
+    "source": "[[]:]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:[]:\"x\"",
+    "source": "{\"version\":1,\"x\":[]x}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:[]:\"x\"",
+    "source": "[[]x]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:[]:\"\"",
+    "source": "{\"version\":1,\"x\":[]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "nested-array:[]:\"\"",
+    "source": "[[]]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "nested-object:1:\"tru\"",
+    "source": "{\"version\":1,\"x\":1tru}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:1:\"tru\"",
+    "source": "[1tru]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:1:\"\\\"\"",
+    "source": "{\"version\":1,\"x\":1\"}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:1:\"\\\"\"",
+    "source": "[1\"]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:1:\"\\\\\"",
+    "source": "{\"version\":1,\"x\":1\\}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:1:\"\\\\\"",
+    "source": "[1\\]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:1:\":\"",
+    "source": "{\"version\":1,\"x\":1:}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:1:\":\"",
+    "source": "[1:]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:1:\"x\"",
+    "source": "{\"version\":1,\"x\":1x}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:1:\"x\"",
+    "source": "[1x]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:1:\"\"",
+    "source": "{\"version\":1,\"x\":1}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "nested-array:1:\"\"",
+    "source": "[1]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "nested-object:\"x\":\"tru\"",
+    "source": "{\"version\":1,\"x\":\"x\"tru}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:\"x\":\"tru\"",
+    "source": "[\"x\"tru]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:\"x\":\"\\\"\"",
+    "source": "{\"version\":1,\"x\":\"x\"\"}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:\"x\":\"\\\"\"",
+    "source": "[\"x\"\"]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:\"x\":\"\\\\\"",
+    "source": "{\"version\":1,\"x\":\"x\"\\}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:\"x\":\"\\\\\"",
+    "source": "[\"x\"\\]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:\"x\":\":\"",
+    "source": "{\"version\":1,\"x\":\"x\":}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:\"x\":\":\"",
+    "source": "[\"x\":]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:\"x\":\"x\"",
+    "source": "{\"version\":1,\"x\":\"x\"x}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:\"x\":\"x\"",
+    "source": "[\"x\"x]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:\"x\":\"\"",
+    "source": "{\"version\":1,\"x\":\"x\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "nested-array:\"x\":\"\"",
+    "source": "[\"x\"]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "nested-object:true:\"tru\"",
+    "source": "{\"version\":1,\"x\":truetru}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:true:\"tru\"",
+    "source": "[truetru]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:true:\"\\\"\"",
+    "source": "{\"version\":1,\"x\":true\"}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:true:\"\\\"\"",
+    "source": "[true\"]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:true:\"\\\\\"",
+    "source": "{\"version\":1,\"x\":true\\}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:true:\"\\\\\"",
+    "source": "[true\\]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:true:\":\"",
+    "source": "{\"version\":1,\"x\":true:}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:true:\":\"",
+    "source": "[true:]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:true:\"x\"",
+    "source": "{\"version\":1,\"x\":truex}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:true:\"x\"",
+    "source": "[truex]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:true:\"\"",
+    "source": "{\"version\":1,\"x\":true}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "nested-array:true:\"\"",
+    "source": "[true]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "nested-object:null:\"tru\"",
+    "source": "{\"version\":1,\"x\":nulltru}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:null:\"tru\"",
+    "source": "[nulltru]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:null:\"\\\"\"",
+    "source": "{\"version\":1,\"x\":null\"}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:null:\"\\\"\"",
+    "source": "[null\"]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:null:\"\\\\\"",
+    "source": "{\"version\":1,\"x\":null\\}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:null:\"\\\\\"",
+    "source": "[null\\]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:null:\":\"",
+    "source": "{\"version\":1,\"x\":null:}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:null:\":\"",
+    "source": "[null:]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:null:\"x\"",
+    "source": "{\"version\":1,\"x\":nullx}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "nested-array:null:\"x\"",
+    "source": "[nullx]",
+    "method": "import_settings",
+    "error": "missing value separator",
+    "parseError": "missing value separator"
+  },
+  {
+    "id": "nested-object:null:\"\"",
+    "source": "{\"version\":1,\"x\":null}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "nested-array:null:\"\"",
+    "source": "[null]",
+    "method": "import_settings",
+    "error": "Configuration must be a JSON object",
+    "parseError": ""
+  },
+  {
+    "id": "context:{\"a\":1,1:2}",
+    "source": "{\"a\":1,1:2}",
+    "method": "import_settings",
+    "error": "unterminated object",
+    "parseError": "unterminated object"
+  },
+  {
+    "id": "context:{\"a\":1,\"b\"",
+    "source": "{\"a\":1,\"b\"",
+    "method": "import_settings",
+    "error": "missing name separator",
+    "parseError": "missing name separator"
+  },
+  {
+    "id": "context:{\"a\":1,\"b\" 2}",
+    "source": "{\"a\":1,\"b\" 2}",
+    "method": "import_settings",
+    "error": "missing name separator",
+    "parseError": "missing name separator"
+  },
+  {
+    "id": "context:{\"a\":1,\"b\":}",
+    "source": "{\"a\":1,\"b\":}",
+    "method": "import_settings",
+    "error": "object is missing after a comma",
+    "parseError": "object is missing after a comma"
+  },
+  {
+    "id": "context:{\"a\":1,\"b\":,}",
+    "source": "{\"a\":1,\"b\":,}",
+    "method": "import_settings",
+    "error": "illegal value",
+    "parseError": "illegal value"
+  },
+  {
+    "id": "context:{\"a\":1,\"b\":\"\\",
+    "source": "{\"a\":1,\"b\":\"\\",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "context:{\"a\":1,\"b\":\"\\u",
+    "source": "{\"a\":1,\"b\":\"\\u",
+    "method": "import_settings",
+    "error": "invalid escape sequence",
+    "parseError": "invalid escape sequence"
+  },
+  {
+    "id": "context:[1e",
+    "source": "[1e",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "context:[1e+",
+    "source": "[1e+",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "context:[1e-",
+    "source": "[1e-",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "context:[.",
+    "source": "[.",
+    "method": "import_settings",
+    "error": "illegal number",
+    "parseError": "illegal number"
+  },
+  {
+    "id": "multibyte-escape-value:é",
+    "source": "{\"version\":1,\"ignored\":\"\\é\"}",
+    "method": "import_settings",
+    "error": "invalid UTF8 string",
+    "parseError": "invalid UTF8 string"
+  },
+  {
+    "id": "multibyte-escape-key:é",
+    "source": "{\"version\":1,\"\\é\":0}",
+    "method": "import_settings",
+    "error": "invalid UTF8 string",
+    "parseError": "invalid UTF8 string"
+  },
+  {
+    "id": "multibyte-escape-value:€",
+    "source": "{\"version\":1,\"ignored\":\"\\€\"}",
+    "method": "import_settings",
+    "error": "invalid UTF8 string",
+    "parseError": "invalid UTF8 string"
+  },
+  {
+    "id": "multibyte-escape-key:€",
+    "source": "{\"version\":1,\"\\€\":0}",
+    "method": "import_settings",
+    "error": "invalid UTF8 string",
+    "parseError": "invalid UTF8 string"
+  },
+  {
+    "id": "multibyte-escape-value:😀",
+    "source": "{\"version\":1,\"ignored\":\"\\😀\"}",
+    "method": "import_settings",
+    "error": "invalid UTF8 string",
+    "parseError": "invalid UTF8 string"
+  },
+  {
+    "id": "multibyte-escape-key:😀",
+    "source": "{\"version\":1,\"\\😀\":0}",
+    "method": "import_settings",
+    "error": "invalid UTF8 string",
+    "parseError": "invalid UTF8 string"
+  },
+  {
+    "id": "r3:version-key:plain",
+    "source": "{\"version\":1}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:plain",
+    "source": "{\"version\":1,\"version\":2}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:plain",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:plain",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:plain",
+    "source": "{\"version\":1,\"outputs\":{\"AB\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"AB\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:plain",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:plain",
+    "source": "{\"version\":1,\"preset\":\"/tmp/ws-r3-missing-dir/x.slangp\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"/tmp/ws-r3-missing-dir/x.slangp\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:plain",
+    "source": "{\"version\":1,\"recent_presets\":[\"/tmp/ws-r3-missing-dir/x.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[\"/tmp/ws-r3-missing-dir/x.slangp\"],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:plain",
+    "source": "[{\"id\":\"AB\",\"name\":\"N1\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key:rawLead",
+    "source": "{\"﻿version\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:rawLead",
+    "source": "{\"version\":1,\"﻿version\":2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:rawLead",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"﻿GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:rawLead",
+    "source": "{\"version\":1,\"parameters\":{\"﻿/p\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:rawLead",
+    "source": "{\"version\":1,\"outputs\":{\"﻿AB\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"AB\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:rawLead",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"﻿gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":1,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:rawLead",
+    "source": "{\"version\":1,\"preset\":\"﻿/tmp/ws-r3-missing-dir/x.slangp\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"/tmp/ws-r3-missing-dir/x.slangp\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:rawLead",
+    "source": "{\"version\":1,\"recent_presets\":[\"﻿/tmp/ws-r3-missing-dir/x.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[\"/tmp/ws-r3-missing-dir/x.slangp\"],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:rawLead",
+    "source": "[{\"id\":\"﻿AB\",\"name\":\"﻿N1\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key:escLead",
+    "source": "{\"\\ufeffversion\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:escLead",
+    "source": "{\"version\":1,\"\\ufeffversion\":2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:escLead",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"\\ufeffGAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"﻿GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:escLead",
+    "source": "{\"version\":1,\"parameters\":{\"\\ufeff/p\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"﻿/p\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:escLead",
+    "source": "{\"version\":1,\"outputs\":{\"\\ufeffAB\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"﻿AB\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:escLead",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"\\ufeffgamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":1,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:escLead",
+    "source": "{\"version\":1,\"preset\":\"\\ufeff/tmp/ws-r3-missing-dir/x.slangp\"}",
+    "method": "import_settings",
+    "error": "Saved preset must be an absolute filename",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:escLead",
+    "source": "{\"version\":1,\"recent_presets\":[\"\\ufeff/tmp/ws-r3-missing-dir/x.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:escLead",
+    "source": "[{\"id\":\"\\ufeffAB\",\"name\":\"\\ufeffN1\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key:rawDouble",
+    "source": "{\"﻿﻿version\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:rawDouble",
+    "source": "{\"version\":1,\"﻿﻿version\":2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:rawDouble",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"﻿﻿GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"﻿GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:rawDouble",
+    "source": "{\"version\":1,\"parameters\":{\"﻿﻿/p\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"﻿/p\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:rawDouble",
+    "source": "{\"version\":1,\"outputs\":{\"﻿﻿AB\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"﻿AB\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:rawDouble",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"﻿﻿gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":1,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:rawDouble",
+    "source": "{\"version\":1,\"preset\":\"﻿﻿/tmp/ws-r3-missing-dir/x.slangp\"}",
+    "method": "import_settings",
+    "error": "Saved preset must be an absolute filename",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:rawDouble",
+    "source": "{\"version\":1,\"recent_presets\":[\"﻿﻿/tmp/ws-r3-missing-dir/x.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:rawDouble",
+    "source": "[{\"id\":\"﻿﻿AB\",\"name\":\"﻿﻿N1\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key:escDouble",
+    "source": "{\"\\ufeff\\ufeffversion\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:escDouble",
+    "source": "{\"version\":1,\"\\ufeff\\ufeffversion\":2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:escDouble",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"\\ufeff\\ufeffGAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"﻿﻿GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:escDouble",
+    "source": "{\"version\":1,\"parameters\":{\"\\ufeff\\ufeff/p\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"﻿﻿/p\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:escDouble",
+    "source": "{\"version\":1,\"outputs\":{\"\\ufeff\\ufeffAB\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"﻿﻿AB\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:escDouble",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"\\ufeff\\ufeffgamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":1,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:escDouble",
+    "source": "{\"version\":1,\"preset\":\"\\ufeff\\ufeff/tmp/ws-r3-missing-dir/x.slangp\"}",
+    "method": "import_settings",
+    "error": "Saved preset must be an absolute filename",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:escDouble",
+    "source": "{\"version\":1,\"recent_presets\":[\"\\ufeff\\ufeff/tmp/ws-r3-missing-dir/x.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:escDouble",
+    "source": "[{\"id\":\"\\ufeff\\ufeffAB\",\"name\":\"\\ufeff\\ufeffN1\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key:rawMid",
+    "source": "{\"ve﻿rsion\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:rawMid",
+    "source": "{\"version\":1,\"ve﻿rsion\":2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:rawMid",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"GA﻿IN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"GA﻿IN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:rawMid",
+    "source": "{\"version\":1,\"parameters\":{\"/p﻿\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p﻿\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:rawMid",
+    "source": "{\"version\":1,\"outputs\":{\"AB﻿\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"AB﻿\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:rawMid",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"ga﻿mma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":1,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:rawMid",
+    "source": "{\"version\":1,\"preset\":\"/t﻿mp/ws-r3-missing-dir/x.slangp\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"/t﻿mp/ws-r3-missing-dir/x.slangp\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:rawMid",
+    "source": "{\"version\":1,\"recent_presets\":[\"/t﻿mp/ws-r3-missing-dir/x.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[\"/t﻿mp/ws-r3-missing-dir/x.slangp\"],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:rawMid",
+    "source": "[{\"id\":\"AB﻿\",\"name\":\"N1﻿\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key:escMid",
+    "source": "{\"ve\\ufeffrsion\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:escMid",
+    "source": "{\"version\":1,\"ve\\ufeffrsion\":2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:escMid",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"GA\\ufeffIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"GA﻿IN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:escMid",
+    "source": "{\"version\":1,\"parameters\":{\"/p\\ufeff\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p﻿\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:escMid",
+    "source": "{\"version\":1,\"outputs\":{\"AB\\ufeff\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"AB﻿\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:escMid",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"ga\\ufeffmma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":1,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:escMid",
+    "source": "{\"version\":1,\"preset\":\"/t\\ufeffmp/ws-r3-missing-dir/x.slangp\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"/t﻿mp/ws-r3-missing-dir/x.slangp\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:escMid",
+    "source": "{\"version\":1,\"recent_presets\":[\"/t\\ufeffmp/ws-r3-missing-dir/x.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[\"/t﻿mp/ws-r3-missing-dir/x.slangp\"],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:escMid",
+    "source": "[{\"id\":\"AB\\ufeff\",\"name\":\"N1\\ufeff\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key:rawOnly",
+    "source": "{\"﻿\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:rawOnly",
+    "source": "{\"version\":1,\"﻿\":2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:rawOnly",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"﻿\":0.5}}}",
+    "method": "import_settings",
+    "error": "Saved parameters must have finite numeric values",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:rawOnly",
+    "source": "{\"version\":1,\"parameters\":{\"﻿\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:rawOnly",
+    "source": "{\"version\":1,\"outputs\":{\"﻿\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "error": "Invalid saved output settings",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:rawOnly",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"﻿\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":1,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:rawOnly",
+    "source": "{\"version\":1,\"preset\":\"﻿\"}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:rawOnly",
+    "source": "{\"version\":1,\"recent_presets\":[\"﻿\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:rawOnly",
+    "source": "[{\"id\":\"﻿\",\"name\":\"﻿\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "error": "Output IDs must be nonempty and unique",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key:escOnly",
+    "source": "{\"\\ufeff\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:escOnly",
+    "source": "{\"version\":1,\"\\ufeff\":2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:escOnly",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"\\ufeff\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"﻿\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:escOnly",
+    "source": "{\"version\":1,\"parameters\":{\"\\ufeff\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"﻿\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:escOnly",
+    "source": "{\"version\":1,\"outputs\":{\"\\ufeff\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"﻿\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:escOnly",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"\\ufeff\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":1,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:escOnly",
+    "source": "{\"version\":1,\"preset\":\"\\ufeff\"}",
+    "method": "import_settings",
+    "error": "Saved preset must be an absolute filename",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:escOnly",
+    "source": "{\"version\":1,\"recent_presets\":[\"\\ufeff\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:escOnly",
+    "source": "[{\"id\":\"\\ufeff\",\"name\":\"\\ufeff\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key:rawLeadEscLater",
+    "source": "{\"﻿v\\ufeffersion\":1}",
+    "method": "import_settings",
+    "error": "Unsupported settings version",
+    "parseError": ""
+  },
+  {
+    "id": "r3:version-key-beside:rawLeadEscLater",
+    "source": "{\"version\":1,\"﻿v\\ufeffersion\":2}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-name:rawLeadEscLater",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"﻿G\\ufeffAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"﻿G﻿AIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:param-preset-key:rawLeadEscLater",
+    "source": "{\"version\":1,\"parameters\":{\"﻿/\\ufeffp\":{\"GAIN\":0.5}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"﻿/﻿p\":{\"GAIN\":0.5}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:output-key:rawLeadEscLater",
+    "source": "{\"version\":1,\"outputs\":{\"﻿A\\ufeffB\":{\"gamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"﻿A﻿B\":{\"colorEnabled\":false,\"gamma\":2,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:gamma-key:rawLeadEscLater",
+    "source": "{\"version\":1,\"outputs\":{\"o\":{\"﻿g\\ufeffamma\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{\"o\":{\"colorEnabled\":false,\"gamma\":1,\"saturation\":1,\"shaderEnabled\":true}},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:preset-value:rawLeadEscLater",
+    "source": "{\"version\":1,\"preset\":\"﻿/\\ufefftmp/ws-r3-missing-dir/x.slangp\"}",
+    "method": "import_settings",
+    "error": "Saved preset must be an absolute filename",
+    "parseError": ""
+  },
+  {
+    "id": "r3:recent:rawLeadEscLater",
+    "source": "{\"version\":1,\"recent_presets\":[\"﻿/\\ufefftmp/ws-r3-missing-dir/x.slangp\"]}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:set-outputs-id:rawLeadEscLater",
+    "source": "[{\"id\":\"﻿A\\ufeffB\",\"name\":\"﻿N\\ufeff1\",\"x\":0,\"y\":0,\"width\":1,\"height\":1,\"scale\":1}]",
+    "method": "set_outputs",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:collide-param-name:raw-then-escaped",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"﻿GAIN\":1,\"\\ufeffGAIN\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"﻿GAIN\":2}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:collide-param-name:escaped-then-raw",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"\\ufeffGAIN\":1,\"﻿GAIN\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"GAIN\":2}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:collide-param-name:raw-then-plain",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"﻿GAIN\":1,\"GAIN\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"GAIN\":1}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  },
+  {
+    "id": "r3:collide-param-name:plain-then-raw",
+    "source": "{\"version\":1,\"parameters\":{\"/p\":{\"GAIN\":1,\"﻿GAIN\":2}}}",
+    "method": "import_settings",
+    "settings": "{\"enabled\":true,\"outputs\":{},\"parameters\":{\"/p\":{\"GAIN\":2}},\"preset\":\"\",\"recent_presets\":[],\"version\":1}",
+    "parseError": ""
+  }
+]

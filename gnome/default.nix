@@ -19,6 +19,10 @@ pkgs.stdenv.mkDerivation {
   postUnpack = ''
     sourceRoot="$sourceRoot/gnome"
   '';
+  postPatch = ''
+    substituteInPlace tests/cli-golden.sh tests/gtk-headless.sh \
+      --replace-fail 'dbus-run-session --' 'dbus-run-session --config-file=${pkgs.dbus}/share/dbus-1/session.conf --'
+  '';
 
   nativeBuildInputs = with pkgs; [
     cmake
@@ -28,7 +32,7 @@ pkgs.stdenv.mkDerivation {
     glib
     gjs
     wrapGAppsHook3
-    kdePackages.wrapQtAppsHook
+    odin
   ];
   buildInputs = with pkgs; [
     mutter
@@ -41,23 +45,31 @@ pkgs.stdenv.mkDerivation {
     libevdev
     libwebp
     xz
-    kdePackages.qtbase
-    kdePackages.qtwayland
-    libepoxy
+    libXdmcp
+    libXtst
+    pcre2
+    util-linux
+    libselinux
+    libsepol
+    libthai
+    libdatrie
+    libxml2
+    zstd
+    libGL
     shaderLibrary
   ] ++ pkgs.mutter.buildInputs;
+  nativeCheckInputs = with pkgs; [ dbus mesa xvfb-run ];
+  preCheck = ''
+    export HOME=$TMPDIR
+    export __EGL_VENDOR_LIBRARY_FILENAMES=${pkgs.mesa}/share/glvnd/egl_vendor.d/50_mesa.json
+    export LIBGL_ALWAYS_SOFTWARE=1
+  '';
   cmakeFlags = [ "-DWAYLANDSHADER_BUILD_TESTS=ON" ];
   doCheck = true;
   checkPhase = ''
     runHook preCheck
     ctest --output-on-failure
     runHook postCheck
-  '';
-  # Qt's native GNOME file chooser needs GTK's schemas and GIO modules.
-  # Merge them into the Qt wrapper instead of wrapping each executable twice.
-  dontWrapGApps = true;
-  preFixup = ''
-    qtWrapperArgs+=("''${gappsWrapperArgs[@]}")
   '';
   passthru = {
     extensionUuid = "waylandshader@man33li.github.com";

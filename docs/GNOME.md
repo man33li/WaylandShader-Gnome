@@ -10,20 +10,21 @@ The owning checkout is `gnome-backend`, locally `/home/knd/AI/WaylandShader-gnom
 
 | Piece | Source | Responsibility |
 | --- | --- | --- |
-| Package and development shell | `gnome/default.nix`, `gnome/shell.nix` | Matching Mutter dependency set, native checks, Qt/GTK runtime wrapping |
-| Build and native interface generation | `gnome/CMakeLists.txt` | ABI guard, shared module, GIR/typelib, extension schemas, separate binaries |
+| Package and development shell | `gnome/default.nix`, `gnome/shell.nix` | Matching Mutter dependency set, Odin toolchain, native checks, GTK runtime wrapping |
+| Build and native interface generation | `gnome/CMakeLists.txt` | ABI guard, Odin custom commands, shared module with an exports version script, GIR/typelib, extension schemas, separate binaries |
 | Shell integration | `gnome/extension/extension.js` | Load the native type, attach to the original stage, discover monitors, expose D-Bus, save settings, clean up |
-| Native effect | `gnome/native/waylandshader-effect.cpp`, `.h` | GObject/Clutter lifecycle, frame hooks, Cogl resources, color conversion, scheduling and worker ownership |
-| Shared shader host | `src/shader_runtime.cpp`, `.h` | Desktop OpenGL/EGL runtime, per-output chains, parameters and context restoration |
-| Shared frontend source | `src/controller_client.cpp`, `src/controller_main.cpp`, `src/ctl_main.cpp` | Qt GUI/CLI built with the GNOME backend selection |
+| Native effect | `gnome/native/*.odin`, `waylandshader-effect.h`, `abi-check.c` | GObject/Clutter lifecycle, frame hooks, Cogl resources, color conversion, scheduling and worker ownership, written in Odin; the header is the unchanged GIR input and C ABI contract, and `abi-check.c` is a compile-only layout check |
+| Shader host | `gnome/runtime/*.odin` | Desktop OpenGL/EGL runtime, per-output chains, parameters and context restoration |
+| Control client, CLI and GUI | `gnome/controller/{client,ctl,gui}`, `gnome/common`, `gnome/glib` | GDBus client, the `waylandshader-gnomectl` command line and the GTK 3 controller, all Odin |
 | Private shader library | `shader-library.nix`, `patches/librashader-gl-lifetime.patch` | Pinned librashader 0.10.1 with private GL lifetime corrections |
 | Persistent configuration | `gnome/extension/schemas/org.gnome.shell.extensions.waylandshader.gschema.xml` | Versioned native configuration JSON in GSettings |
-| Retained regressions | `gnome/tests/effect-lifecycle.js`, `gnome/tests/recent-presets.js`, `gnome/tests/parameter-bypass.js`, `tests/shader_runtime_test.cpp` | GI ownership/pending-disable, saved-history filtering, real bypass/rebuild/history behavior, and base-level sampling respectively |
+| Retained regressions | `gnome/tests/effect-lifecycle.js`, `gnome/tests/recent-presets.js`, `gnome/tests/parameter-bypass.js`, `gnome/runtime/gltest` | GI ownership/pending-disable, saved-history filtering, real bypass/rebuild/history behavior, and base-level sampling respectively |
+| Port checks | `gnome/tests/{native-contract.js,cli-golden.sh,hang-shell.js,iso-cli.sh,isolated-session.sh,elf-check.sh,ban-check.sh}`, `gnome/tests/golden/` | Baseline-equal native contract and CLI transcripts, disposable-Shell harness, ELF and source-ban gates |
 
 ## Architecture: three processes/layers, not one application
 
 ```text
-Qt controller or CLI (separate process)
+GTK 3 controller or Odin CLI (separate process)
     -> session D-Bus: org.gnome.Shell, /WaylandShader
     -> org.waylandshader.Effect methods in the GJS extension
     -> native WaylandShader.Effect GObject / ClutterEffect
@@ -32,7 +33,7 @@ Qt controller or CLI (separate process)
 
 The renderer lives inside **GNOME Shell**. Closing or crashing the controller does not disable it. Master bypass is a separate setting; the CLI can change it even after the GUI closes. This separation explains why the desktop effect survived the Browse crash.
 
-The GJS layer is deliberately small. It loads `WaylandShader-1.0` using the extension's `native/` search paths, subscribes to monitor/session/shutdown signals, and exports the control object. The C++ layer owns GL/EGL state, resources, compilation and rendering. C++ was reused for the existing runtime and Qt frontend; GJS remains the natural Shell integration language. The [language decision](../PROJECT-HANDBOOK.md#4-why-c-was-chosen) is not a recommendation to write every GNOME extension entirely in C++.
+The GJS layer is deliberately small. It loads `WaylandShader-1.0` using the extension's `native/` search paths, subscribes to monitor/session/shutdown signals, and exports the control object. The Odin native module owns GL/EGL state, resources, compilation and rendering; the controller and CLI are Odin programs over GDBus (GTK 3 for the window). GJS remains the natural Shell integration language, and `waylandshader-effect.h` stays a C header because `g-ir-scanner` parses C. The [language decision](../PROJECT-HANDBOOK.md#4-why-c-was-chosen) records why the original build used C++; the Odin cutover is described in the history table below.
 
 ### What happens to a frame
 
@@ -71,13 +72,13 @@ The pinned, patched librashader derivation moved into `shader-library.nix` on th
 
 ### 3. Reuse the runtime without assuming a Qt event loop in Shell
 
-`gnome_shader_runtime` builds the existing C++ shader host as a position-independent static library. The native effect uses a standard worker thread and schedules completion onto the owning GLib main context. GNOME Shell is not converted into a Qt application.
+`gnome_shader_runtime` originally built the existing C++ shader host as a position-independent static library; the Odin port replaced it with `gnome/runtime`. The native effect uses a standard worker thread and schedules completion onto the owning GLib main context. GNOME Shell is not converted into a Qt application.
 
 ### 4. Adapt to Mutter's real native API
 
 A `ClutterEffect` subclass and GObject-facing header make the renderer available through GIR/typelib to GJS. The build requires `libmutter-18` and rejects incompatible major versions.
 
-One concrete C++ integration obstacle was Mutter 50's C header forward-declaration of `ClutterPaintFlag`. The CMake build moves the unchanged enum definition into **build-local header copies**. It does not edit the installed SDK or alter enum values/layout. If that declaration changes upstream, configuration deliberately fails for review.
+One concrete integration obstacle in the original C++ build was Mutter 50's C header forward-declaration of `ClutterPaintFlag`. The CMake build moved the unchanged enum definition into **build-local header copies**. It did not edit the installed SDK or alter enum values/layout. The Odin build needs no such copy; `abi-check.c` compiles against the real headers and asserts the layouts the Odin mirrors rely on.
 
 ### 5. Attach to the original stage and map outputs
 
@@ -89,7 +90,7 @@ The renderer added full-view damage expansion, frame/framebuffer identity checks
 
 ### 7. Add control and persistence
 
-The shared Qt frontend is compiled with `WAYLANDSHADER_GNOME`. The extension exports the same logical effect interface at GNOME's service/path and persists one versioned configuration string. `_settingsLoaded` prevents early status callbacks from overwriting saved settings before import; startup and preset restoration were tested separately from steady-state operation.
+The original shared Qt frontend was compiled with `WAYLANDSHADER_GNOME`; the Odin port replaced it with `gnome/controller`. The extension exports the same logical effect interface at GNOME's service/path and persists one versioned configuration string. `_settingsLoaded` prevents early status callbacks from overwriting saved settings before import; startup and preset restoration were tested separately from steady-state operation.
 
 ### 8. Verify native behavior before installing into a working session
 
@@ -104,7 +105,7 @@ The local NixOS module was changed to select `gnome/default.nix` for `glf.enviro
 Two later failures were corrected without changing the renderer's safety contract:
 
 - **Bypassed parameter edits:** disabling rendering released the runtime, but the UI still offered the retained parameter definitions. Validation was moved to `ShaderParameter::validateValue`, shared by live and cached edits. Previously loaded, known parameters can now be edited while bypassed; unknown, nonfinite or out-of-range values are rejected. GPU history is still released, and in-progress compilation still rejects edits.
-- **Browse crashed the GUI:** the GTK 3 file picker aborted because `org.gtk.Settings.FileChooser` was missing from the controller's environment. The GNOME package now declares GTK 3, uses `wrapGAppsHook3`, and merges its arguments into the Qt wrapper with `dontWrapGApps = true`. The fix supplies the dependency instead of forcing a non-native dialog or suppressing the fatal error.
+- **Browse crashed the GUI:** the GTK 3 file picker aborted because `org.gtk.Settings.FileChooser` was missing from the controller's environment. The GNOME package now declares GTK 3 and uses `wrapGAppsHook3` (originally merged into the Qt wrapper with `dontWrapGApps = true`; the Odin port wraps both binaries directly). The fix supplies the dependency instead of forcing a non-native dialog or suppressing the fatal error.
 
 ### 11. Port the niri fork's backend-neutral features (2026-10-14)
 
@@ -199,7 +200,7 @@ Gamma and saturation controls do not force the master switch on. Neutral values 
 
 ### 6. Browse, select and explicitly load a preset
 
-Browse uses Qt's native picker—GTK 3 under GNOME's default Qt theme—not a Nautilus or Dolphin process. **Recent** lists the last 10 successfully loaded presets by full path. Selecting a `.slangp` from either one only fills the path field. Press **Load preset** to compile/apply it, or use:
+Browse opens GTK 3's in-process file chooser (modal, filtered to `*.slangp`)—not a Nautilus or Dolphin process. **Recent** lists the last 10 successfully loaded presets by full path. Selecting a `.slangp` from either one only fills the path field. Press **Load preset** to compile/apply it, or use:
 
 ```bash
 waylandshader-gnomectl load /absolute/path/to/preset.slangp
@@ -233,13 +234,13 @@ nix-shell gnome/shell.nix --arg pkgs \
 Inside that shell:
 
 ```bash
-build_dir="$HOME/.cache/waylandshader/build-gnome"
-cmake -S gnome -B "$build_dir" -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON
-cmake --build "$build_dir" --parallel
-ctest --test-dir "$build_dir" --output-on-failure
+export B="$HOME/.cache/waylandshader/build-gnome"
+cmake -S gnome -B "$B" -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON
+cmake --build "$B" --parallel
+ctest --test-dir "$B" --output-on-failure
 ```
 
-`gnome_effect_lifecycle` creates a real GI object, queues preset/disable work, forces garbage collection, and checks delivery/retention and shutdown. `gnome_recent_presets` round-trips saved history through import/export/status, covering ordering, deduplication, malformed-entry filtering and the 10-entry limit. Neither test **attaches to a running stage or proves GPU rendering**. The 2026-10-14 package build passed 2/2.
+The Odin port adds `gnome_native_contract`, five Odin unit tests, the real-GL runtime tests, `gnome_cli_golden`, `gnome_elf` and `gnome_ban`. `gnome_cli_golden` runs every CLI case on its own `dbus-run-session` with an empty `XDG_DATA_DIRS` and compares stdout, stderr and exit code with transcripts recorded from the original C++ CLI (`gnome/tests/cli-golden.sh capture <baseline ctl>`), including a case against `hang-shell.js`, a private-bus name owner that never replies (exit 4). `gnome_effect_lifecycle` creates a real GI object, queues preset/disable work, forces garbage collection, and checks delivery/retention and shutdown. `gnome_recent_presets` round-trips saved history through import/export/status, covering ordering, deduplication, malformed-entry filtering and the 10-entry limit. None of these tests **attaches to a running stage or proves GPU rendering**. The 2026-10-14 package build of the original C++ code passed 2/2.
 
 ### Real bypass regression in a disposable Shell
 
@@ -287,6 +288,14 @@ Stop only terminal A's disposable process tree when finished. Confirm its privat
 
 ### Real GUI and presentation checks
 
+For a 20-second disposable devkit viewer, from the checkout:
+
+```sh
+nix-shell gnome/shell.nix --run 'WS_DEVKIT=1 gnome/tests/isolated-session.sh "$HOME/.cache/waylandshader/gnome-result" -- sleep 20'
+```
+
+Only `WS_DEVKIT=1` links the caller's `pipewire-0` socket into the private runtime directory, so the viewer can display the disposable Shell. No PipeWire lockfile, session-bus socket, other runtime entry or whole runtime directory is linked. The existing host-Wayland connection for the viewer is unchanged. The Shell and extension still use private XDG directories and a private bus; the harness stops only its owned Shell after the command. Ordinary headless tests do not link the host PipeWire socket. This does not install or enable the extension in the working desktop.
+
 A useful acceptance pass opens Browse, cancels, reopens, selects a path containing spaces, and verifies the path without loading an unwanted preset. Then compare saved effect settings and close only the test controller. The GTK fix was verified this way in the real GNOME session, visually and through native accessibility interaction, then repeated using the installed launcher.
 
 On the recorded system, **GNOME monitor screencasts captured the unfiltered scene**. They proved that the GUI/file picker rendered, not that final native processing was correct. Direct KMS scanout was used for the physical primary-output processing check. KMS access is privileged, device/plane-specific and format/driver-sensitive; do not copy another machine's plane ID. Allow authentication/OSD animations to settle before comparing images. No exact gamma calibration claim is made from those captures.
@@ -297,8 +306,8 @@ Evidence labels: **code** = inspectable implementation; **recorded** = earlier v
 
 | Event | Evidence and result | Lesson / remaining boundary |
 | --- | --- | --- |
-| First native backend | **Code:** `e1bcfc0`, separate native library, GIR/typelib, GJS and Qt binaries | Port the compositor integration, not just the application branding |
-| Mutter C-header/C++ incompatibility | **Code:** guarded build-local enum-definition move | Private SDKs require narrow, reviewable compatibility treatment; never weaken a guard blindly |
+| First native backend | **Code:** `e1bcfc0`, separate native library, GIR/typelib, GJS and Qt binaries (all C++ at the time) | Port the compositor integration, not just the application branding |
+| Mutter C-header/C++ incompatibility | **Code:** guarded build-local enum-definition move (C++ build only; removed by the Odin port) | Private SDKs require narrow, reviewable compatibility treatment; never weaken a guard blindly |
 | Cold activation/restoration races | **Recorded + code:** real frame-hook context discovery and settings-import guard | Test startup, direct scanout and restored settings, not only an already-active effect |
 | Isolated per-view rendering | **Recorded:** real Slang/color/bypass, small redraws, independent views, unsupported-output isolation | Strong integration evidence, not a physical-display guarantee |
 | Synthetic PQ/HDR identity | **Recorded + code:** preserved mastering headroom through the FP16 working path | Arbitrary HDR presets and real HDR displays remain **open** |
@@ -310,6 +319,7 @@ Evidence labels: **code** = inspectable implementation; **recorded** = earlier v
 | Effect survived GUI closure | **Observed:** renderer remained active, no error, settings unchanged | Intended process separation, not another bug |
 | Screen capture looked unfiltered | **Observed:** monitor screencast vs direct scanout saw different stages | Identify the observation point before diagnosing rendering |
 | Physical rotation/hotplug/lock/suspend/VRR/power | **Open** as a comprehensive hardware matrix | Isolated checks and hook presence do not establish these behaviors |
+| Odin cutover (2026-10-20) | **Code:** native effect, shader runtime, D-Bus client, CLI and GTK 3 controller rewritten in Odin; Qt and C++ removed from the GNOME package. Equivalence is checked against the C++ baseline by `native-contract.js`, `cli-golden.sh` and the isolated-session `iso-cli.sh` transcript diff. Accepted deviations: no per-item popup tooltip in the monitor combo, and GTK spin buttons ignore stepping increments of 1e-10 or less (typed values stay exact) | Equivalence is established by baseline comparison, not by reading the port; physical-display behavior stays **open** |
 
 ## Future refinements
 
@@ -325,7 +335,7 @@ Evidence labels: **code** = inspectable implementation; **recorded** = earlier v
 - Keep Mutter's Nix version assertion and CMake ABI check consistent. A major update is a port/review task, not a version-string edit.
 - Review Cogl color APIs, original-framebuffer/frame matching, stage hooks, output mapping and native GI ownership whenever GNOME changes.
 - Treat the build-local SDK header adaptation separately from the private librashader patch. They solve different problems and have different upstream removal criteria.
-- Keep GTK schema wrapping for the Qt native chooser. The extension's own `configuration` schema and GTK's file-chooser schema are **different dependencies**.
+- Keep GTK schema wrapping for the GTK file chooser. The extension's own `configuration` schema and GTK's file-chooser schema are **different dependencies**.
 - Keep generated GIR/typelib and native `.so` from the same build. Avoid stale user-local copies shadowing the system extension.
 - Preserve the GSettings JSON version and import compatibility deliberately. Do not migrate KWin UUID profiles to GNOME connector profiles by assuming identities match.
 - Back up only the extension's configuration when needed, rather than dumping/resetting all desktop settings. For example, `dconf dump /org/gnome/shell/extensions/waylandshader/` is read-only; restoration should be deliberate and performed with the effect disabled.
@@ -336,4 +346,4 @@ Evidence labels: **code** = inspectable implementation; **recorded** = earlier v
 - Current source paths and coarse commit listed above; retained GJS tests describe exactly what they assert.
 - `README.md` and `WaylandShader-Guide.txt` on `gnome-backend` retain earlier rendering verification context.
 - The 2026-09-11 sessions recorded the bypass pre-fix failure/post-fix pass, system-extension discovery, GTK fatal diagnostic, real Browse/Open/Cancel checks, and unchanged effect configuration. Temporary captures/scripts were removed; they are not a shipped test harness.
-- [GNOME Shell source](https://gitlab.gnome.org/GNOME/gnome-shell), [Mutter source](https://gitlab.gnome.org/GNOME/mutter), [GObject Introspection](https://gi.readthedocs.io/), and [Qt file-dialog documentation](https://doc.qt.io/qt-6/qfiledialog.html) explain the upstream contracts. Always consult the versions matching the build.
+- [GNOME Shell source](https://gitlab.gnome.org/GNOME/gnome-shell), [Mutter source](https://gitlab.gnome.org/GNOME/mutter), [GObject Introspection](https://gi.readthedocs.io/), and [GTK 3 file chooser documentation](https://docs.gtk.org/gtk3/class.FileChooserDialog.html) explain the upstream contracts. Always consult the versions matching the build.
