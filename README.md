@@ -211,6 +211,8 @@ Settings are stored under `$XDG_CONFIG_HOME`, normally `~/.config`: `waylandshad
 
 ## Development and verification
 
+Load: two outputs (1920×1080 and 2560×1440) at 60 Hz with a temporal Slang preset; zero heap allocations per frame in the compositor paint path; gnome-shell CPU and GPU time no higher than the C++ original measured in [benchmark.md](docs/waterfall/05-maintenance/benchmark.md) (≈7.9 % of one core, ≈67 ms GPU per second).
+
 ```bash
 nix-shell
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
