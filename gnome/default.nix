@@ -33,6 +33,7 @@ pkgs.stdenv.mkDerivation {
     gjs
     wrapGAppsHook3
     odin
+    removeReferencesTo
   ];
   buildInputs = with pkgs; [
     mutter
@@ -74,6 +75,12 @@ pkgs.stdenv.mkDerivation {
   passthru = {
     extensionUuid = "waylandshader@man33li.github.com";
   };
+  # Odin embeds core-library source paths (panic/bounds-check messages); they would
+  # pull the compiler and its LLVM/GCC closure (~2 GiB) into the runtime closure.
+  postFixup = ''
+    find $out -type f -exec remove-references-to -t ${pkgs.odin} {} +
+  '';
+  disallowedReferences = [ pkgs.odin ];
   meta = {
     description = "Native RetroArch Slang desktop effects for GNOME Shell";
     platforms = pkgs.lib.platforms.linux;
