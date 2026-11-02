@@ -13,6 +13,12 @@ Commands:
                                  Set monitor saturation (0–2; 1 is neutral)
   enable | disable               Set master desktop-effect enablement
   toggle                         Invert master desktop-effect enablement
+  profiles                       Print saved profile names and the default as JSON
+  profile save NAME              Save the preset, its parameters and monitor settings
+  profile load NAME              Apply a saved profile and wait for compilation
+  profile delete NAME            Delete a saved profile
+  profile default NAME           Apply this profile at every login
+  profile clear-default          Restore the last session at login instead
 
 Monitor selectors match an exact id first, otherwise a unique exact name.
 Master disable bypasses both presets and color adjustments on all monitors.

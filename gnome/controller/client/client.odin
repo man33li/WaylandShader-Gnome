@@ -21,12 +21,12 @@ Kind :: enum { None, Unavailable, Rejected, Protocol, Transport }
 Error :: struct { kind: Kind, message: string }
 Reply :: struct { fn: proc(data: rawptr, err: Error), data: rawptr }
 Client :: struct {
-    status: Status, has_status: bool,
+    status: Status, has_status: bool, profiles: Profiles,
     listener: rawptr, on_status: proc(rawptr, ^Status), on_transport_error: proc(rawptr, Error),
     life: ^Life,
 }
 Life :: struct { client: ^Client, bus: ^glib.DBus_Connection, cancel: ^glib.Cancellable, refs: int, generation: u64, subscriptions: [3]u32, activations: ^Activation }
-Operation :: enum { Status, Activated_Status, Mutation, Ensure, Enable, Snapshot }
+Operation :: enum { Status, Activated_Status, Mutation, Ensure, Enable, Snapshot, Profiles }
 Pending :: struct { life: ^Life, generation: u64, op: Operation, allow_activation: bool, reply: Reply, activation: ^Activation }
 Activation :: struct { life: ^Life, next: ^Activation, reply: Reply, timer: u32, refs: int, done: bool }
 
@@ -96,6 +96,7 @@ close :: proc(c: ^Client) {
     for id in l.subscriptions { if id != 0 { glib.g_dbus_connection_signal_unsubscribe(l.bus, id) } }
     for l.activations != nil { activation_complete(l.activations, {}) }
     free_status(&c.status)
+    free_profiles(&c.profiles)
     c.has_status = false
     release(l)
 }
@@ -144,6 +145,11 @@ set_output_shader_enabled :: proc(c: ^Client, id: string, value: bool, r: Reply)
 set_output_color_enabled :: proc(c: ^Client, id: string, value: bool, r: Reply) { text_mutation(c, "setOutputColorEnabled", "(sb)", id, r, enabled=value) }
 set_output_gamma :: proc(c: ^Client, id: string, value: f64, r: Reply) { text_mutation(c, "setOutputGamma", "(sd)", id, r, value=value) }
 set_output_saturation :: proc(c: ^Client, id: string, value: f64, r: Reply) { text_mutation(c, "setOutputSaturation", "(sd)", id, r, value=value) }
+request_profiles :: proc(c: ^Client, r: Reply) { if c.life == nil { respond(r, unavailable()); return }; call(c.life, "profiles", nil, .Profiles, r) }
+save_profile :: proc(c: ^Client, name: string, r: Reply) { text_mutation(c, "saveProfile", "(s)", name, r) }
+load_profile :: proc(c: ^Client, name: string, r: Reply) { text_mutation(c, "loadProfile", "(s)", name, r) }
+delete_profile :: proc(c: ^Client, name: string, r: Reply) { text_mutation(c, "deleteProfile", "(s)", name, r) }
+set_default_profile :: proc(c: ^Client, name: string, r: Reply) { text_mutation(c, "setDefaultProfile", "(s)", name, r) }
 type_is :: proc(v: ^glib.Variant, signature: string) -> bool { return v != nil && string(glib.g_variant_get_type_string(v)) == signature }
 boolean_reply :: proc(v: ^glib.Variant) -> Error {
     if !type_is(v, "(b)") { return {.Protocol, "GNOME Shell returned a malformed boolean reply."} }
@@ -195,6 +201,12 @@ finished :: proc "c" (source: rawptr, result: ^glib.Async_Result, data: rawptr) 
         }
         if l.client != nil { respond(p.reply, e) }
     case .Mutation: if e.kind == .None { e = boolean_reply(value) }; respond(p.reply, e)
+    case .Profiles:
+        if e.kind == .None {
+            if !type_is(value, "(s)") { e = {.Protocol, "GNOME Shell returned a malformed profile list."} }
+            else { child := glib.g_variant_get_child_value(value, 0); defer glib.g_variant_unref(child); e = accept_profiles(l.client, string(glib.g_variant_get_string(child, nil))) }
+        }
+        respond(p.reply, e)
     case .Ensure:
         if !missing { if e.kind == .None { e = status_reply(l, value) }; if l.client != nil { respond(p.reply, e) }; return }
         if !p.allow_activation { respond(p.reply, {.Unavailable, "The WaylandShader GNOME extension is not available." + INSTALLATION_HINT + " Use the settings window or a mutation command to activate it."}); return }

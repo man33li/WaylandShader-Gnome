@@ -17,6 +17,11 @@ const XML = `<node>
     <method name="setOutputColorEnabled"><arg type="s" direction="in"/><arg type="b" direction="in"/><arg type="b" direction="out"/></method>
     <method name="setOutputGamma"><arg type="s" direction="in"/><arg type="d" direction="in"/><arg type="b" direction="out"/></method>
     <method name="setOutputSaturation"><arg type="s" direction="in"/><arg type="d" direction="in"/><arg type="b" direction="out"/></method>
+    <method name="profiles"><arg type="s" direction="out"/></method>
+    <method name="saveProfile"><arg type="s" direction="in"/><arg type="b" direction="out"/></method>
+    <method name="loadProfile"><arg type="s" direction="in"/><arg type="b" direction="out"/></method>
+    <method name="deleteProfile"><arg type="s" direction="in"/><arg type="b" direction="out"/></method>
+    <method name="setDefaultProfile"><arg type="s" direction="in"/><arg type="b" direction="out"/></method>
     <signal name="statusChanged"><arg type="s"/></signal>
   </interface>
 </node>`;
@@ -56,7 +61,17 @@ export default class WaylandShaderExtension extends Extension {
             global.stage.add_effect_with_name(EFFECT_NAME, this._effect);
             this._attached = true;
             this._updateOutputs();
-            const saved = this._settings.get_string('configuration');
+            let saved = this._settings.get_string('configuration');
+            const preferred = this._settings.get_string('default-profile');
+            const stored = this._readProfiles();
+            const profile = Object.hasOwn(stored, preferred) ? stored[preferred] : undefined;
+            if (profile) {
+                try {
+                    saved = this._withProfile(saved, profile);
+                } catch (error) {
+                    console.error(`WaylandShader: could not apply default profile ${preferred}`, error);
+                }
+            }
             if (saved)
                 this._effect.import_settings(saved);
             this._settingsLoaded = true;
@@ -188,6 +203,93 @@ export default class WaylandShaderExtension extends Extension {
 
     setOutputSaturationAsync(parameters, invocation) {
         this._mutate('set_output_saturation', parameters, invocation);
+    }
+
+    // Profiles: {name: {preset, parameters: {name: value}, outputs: {id: settings}}} in GSettings key `profiles`.
+    _readProfiles() {
+        try {
+            const profiles = JSON.parse(this._settings.get_string('profiles') || '{}');
+            return profiles && typeof profiles === 'object' && !Array.isArray(profiles) ? profiles : {};
+        } catch (error) {
+            console.error('WaylandShader: ignoring malformed saved profiles', error);
+            return {};
+        }
+    }
+
+    // Overlay a profile on a v1 configuration, keeping enablement, recents and other presets' overrides.
+    _withProfile(configuration, profile) {
+        const base = configuration ? JSON.parse(configuration) : {};
+        base.version = 1;
+        base.preset = profile.preset ?? '';
+        base.parameters = {...base.parameters};
+        if (base.preset)
+            base.parameters[base.preset] = profile.parameters ?? {};
+        base.outputs = {...base.outputs, ...profile.outputs};
+        return JSON.stringify(base);
+    }
+
+    _profileCall(invocation, name, action) {
+        if (this._closing || !this._effect) {
+            invocation.return_dbus_error('org.waylandshader.Error.Unavailable', 'The GNOME effect is shutting down.');
+            return;
+        }
+        try {
+            if (typeof name !== 'string' || name.trim() === '')
+                throw new Error('Profile names must be nonempty.');
+            action(this._readProfiles());
+            this._onStatus(this._effect.get_status());
+            invocation.return_value(new GLib.Variant('(b)', [true]));
+        } catch (error) {
+            invocation.return_dbus_error('org.waylandshader.Error.Rejected', error.message ?? String(error));
+        }
+    }
+
+    profiles() {
+        const preferred = this._settings.get_string('default-profile');
+        const names = Object.keys(this._readProfiles()).sort();
+        return JSON.stringify({default: names.includes(preferred) ? preferred : '', profiles: names});
+    }
+
+    saveProfileAsync([name], invocation) {
+        this._profileCall(invocation, name, profiles => {
+            const current = JSON.parse(this._effect.export_settings());
+            const preset = current.preset ?? '';
+            profiles[name] = {preset, parameters: current.parameters?.[preset] ?? {}, outputs: current.outputs ?? {}};
+            this._settings.set_string('profiles', JSON.stringify(profiles));
+        });
+    }
+
+    loadProfileAsync([name], invocation) {
+        this._profileCall(invocation, name, profiles => {
+            if (!Object.hasOwn(profiles, name))
+                throw new Error(`Unknown profile: ${name}`);
+            this._effect.import_settings(this._withProfile(this._effect.export_settings(), profiles[name]));
+        });
+    }
+
+    deleteProfileAsync([name], invocation) {
+        this._profileCall(invocation, name, profiles => {
+            if (!Object.hasOwn(profiles, name))
+                throw new Error(`Unknown profile: ${name}`);
+            delete profiles[name];
+            this._settings.set_string('profiles', JSON.stringify(profiles));
+            if (this._settings.get_string('default-profile') === name)
+                this._settings.set_string('default-profile', '');
+        });
+    }
+
+    // An empty name clears the default.
+    setDefaultProfileAsync([name], invocation) {
+        if (name === '') {
+            this._settings.set_string('default-profile', '');
+            invocation.return_value(new GLib.Variant('(b)', [true]));
+            return;
+        }
+        this._profileCall(invocation, name, profiles => {
+            if (!Object.hasOwn(profiles, name))
+                throw new Error(`Unknown profile: ${name}`);
+            this._settings.set_string('default-profile', name);
+        });
     }
 
     _cleanup() {

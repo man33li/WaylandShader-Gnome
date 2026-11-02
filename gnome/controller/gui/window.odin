@@ -192,6 +192,8 @@ App :: struct {
 	win, preset, recent, recent_menu, load, enabled:    Widget,
 	output, output_state, output_shader, output_color:  Widget,
 	gamma, saturation, summary, error, parameters:      Widget,
+	profile, profile_entry, profile_load, profile_save: Widget,
+	profile_delete, profile_default:                    Widget,
 	editors:                                            [dynamic]^Editor,
 	output_items:                                       [dynamic]Output_Item,
 	recent_presets:                                     [dynamic]cstring,
@@ -203,6 +205,7 @@ App :: struct {
 	programmatic:                                       int, // >0 while code (not the user) changes widgets: QSignalBlocker
 	available, loading, load_pending, enable_pending:   bool,
 	path_edited, output_pending, closing:               bool,
+	profile_pending:                                    bool,
 }
 
 app: App
@@ -220,6 +223,11 @@ set_available :: proc(available: bool) {
 	sensitive(app.load, load_enabled())
 	sensitive(app.enabled, available && !app.enable_pending)
 	sensitive(app.parameters, available && !app.loading)
+	profile_idle := available && !app.profile_pending
+	for w in ([?]Widget{app.profile, app.profile_save, app.profile_delete, app.profile_default}) {
+		sensitive(w, profile_idle)
+	}
+	sensitive(app.profile_load, profile_idle && load_enabled())
 	update_output_availability()
 }
 
@@ -389,6 +397,7 @@ reconnect_done :: proc(_: rawptr, err: client.Error) {
 		set_available(false)
 	} else {
 		set_available(true)
+		client.request_profiles(&app.cl, client.Reply{fn = profiles_done})
 	}
 	show_errors()
 }
@@ -450,6 +459,103 @@ plain_status_done :: proc(_: rawptr, err: client.Error) {
 
 output_status_done :: proc(_: rawptr, err: client.Error) {
 	status_done(err, true)
+}
+
+// ---------------------------------------------------------------------------
+// Profiles
+// ---------------------------------------------------------------------------
+
+profile_name :: proc() -> string {
+	return strings.trim_space(string(gtk_entry_get_text(app.profile_entry)))
+}
+
+update_profile_default :: proc() {
+	name := profile_name()
+	app.programmatic += 1
+	gtk_toggle_button_set_active(app.profile_default, b32(name != "" && name == app.cl.profiles.default_name))
+	app.programmatic -= 1
+}
+
+profiles_done :: proc(_: rawptr, err: client.Error) {
+	if app.closing {
+		return
+	}
+	if err.kind != .None {
+		set_operation_error(err.message)
+		show_errors()
+		return
+	}
+	// Repopulating clears the entry; keep what the user typed.
+	typed := strings.clone(string(gtk_entry_get_text(app.profile_entry)), context.temp_allocator)
+	app.programmatic += 1
+	gtk_combo_box_text_remove_all(app.profile)
+	for name in app.cl.profiles.names {
+		gtk_combo_box_text_append(app.profile, cstr(name), cstr(name))
+	}
+	if typed == "" {
+		typed = app.cl.profiles.default_name
+	}
+	gtk_entry_set_text(app.profile_entry, cstr(typed))
+	app.programmatic -= 1
+	update_profile_default()
+}
+
+profile_done :: proc(_: rawptr, err: client.Error) {
+	if app.closing {
+		return
+	}
+	app.profile_pending = false
+	set_available(app.available)
+	finish_mutation(err)
+	client.request_profiles(&app.cl, client.Reply{fn = profiles_done})
+}
+
+Profile_Button :: enum { Load, Save, Delete }
+
+profile_clicked :: proc "c" (_: Widget, data: rawptr) {
+	context = gui_context()
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+	name := profile_name()
+	if name == "" {
+		set_operation_error("Type or choose a profile name.")
+		show_errors()
+		return
+	}
+	clear_str(&app.operation_error)
+	app.profile_pending = true
+	set_available(app.available)
+	reply := client.Reply{fn = profile_done}
+	switch Profile_Button(uintptr(data)) {
+	case .Load: client.load_profile(&app.cl, name, reply)
+	case .Save: client.save_profile(&app.cl, name, reply)
+	case .Delete: client.delete_profile(&app.cl, name, reply)
+	}
+}
+
+profile_default_toggled :: proc "c" (button: Widget, _: rawptr) {
+	context = gui_context()
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+	if app.programmatic > 0 {
+		return
+	}
+	active := bool(gtk_toggle_button_get_active(button))
+	name := profile_name() if active else ""
+	if active && name == "" {
+		update_profile_default()
+		return
+	}
+	clear_str(&app.operation_error)
+	app.profile_pending = true
+	set_available(app.available)
+	client.set_default_profile(&app.cl, name, client.Reply{fn = profile_done})
+}
+
+profile_changed :: proc "c" (_: Widget, _: rawptr) {
+	context = gui_context()
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+	if app.programmatic == 0 {
+		update_profile_default()
+	}
 }
 
 do_load :: proc() {
@@ -975,6 +1081,11 @@ build_window :: proc(ui: string) -> bool {
 	app.summary = lookup(b, "summary", &ok)
 	app.error = lookup(b, "error", &ok)
 	app.parameters = lookup(b, "parameters", &ok)
+	app.profile = lookup(b, "profile", &ok)
+	app.profile_load = lookup(b, "profile_load", &ok)
+	app.profile_save = lookup(b, "profile_save", &ok)
+	app.profile_delete = lookup(b, "profile_delete", &ok)
+	app.profile_default = lookup(b, "profile_default", &ok)
 	browse := lookup(b, "browse", &ok)
 	reconnect_button := lookup(b, "reconnect", &ok)
 	g_object_unref(b) // the window keeps itself alive until gtk_widget_destroy
@@ -985,6 +1096,7 @@ build_window :: proc(ui: string) -> bool {
 		return false
 	}
 
+	app.profile_entry = gtk_bin_get_child(app.profile)
 	app.recent_menu = gtk_menu_new()
 	gtk_menu_button_set_popup(app.recent, app.recent_menu)
 	gtk_spin_button_set_range(app.gamma, common.MIN_GAMMA, common.MAX_GAMMA)
@@ -1010,6 +1122,11 @@ build_window :: proc(ui: string) -> bool {
 		connect(spin, "activate", refresh_outputs_soon, nil)
 		connect(spin, "focus-out-event", refresh_outputs_on_focus_out, nil)
 	}
+	connect(app.profile_load, "clicked", profile_clicked, rawptr(uintptr(Profile_Button.Load)))
+	connect(app.profile_save, "clicked", profile_clicked, rawptr(uintptr(Profile_Button.Save)))
+	connect(app.profile_delete, "clicked", profile_clicked, rawptr(uintptr(Profile_Button.Delete)))
+	connect(app.profile_default, "toggled", profile_default_toggled, nil)
+	connect(app.profile, "changed", profile_changed, nil)
 	connect(app.win, "destroy", window_destroyed, nil)
 
 	// Baseline (CC:64,119): no bus never aborts; every call then reports Unavailable

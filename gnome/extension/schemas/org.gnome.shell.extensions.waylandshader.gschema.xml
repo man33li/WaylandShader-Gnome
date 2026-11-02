@@ -6,5 +6,15 @@
       <summary>WaylandShader monitor profiles and preset settings</summary>
       <description>Versioned native-backend JSON. Independent of the KWin configuration; updated by the WaylandShader GNOME controller.</description>
     </key>
+    <key name="profiles" type="s">
+      <default>'{}'</default>
+      <summary>Named WaylandShader profiles</summary>
+      <description>JSON object mapping each profile name to its preset, that preset's parameter overrides, and monitor settings.</description>
+    </key>
+    <key name="default-profile" type="s">
+      <default>''</default>
+      <summary>Profile applied at login</summary>
+      <description>Name of the profile applied over the saved configuration when the extension starts; empty restores the last session.</description>
+    </key>
   </schema>
 </schemalist>

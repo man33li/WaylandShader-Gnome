@@ -93,6 +93,56 @@
           <object class="GtkBox">
             <property name="spacing">6</property>
             <child>
+              <object class="GtkLabel" id="profile_label">
+                <property name="label">Profile:</property>
+                <property name="mnemonic-widget">profile</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkComboBoxText" id="profile">
+                <property name="has-entry">True</property>
+                <property name="tooltip-text">Choose a saved profile or type a new name.</property>
+                <child internal-child="accessible">
+                  <object class="AtkObject" id="profile_a11y">
+                    <property name="accessible-name">Profile name</property>
+                  </object>
+                </child>
+              </object>
+              <packing><property name="expand">True</property></packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="profile_load">
+                <property name="label">Load profile</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="profile_save">
+                <property name="label">Save profile</property>
+                <property name="tooltip-text">Save the current preset, its parameters and every monitor's settings under this name.</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="profile_delete">
+                <property name="label">Delete</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="profile_default">
+                <property name="label">Default at login</property>
+                <property name="tooltip-text">Apply this profile whenever GNOME Shell starts the effect.</property>
+              </object>
+              <packing><property name="expand">False</property></packing>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">6</property>
+            <child>
               <object class="GtkLabel" id="monitor_label">
                 <property name="label">Monitor:</property>
                 <property name="mnemonic-widget">output</property>

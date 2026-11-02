@@ -107,6 +107,7 @@ foreign gtk {
 	gtk_combo_box_text_remove_all :: proc(c: Widget) ---
 	gtk_combo_box_set_active :: proc(w: Widget, index: c.int) ---
 	gtk_combo_box_get_active_id :: proc(c: Widget) -> cstring ---
+	gtk_bin_get_child :: proc(b: Widget) -> Widget ---
 
 	gtk_adjustment_new :: proc(value, lower, upper, step, page, page_size: f64) -> Adjustment ---
 	gtk_adjustment_set_value :: proc(a: Adjustment, v: f64) ---
