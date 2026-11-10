@@ -106,7 +106,9 @@ parameter_rules :: proc(t: ^testing.T) {
 	p.minimum, p.maximum = 3, 1
 	testing.expect_value(t, parameter_step(&p), 1.0)
 	p.minimum, p.maximum = 0, 1e-7
-	testing.expect_value(t, parameter_step(&p), 1e-7 / 100)
+	// C++ double span / 100.0 rounds the already-f64 input, not the exact
+	// decimal constant expression 1e-7 / 100 (which is one ULP higher).
+	testing.expect_value(t, parameter_step(&p), transmute(f64)u64(0x3e112e0be826d694))
 
 	p = {name = "GAIN", minimum = 0.1, maximum = 2, default_value = 1}
 	testing.expect_value(t, parameter_label(&p), "GAIN")
