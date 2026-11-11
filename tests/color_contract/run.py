@@ -52,13 +52,8 @@ def fragments():
     for name in ('Surface', 'Resources', 'cogl_error', 'new_pipeline', 'configure_color'):
         assert name in sections, 'source declaration missing: ' + name
     selected = {name: sections[name] for name in wanted if name in sections}
-    cleanup = ('fixture_cleanup :: proc(r: ^Resources) { color_destroy(&r.color) }\n'
-               if 'color_destroy' in selected else
-               'fixture_cleanup :: proc(r: ^Resources) {\n'
-               'if r.to_srgb!=nil { glib.g_object_unref(r.to_srgb); r.to_srgb=nil }\n'
-               'if r.to_target!=nil { glib.g_object_unref(r.to_target); r.to_target=nil }\n'
-               'if r.target_color!=nil { glib.g_object_unref(r.target_color); r.target_color=nil }\n'
-               'if r.working_color!=nil { glib.g_object_unref(r.working_color); r.working_color=nil }\n}\n')
+    assert 'color_destroy' in selected, 'final contract requires actual application teardown, not generated baseline fallback'
+    cleanup = 'fixture_cleanup :: proc(r: ^Resources) { color_destroy(&r.color) }\n'
     body = 'package main\nimport "core:fmt"\nimport glib "../glib"\n\n' + '\n'.join(selected.values()) + cleanup
     return body.encode(), {k: sha(v.encode()) for k, v in selected.items()}
 
@@ -68,6 +63,15 @@ def key():
     bindings = {str(p.relative_to(APP)): sha(p.read_bytes()) for p in
                 [APP / 'gnome/native/paint.odin', Path(__file__), *sorted((HERE/'fixtures').glob('*.odin'))]}
     bindings['odin'] = sha(Path('/home/manea/Odin/odin').read_bytes())
+    # Source packages are compiler inputs too: executable identity alone is insufficient.
+    for name in ('base', 'core', 'vendor', 'shared'):
+        root = Path('/home/manea/Odin')/name
+        for path in sorted(root.rglob('*')):
+            rel = 'odin/'+str(path.relative_to(root.parent))
+            if path.is_symlink():
+                bindings[rel] = 'symlink:'+os.readlink(path)
+            elif path.is_file():
+                bindings[rel] = sha(path.read_bytes())
     # Full native type-check dependencies, not just the extracted constructor.
     bindings.update({str(p.relative_to(APP)): sha(p.read_bytes()) for p in (APP/'gnome').rglob('*.odin')})
     return sha(json.dumps(bindings, sort_keys=True).encode()), data, parts, bindings
@@ -96,25 +100,31 @@ def sandbox(view, work, command, compile_stage):
 
 
 def stage(b, root, view, work, name, command, compile_stage=False):
-    assert not (STORE/'QUARANTINED.json').exists(), 'prior cleanup uncertainty; no automatic recovery'
+    assert not (STORE/'QUARANTINED.json').exists() and not (STORE/'ACTIVE.json').exists(), 'prior cleanup uncertainty; no automatic recovery'
     out = root/name
     out.mkdir(mode=0o700)
     args = sandbox(view, work, command, compile_stage)
     save(out/'command.json', args)
+    # Persist ownership before supervision: an exception must not enable a later cached PASS.
+    active = STORE/'ACTIVE.json'
+    save(active, {'stage': str(out)})
     with b.caught_signals() as pending:
         status, _ = b.launch(args, b'\n', out, time.monotonic()+(150 if compile_stage else 12), pending)
     if status['cleanup'] != b.CLEAN:
         save(STORE/'QUARANTINED.json', {'stage': str(out), 'status': status})
         raise RuntimeError('UNCERTAIN cleanup: no automatic recovery')
+    active.unlink()  # Only known cleanup releases this stage's ownership.
     assert not pending[0], 'interrupted; stop this operation'
     text = (out/'stdout.jsonl').read_text()
     err = (out/'stderr.log').read_text()
     print(text, end='')
     print(err, end='', file=sys.stderr)
-    return status['leader_exit'] == 0
+    return (status['leader_exit'] == 0 and status['reason'] == 'awaiting-cleanup'
+            and status['stderr_bytes'] == 0)
 
 
 def build(b):
+    assert not (STORE/'QUARANTINED.json').exists() and not (STORE/'ACTIVE.json').exists(), 'prior cleanup uncertainty; no cache success or automatic recovery'
     digest, data, parts, bindings = key()
     STORE.mkdir(parents=True, exist_ok=True, mode=0o700)
     for path in sorted(STORE.glob('build-*'), reverse=True):

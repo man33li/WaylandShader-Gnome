@@ -19,15 +19,21 @@ SNIPPET_BODY :: "if (wls_gamma != 1.0 || wls_saturation != 1.0) {\n" +
     "  } else { cogl_texel.rgb = vec3(0.0); }\n" + "}"
 
 Surface :: struct { texture: ^Texture, fb: ^Framebuffer }
+// All fields become cache-valid together; color_destroy owns exactly these refs.
+Color_Config :: struct {
+    to_srgb,to_target: ^Pipeline,
+    target_color,source_color,working_color: ^Color_State,
+    ctx: ^Cogl_Context,
+    gamma_uniform,saturation_uniform: i32,
+    gamma,saturation: f64,
+    target_is_srgb: bool,
+}
 Resources :: struct {
     width,height: i32,
     raw,srgb,destination,final: Surface,
-    to_srgb,to_target: ^Pipeline,
-    target_color,working_color: ^Color_State,
+    using color: Color_Config,
     source,read_fbo,draw_fbo: u32,
-    gamma_uniform,saturation_uniform: i32,
-    gamma,saturation: f64,
-    retained_by_runtime,target_is_srgb: bool,
+    retained_by_runtime: bool,
 }
 GL_Bindings :: struct { texture,read,draw,unpack: i32, scissor,srgb: bool }
 save_bindings :: proc() -> GL_Bindings {
@@ -92,40 +98,56 @@ new_pipeline :: proc(ctx: ^Cogl_Context) -> (^Pipeline,Error) {
 resources_destroy :: proc(r: ^Resources) {
     if r==nil { return }
     surface_destroy(&r.raw); surface_destroy(&r.srgb); surface_destroy(&r.destination); surface_destroy(&r.final)
-    if r.to_srgb!=nil { glib.g_object_unref(r.to_srgb) }; if r.to_target!=nil { glib.g_object_unref(r.to_target) }
-    if r.target_color!=nil { glib.g_object_unref(r.target_color) }; if r.working_color!=nil { glib.g_object_unref(r.working_color) }
+    color_destroy(&r.color)
     if r.source!=0 { gl.DeleteTextures(1,&r.source) }; if r.read_fbo!=0 { gl.DeleteFramebuffers(1,&r.read_fbo) }; if r.draw_fbo!=0 { gl.DeleteFramebuffers(1,&r.draw_fbo) }
     free(r)
 }
+color_destroy :: proc(c: ^Color_Config) {
+    if c.to_srgb!=nil { glib.g_object_unref(c.to_srgb) }; if c.to_target!=nil { glib.g_object_unref(c.to_target) }
+    if c.target_color!=nil { glib.g_object_unref(c.target_color) }; if c.source_color!=nil { glib.g_object_unref(c.source_color) }
+    if c.working_color!=nil { glib.g_object_unref(c.working_color) }
+    if c.ctx!=nil { glib.g_object_unref(c.ctx) }
+    c^={}
+}
 configure_color :: proc(r: ^Resources,target,srgb: ^Color_State) -> Error {
-    if r.target_color==target && r.to_srgb!=nil && r.to_target!=nil { return nil }
-    if r.to_srgb!=nil { glib.g_object_unref(r.to_srgb); r.to_srgb=nil }; if r.to_target!=nil { glib.g_object_unref(r.to_target); r.to_target=nil }
-    if r.target_color!=nil { glib.g_object_unref(r.target_color) }; r.target_color=cast(^Color_State)glib.g_object_ref(target)
-    if r.working_color!=nil { glib.g_object_unref(r.working_color); r.working_color=nil }
+    if target==nil || srgb==nil { return "Invalid color configuration inputs" }
+    ctx:=cogl_framebuffer_get_context(r.raw.fb)
+    if ctx==nil { return "Invalid color configuration context" }
+    if r.target_color==target && r.source_color==srgb && r.color.ctx==ctx && r.to_srgb!=nil && r.to_target!=nil { return nil }
+    pending:=Color_Config{
+        target_color=cast(^Color_State)glib.g_object_ref(target),
+        source_color=cast(^Color_State)glib.g_object_ref(srgb),
+        ctx=cast(^Cogl_Context)glib.g_object_ref(ctx),
+    }
+    // Before publication owns only the candidate; after the swap owns the old configuration.
+    defer color_destroy(&pending)
     luminance:^Luminance
     if glib.g_type_check_instance_is_a(target,clutter_color_state_params_get_type()) { luminance=clutter_color_state_params_get_luminance(target) }
     if luminance!=nil && luminance.mastering_max>luminance.reference {
         working:=clutter_color_state_params_get_luminance(srgb)
-        ctx:rawptr
-        glib.g_object_get(srgb,"context",&ctx,rawptr(nil))
-        r.working_color=clutter_color_state_params_new_full(ctx,0,0,nil,-1,working.minimum,working.maximum,working.reference,working.reference*luminance.mastering_max/luminance.reference)
-        glib.g_object_unref(ctx)
-    } else { r.working_color=cast(^Color_State)glib.g_object_ref(srgb) }
-    if r.working_color==nil { return "Unable to create the shader working color state" }
-    r.target_is_srgb=bool(clutter_color_state_equals(target,r.working_color))
-    ctx:=cogl_framebuffer_get_context(r.raw.fb)
+        color_ctx:rawptr
+        glib.g_object_get(srgb,"context",&color_ctx,rawptr(nil))
+        pending.working_color=clutter_color_state_params_new_full(color_ctx,0,0,nil,-1,working.minimum,working.maximum,working.reference,working.reference*luminance.mastering_max/luminance.reference)
+        glib.g_object_unref(color_ctx)
+    } else { pending.working_color=cast(^Color_State)glib.g_object_ref(srgb) }
+    if pending.working_color==nil { return "Unable to create the shader working color state" }
+    pending.target_is_srgb=bool(clutter_color_state_equals(target,pending.working_color))
     err:Error
-    r.to_srgb,err=new_pipeline(ctx)
+    pending.to_srgb,err=new_pipeline(ctx)
     if err!=nil { return err }
-    clutter_color_state_add_pipeline_transform(target,r.working_color,r.to_srgb,0)
-    r.to_target,err=new_pipeline(ctx)
+    clutter_color_state_add_pipeline_transform(target,pending.working_color,pending.to_srgb,0)
+    pending.to_target,err=new_pipeline(ctx)
     if err!=nil { return err }
     adjustment:=cogl_snippet_new(6145,SNIPPET_DECL,SNIPPET_BODY)
     if adjustment==nil { return "Out of memory" }
-    cogl_pipeline_add_layer_snippet(r.to_target,0,adjustment); glib.g_object_unref(adjustment)
-    clutter_color_state_add_pipeline_transform(r.working_color,target,r.to_target,0)
-    r.gamma_uniform=cogl_pipeline_get_uniform_location(r.to_target,"wls_gamma"); r.saturation_uniform=cogl_pipeline_get_uniform_location(r.to_target,"wls_saturation")
-    r.gamma=-1; r.saturation=-1
+    cogl_pipeline_add_layer_snippet(pending.to_target,0,adjustment); glib.g_object_unref(adjustment)
+    clutter_color_state_add_pipeline_transform(pending.working_color,target,pending.to_target,0)
+    pending.gamma_uniform=cogl_pipeline_get_uniform_location(pending.to_target,"wls_gamma"); pending.saturation_uniform=cogl_pipeline_get_uniform_location(pending.to_target,"wls_saturation")
+    if pending.gamma_uniform<0 || pending.saturation_uniform<0 { return "Unable to locate the color adjustment uniforms" }
+    pending.gamma=-1; pending.saturation=-1
+    previous:=r.color
+    r.color=pending
+    pending=previous
     return nil
 }
 copy_shader_source :: proc(r: ^Resources,source: ^Surface) -> Error {

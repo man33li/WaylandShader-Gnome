@@ -3,7 +3,7 @@ package glib
 // Deterministic, single-threaded test doubles. No native pointers reach real FFI.
 GType :: uintptr
 Error :: struct { domain: u32, code: i32, message: cstring }
-Object :: struct { refs, id, kind: int, ctx: rawptr }
+Object :: struct { refs, id, kind: int, ctx: rawptr, held: ^Object }
 objects: [256]Object
 count: int
 error_frees: int
@@ -33,6 +33,7 @@ g_object_unref :: proc(p: rawptr) {
     o := cast(^Object)p
     assert(o != nil && o.refs > 0, "double unref/invalid mock object")
     o.refs -= 1
+    if o.refs == 0 && o.held != nil { g_object_unref(o.held); o.held = nil }
 }
 g_object_get :: proc(p: rawptr, name: cstring, value: ^rawptr, end: rawptr) {
     assert(string(name) == "context" && end == nil)

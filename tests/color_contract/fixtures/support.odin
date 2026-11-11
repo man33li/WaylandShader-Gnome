@@ -62,7 +62,11 @@ cogl_snippet_new :: proc(hook: u32, declarations, body: cstring) -> rawptr {
     if failure == .snippet { return nil }
     return glib.make(4)
 }
-cogl_pipeline_add_layer_snippet :: proc(p: ^Pipeline, layer: i32, snippet: rawptr) { assert(layer == 0 && snippet != nil); attached[p.id] = true }
+cogl_pipeline_add_layer_snippet :: proc(p: ^Pipeline, layer: i32, snippet: rawptr) {
+    assert(layer == 0 && p.refs > 0 && p.held == nil)
+    p.held = cast(^glib.Object)glib.g_object_ref(snippet)
+    attached[p.id] = true
+}
 cogl_pipeline_get_uniform_location :: proc(p: ^Pipeline, name: cstring) -> i32 {
     assert(attached[p.id])
     if string(name) == "wls_gamma" { return -1 if failure == .gamma else 10 }
@@ -155,11 +159,16 @@ cache_uses_all_inputs :: proc() {
 working_color_and_transform_order :: proc() {
     for hdr in ([?]bool{false,true}) {
         i := inputs(hdr)
+        luminances[i.srgb.id] = {minimum=0.25,maximum=240,reference=80,mastering_max=240}
+        luminances[i.target.id].reference=200
         r := Resources{raw={fb=i.fb}}
         assert(configure_color(&r,i.target,i.srgb) == nil)
         assert(r.target_color == i.target && r.gamma == -1 && r.saturation == -1)
-        if hdr { assert(r.working_color != i.srgb && luminances[r.working_color.id].mastering_max == 1000) }
-        else { assert(r.working_color == i.srgb) }
+        if hdr {
+            working := luminances[r.working_color.id]
+            assert(r.working_color != i.srgb && working.mastering_max == 400)
+            assert(working.minimum == 0.25 && working.maximum == 240 && working.reference == 80)
+        } else { assert(r.working_color == i.srgb) }
         assert(transforms[r.to_srgb.id].source == i.target && transforms[r.to_srgb.id].target == r.working_color)
         assert(transforms[r.to_target.id].source == r.working_color && transforms[r.to_target.id].target == i.target)
         assert(transforms[r.to_srgb.id].flags == 0 && transforms[r.to_target.id].flags == 0)
@@ -180,6 +189,18 @@ color_teardown_releases_refs :: proc() {
     assert(r.raw.fb == i.fb && r.width == 17 && r.height == 19,"color teardown touched scene ownership")
     assert(glib.live_refs() == 5,"aliased state/context references not balanced")
     finish(i,&r)
+    // A cache identity is retained, not just a borrowed address that can be recycled.
+    i=inputs()
+    r=Resources{raw={fb=i.fb}}
+    assert(configure_color(&r,i.target,i.srgb) == nil)
+    glib.g_object_unref(i.target); glib.g_object_unref(i.srgb); glib.g_object_unref(i.cogl)
+    assert(i.target.refs > 0 && i.srgb.refs > 0 && i.cogl.refs > 0,"cached inputs did not retain their owners")
+    attempts := pipeline_calls
+    assert(configure_color(&r,i.target,i.srgb) == nil && pipeline_calls == attempts)
+    fixture_cleanup(&r); fixture_cleanup(&r)
+    assert(i.target.refs == 0 && i.srgb.refs == 0 && i.cogl.refs == 0)
+    glib.g_object_unref(i.fb); glib.g_object_unref(i.clutter)
+    assert(glib.live_refs() == 0)
 }
 invalid_inputs_do_not_publish :: proc() {
     i := inputs()

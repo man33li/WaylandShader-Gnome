@@ -1,7 +1,7 @@
 {
   "loop": {
     "build": ["/usr/bin/python3 -I -B tests/color_contract/run.py build"],
-    "verify": [],
+    "verify": ["/usr/bin/python3 -I -B tests/color_contract/test_driver.py"],
     "test": ["/usr/bin/python3 -I -B tests/color_contract/run.py test all"],
     "test_one": "/usr/bin/python3 -I -B tests/color_contract/run.py test {test}",
     "tasks": "tests/color_contract/tasks",
