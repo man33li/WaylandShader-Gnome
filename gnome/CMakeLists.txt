@@ -4,11 +4,22 @@ project(WaylandShaderGNOME VERSION 0.1.0 LANGUAGES C)
 include(GNUInstallDirs)
 find_program(ODIN odin REQUIRED)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(MUTTER REQUIRED IMPORTED_TARGET libmutter-18)
-pkg_check_modules(NATIVE_LIBS REQUIRED IMPORTED_TARGET libmutter-18 mutter-clutter-18 mutter-cogl-18 mutter-mtk-18 graphene-gobject-1.0 egl gio-2.0)
+option(WAYLANDSHADER_EXPERIMENTAL_GNOME51 "Build the unvalidated GNOME 51 port for isolated checks only" OFF)
+if(WAYLANDSHADER_EXPERIMENTAL_GNOME51)
+    set(MUTTER_API 51)
+    set(MUTTER_MAJOR 51)
+    set(MUTTER_NEXT_MAJOR 52)
+    message(STATUS "Experimental GNOME 51 native module only: rendering/deployment NOT validated; extension metadata remains GNOME 50.")
+else()
+    set(MUTTER_API 18)
+    set(MUTTER_MAJOR 50)
+    set(MUTTER_NEXT_MAJOR 51)
+endif()
+pkg_check_modules(MUTTER REQUIRED IMPORTED_TARGET libmutter-${MUTTER_API})
+pkg_check_modules(NATIVE_LIBS REQUIRED IMPORTED_TARGET libmutter-${MUTTER_API} mutter-clutter-${MUTTER_API} mutter-cogl-${MUTTER_API} mutter-mtk-${MUTTER_API} graphene-gobject-1.0 egl gio-2.0)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
-if(MUTTER_VERSION VERSION_LESS "50" OR MUTTER_VERSION VERSION_GREATER_EQUAL "51")
-    message(FATAL_ERROR "This native GNOME backend targets GNOME 50 / Mutter ABI 18; rebuild and port for a different major release.")
+if(MUTTER_VERSION VERSION_LESS "${MUTTER_MAJOR}" OR MUTTER_VERSION VERSION_GREATER_EQUAL "${MUTTER_NEXT_MAJOR}")
+    message(FATAL_ERROR "This configuration requires GNOME ${MUTTER_MAJOR} / Mutter API ${MUTTER_API}; a different major requires a port.")
 endif()
 find_path(LIBRASHADER_INCLUDE_DIR librashader.h PATH_SUFFIXES librashader REQUIRED)
 find_library(LIBRASHADER_LIBRARY waylandshader-rashader REQUIRED)
@@ -21,17 +32,43 @@ if(GIR_SCANNER_HELP MATCHES "--fallback-library-path")
     set(GIR_RELOCATABLE_OPTION "--fallback-library-path=")
 endif()
 find_program(GLIB_COMPILE_SCHEMAS glib-compile-schemas REQUIRED)
-pkg_get_variable(MUTTER_PREFIX libmutter-18 prefix)
-set(MUTTER_GIR_DIR "${MUTTER_PREFIX}/lib/mutter-18")
+if(WAYLANDSHADER_EXPERIMENTAL_GNOME51)
+    pkg_get_variable(MUTTER_GIR_DIR libmutter-51 girdir)
+    pkg_get_variable(MUTTER_TYPELIB_DIR libmutter-51 typelibdir)
+    pkg_get_variable(MUTTER_API_VERSION libmutter-51 apiversion)
+    if(NOT MUTTER_API_VERSION STREQUAL "51" OR NOT IS_DIRECTORY "${MUTTER_GIR_DIR}" OR NOT IS_DIRECTORY "${MUTTER_TYPELIB_DIR}")
+        message(FATAL_ERROR "Experimental 51 requires the actual API 51 SDK and its GIR/typelib directories")
+    endif()
+else()
+    pkg_get_variable(MUTTER_PREFIX libmutter-18 prefix)
+    set(MUTTER_GIR_DIR "${MUTTER_PREFIX}/lib/mutter-18")
+    set(MUTTER_TYPELIB_DIR "${MUTTER_GIR_DIR}")
+endif()
 
 set(ODIN_FLAGS -o:speed -vet -strict-style -define:GL_DEBUG=false)
+if(WAYLANDSHADER_EXPERIMENTAL_GNOME51)
+    list(APPEND ODIN_FLAGS -define:WS_GNOME51=true)
+endif()
 set(ODIN_LIBRARY_DIRS ${NATIVE_LIBS_LIBRARY_DIRS} ${GTK3_LIBRARY_DIRS} "${LIBRASHADER_LIBRARY_DIR}")
 list(REMOVE_DUPLICATES ODIN_LIBRARY_DIRS)
 # Odin uses -l:/absolute/path for vendor archives; retain its root search through Nix wrappers.
 set(ODIN_LDFLAGS "-pthread -Wl,--library-path=/")
 foreach(dir IN LISTS ODIN_LIBRARY_DIRS)
-    string(APPEND ODIN_LDFLAGS " -L${dir} -Wl,-rpath,${dir}")
+    string(APPEND ODIN_LDFLAGS " -L${dir}")
+    if(NOT WAYLANDSHADER_EXPERIMENTAL_GNOME51 OR NOT dir STREQUAL LIBRASHADER_LIBRARY_DIR)
+        string(APPEND ODIN_LDFLAGS " -Wl,-rpath,${dir}")
+    endif()
 endforeach()
+if(WAYLANDSHADER_EXPERIMENTAL_GNOME51)
+    # The private shader DSO must be beside the module, never an absolute test-directory RPATH.
+    string(APPEND ODIN_LDFLAGS " -Wl,-rpath,'$ORIGIN'")
+    list(JOIN NATIVE_LIBS_LIBRARY_DIRS ":" GIR_NATIVE_PATH)
+    set(GIR_LOADER_PATH "${CMAKE_CURRENT_BINARY_DIR}:${LIBRASHADER_LIBRARY_DIR}:${GIR_NATIVE_PATH}")
+    set(GIR_TYPELIB_PATH "${MUTTER_TYPELIB_DIR}")
+else()
+    set(GIR_LOADER_PATH "${CMAKE_CURRENT_BINARY_DIR}:$ENV{LD_LIBRARY_PATH}")
+    set(GIR_TYPELIB_PATH "${MUTTER_TYPELIB_DIR}:$ENV{GI_TYPELIB_PATH}")
+endif()
 set(NATIVE_LDFLAGS "${ODIN_LDFLAGS} -Wl,--no-undefined -Wl,-soname,libwaylandshader-gnome.so -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/native/exports.map")
 add_library(gnome_abi_check OBJECT native/abi-check.c)
 target_link_libraries(gnome_abi_check PRIVATE PkgConfig::NATIVE_LIBS)
@@ -62,14 +99,14 @@ set(TYPELIB_FILE "${CMAKE_CURRENT_BINARY_DIR}/WaylandShader-1.0.typelib")
 add_custom_command(
     OUTPUT ${GIR_FILE}
     COMMAND ${CMAKE_COMMAND} -E env
-        "LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}:$ENV{LD_LIBRARY_PATH}"
-        "GI_TYPELIB_PATH=${MUTTER_GIR_DIR}:$ENV{GI_TYPELIB_PATH}"
+        "LD_LIBRARY_PATH=${GIR_LOADER_PATH}"
+        "GI_TYPELIB_PATH=${GIR_TYPELIB_PATH}"
         ${G_IR_SCANNER} --quiet --warn-all --no-libtool ${GIR_RELOCATABLE_OPTION}
         --namespace=WaylandShader --nsversion=1.0
         --identifier-prefix=WaylandShader --symbol-prefix=wayland_shader
-        --include=GObject-2.0 --include=Clutter-18
+        --include=GObject-2.0 --include=Clutter-${MUTTER_API}
         --add-include-path=${MUTTER_GIR_DIR}
-        --pkg=libmutter-18
+        --pkg=libmutter-${MUTTER_API}
         --library=waylandshader-gnome
         --library-path=${CMAKE_CURRENT_BINARY_DIR}
         --c-include=waylandshader-effect.h

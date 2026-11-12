@@ -135,13 +135,13 @@ configure_color :: proc(r: ^Resources,target,srgb: ^Color_State) -> Error {
     err:Error
     pending.to_srgb,err=new_pipeline(ctx)
     if err!=nil { return err }
-    clutter_color_state_add_pipeline_transform(target,pending.working_color,pending.to_srgb,0)
+    if err=install_color_transform(target,pending.working_color,pending.to_srgb); err!=nil { return err }
     pending.to_target,err=new_pipeline(ctx)
     if err!=nil { return err }
     adjustment:=cogl_snippet_new(6145,SNIPPET_DECL,SNIPPET_BODY)
     if adjustment==nil { return "Out of memory" }
     cogl_pipeline_add_layer_snippet(pending.to_target,0,adjustment); glib.g_object_unref(adjustment)
-    clutter_color_state_add_pipeline_transform(pending.working_color,target,pending.to_target,0)
+    if err=install_color_transform(pending.working_color,target,pending.to_target); err!=nil { return err }
     pending.gamma_uniform=cogl_pipeline_get_uniform_location(pending.to_target,"wls_gamma"); pending.saturation_uniform=cogl_pipeline_get_uniform_location(pending.to_target,"wls_saturation")
     if pending.gamma_uniform<0 || pending.saturation_uniform<0 { return "Unable to locate the color adjustment uniforms" }
     pending.gamma=-1; pending.saturation=-1
@@ -253,7 +253,7 @@ paint_output :: proc(e: ^Engine,o: ^Output,view: ^Stage_View,frame: ^Frame,pc: ^
     processed:=&r.raw
     if !r.target_is_srgb {
         if err:=surface_allocate(&r.srgb,ctx,width,height); err!=nil { return err }
-        clutter_color_state_update_uniforms(target_color,r.working_color,r.to_srgb)
+        update_color_transform(target_color,r.working_color,r.to_srgb)
         if err:=render_surface(r.srgb.fb,r.to_srgb,r.raw.texture,width,height); err!=nil { return err }
         processed=&r.srgb
     }
@@ -286,7 +286,7 @@ paint_output :: proc(e: ^Engine,o: ^Output,view: ^Stage_View,frame: ^Frame,pc: ^
         saturation:=o.settings.saturation if common.adjusts_color(o.settings) else 1.0
         if gamma!=r.gamma { cogl_pipeline_set_uniform_1f(r.to_target,r.gamma_uniform,f32(gamma)); r.gamma=gamma }
         if saturation!=r.saturation { cogl_pipeline_set_uniform_1f(r.to_target,r.saturation_uniform,f32(saturation)); r.saturation=saturation }
-        clutter_color_state_update_uniforms(r.working_color,target_color,r.to_target)
+        update_color_transform(r.working_color,target_color,r.to_target)
         if err:=render_surface(r.final.fb,r.to_target,processed.texture,width,height); err!=nil { return err }
         processed=&r.final
     }

@@ -39,7 +39,17 @@ Effect :: struct { parent_instance: [3]rawptr, engine: ^Engine }
 #assert(size_of(Matrix) == 64 && align_of(Matrix) == 16 && offset_of(Matrix, values) == 0)
 #assert(size_of(Luminance) == 20 && offset_of(Luminance, minimum) == 4 && offset_of(Luminance, maximum) == 8 && offset_of(Luminance, reference) == 12 && offset_of(Luminance, mastering_max) == 16)
 
-foreign import clutter "system:mutter-clutter-18"
+// Experimental 51 is opt-in; a version guard is not a substitute for a port.
+GNOME51 :: #config(WS_GNOME51,false)
+when GNOME51 {
+    foreign import clutter "system:mutter-clutter-51"
+    foreign import mutter "system:mutter-51"
+    foreign import cogl "system:mutter-cogl-51"
+} else {
+    foreign import clutter "system:mutter-clutter-18"
+    foreign import mutter "system:mutter-18"
+    foreign import cogl "system:mutter-cogl-18"
+}
 foreign clutter {
     clutter_effect_get_type :: proc() -> glib.GType ---
     clutter_stage_get_type :: proc() -> glib.GType ---
@@ -69,10 +79,46 @@ foreign clutter {
     clutter_color_state_params_new :: proc(ctx: rawptr, colorspace, transfer: u32) -> ^Color_State ---
     clutter_color_state_params_new_full :: proc(ctx: rawptr, colorspace, transfer: u32, primaries: rawptr, gamma, minimum, maximum, reference, mastering_max: f32) -> ^Color_State ---
     clutter_color_state_equals :: proc(a,b: ^Color_State) -> b32 ---
-    clutter_color_state_add_pipeline_transform :: proc(a,b: ^Color_State, pipeline: ^Pipeline, flags: u32) ---
-    clutter_color_state_update_uniforms :: proc(a,b: ^Color_State, pipeline: ^Pipeline) ---
 }
-foreign import mutter "system:mutter-18"
+when GNOME51 {
+    Color_Transform :: struct {}
+    Color_Pipeline :: struct {}
+    Color_Op :: struct {}
+    foreign clutter {
+        // Private, version-specific transform access; borrowed pipeline stays under transform ownership.
+        clutter_color_transform_new :: proc(source,target: ^Color_State, flags: u32) -> ^Color_Transform ---
+        clutter_color_transform_get_pipeline :: proc(transform: ^Color_Transform) -> ^Color_Pipeline ---
+        clutter_color_pipeline_get_ops :: proc(pipeline: ^Color_Pipeline) -> ^glib.GList ---
+        clutter_color_pipeline_shader_add_transform :: proc(color: ^Color_Pipeline, pipeline: ^Pipeline) ---
+        clutter_color_op_curve_1d_get_data :: proc(op: ^Color_Op, size: ^uintptr, r,g,b,a: ^^f32) ---
+        clutter_color_op_3d_lut_get_data :: proc(op: ^Color_Op, size: ^u32, data: ^^f32) ---
+        clutter_color_op_curve_1d_get_type :: proc() -> glib.GType ---
+        clutter_color_op_3d_lut_get_type :: proc() -> glib.GType ---
+        clutter_color_op_clamp_unit_get_type :: proc() -> glib.GType ---
+        clutter_color_op_srgb_piecewise_eotf_get_type :: proc() -> glib.GType ---
+        clutter_color_op_srgb_piecewise_inv_eotf_get_type :: proc() -> glib.GType ---
+        clutter_color_op_pq_eotf_get_type :: proc() -> glib.GType ---
+        clutter_color_op_pq_inv_eotf_get_type :: proc() -> glib.GType ---
+        clutter_color_op_unpremultiply_get_type :: proc() -> glib.GType ---
+        clutter_color_op_premultiply_get_type :: proc() -> glib.GType ---
+        clutter_color_op_gamma_power_get_type :: proc() -> glib.GType ---
+        clutter_color_op_matrix_4x4_get_type :: proc() -> glib.GType ---
+        clutter_color_op_ycbcr_matrix_get_type :: proc() -> glib.GType ---
+        clutter_color_op_multiply_get_type :: proc() -> glib.GType ---
+    }
+    foreign cogl {
+        cogl_pipeline_foreach_layer :: proc(p: ^Pipeline, callback: proc "c" (p: ^Pipeline, layer: i32, data: rawptr) -> b32, data: rawptr) ---
+        cogl_pipeline_get_layer_texture :: proc(p: ^Pipeline, layer: i32) -> ^Texture ---
+        cogl_texture_get_width :: proc(texture: ^Texture) -> u32 ---
+        cogl_texture_get_height :: proc(texture: ^Texture) -> u32 ---
+        cogl_texture_2d_get_type :: proc() -> glib.GType ---
+    }
+} else {
+    foreign clutter {
+        clutter_color_state_add_pipeline_transform :: proc(a,b: ^Color_State, pipeline: ^Pipeline, flags: u32) ---
+        clutter_color_state_update_uniforms :: proc(a,b: ^Color_State, pipeline: ^Pipeline) ---
+    }
+}
 foreign mutter {
     meta_renderer_view_get_type :: proc() -> glib.GType ---
     meta_renderer_view_get_crtc :: proc(view: ^Stage_View) -> rawptr ---
@@ -89,7 +135,6 @@ foreign mutter {
     meta_backend_inhibit_hw_cursor :: proc(backend: ^Meta_Backend) ---
     meta_backend_uninhibit_hw_cursor :: proc(backend: ^Meta_Backend) ---
 }
-foreign import cogl "system:mutter-cogl-18"
 foreign cogl {
     cogl_texture_2d_new_with_format :: proc(ctx: ^Cogl_Context, width,height: i32, format: u32) -> ^Texture ---
     cogl_texture_2d_set_auto_mipmap :: proc(texture: ^Texture, enabled: b32) ---
