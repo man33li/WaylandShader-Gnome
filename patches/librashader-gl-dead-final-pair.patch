@@ -1,0 +1,94 @@
+--- a/librashader-runtime-gl/src/filter_chain/chain.rs
++++ b/librashader-runtime-gl/src/filter_chain/chain.rs
+@@ -27,6 +27,7 @@
+ use librashader_reflect::reflect::presets::{CompilePresetTarget, ShaderPassArtifact};
+ use librashader_reflect::reflect::ReflectShader;
+ use librashader_runtime::binding::BindingUtil;
++use librashader_runtime::filter_pass::FilterPassMeta;
+ use librashader_runtime::framebuffer::FramebufferInit;
+ use librashader_runtime::quad::QuadType;
+ use librashader_runtime::render_target::RenderTarget;
+@@ -312,7 +313,8 @@
+         options: Option<&FrameOptionsGL>,
+     ) -> error::Result<()> {
+         // limit number of passes to those enabled.
+-        let max = std::cmp::min(self.passes.len(), self.common.config.passes_enabled());
++        let compiled_count = self.passes.len();
++        let max = std::cmp::min(compiled_count, self.common.config.passes_enabled());
+         let passes = &mut self.passes[0..max];
+ 
+         // Every history slot must be valid before the first draw, not only
+@@ -361,31 +363,60 @@
+ 
+         let mut source = original;
+ 
+-        // rescale render buffers to ensure all bindings are valid.
+-        <GLFramebuffer as ScaleFramebuffer<T::FramebufferInterface>>::scale_framebuffers(
+-            source.image.size,
+-            viewport.output.size,
+-            original.image.size,
+-            &mut self.output_framebuffers,
+-            &mut self.feedback_framebuffers,
+-            passes,
+-            None,
+-        )?;
++        // A fully enabled chain whose compiled shaders do not reference final
++        // feedback draws its final pass directly into the external viewport.
++        // Reduced prefixes retain the original allocation behavior.
++        let backed_count = if max == compiled_count && !self.draw_last_pass_feedback {
++            max - 1
++        } else {
++            max
++        };
++
++        // Keep lookahead over the complete active slice: the omitted final
++        // pass can still request mipmaps for its predecessor.
++        let mut target_size = source.image.size;
++        for (index, pass) in passes.iter().enumerate().take(backed_count) {
++            let should_mipmap = passes
++                .get(index + 1)
++                .map_or(false, |next| next.meta.mipmap_input);
++            let next_size =
++                <GLFramebuffer as ScaleFramebuffer<T::FramebufferInterface>>::scale(
++                    &mut self.output_framebuffers[index],
++                    pass.meta.scaling.clone(),
++                    pass.get_format(),
++                    &viewport.output.size,
++                    &target_size,
++                    &original.image.size,
++                    should_mipmap,
++                    &Default::default(),
++                )?;
++            <GLFramebuffer as ScaleFramebuffer<T::FramebufferInterface>>::scale(
++                &mut self.feedback_framebuffers[index],
++                pass.meta.scaling.clone(),
++                pass.get_format(),
++                &viewport.output.size,
++                &target_size,
++                &original.image.size,
++                should_mipmap,
++                &Default::default(),
++            )?;
++            target_size = next_size;
++        }
+ 
+         if options.clear_history {
+-            for framebuffer in &self.feedback_framebuffers[..passes.len()] {
++            for framebuffer in &self.feedback_framebuffers[..backed_count] {
+                 framebuffer.clear::<T::FramebufferInterface, true>();
+             }
+         }
+ 
+-        // Refresh inputs for feedback textures.
+-        // Don't need to do this for outputs because they are yet to be bound.
++        // Refresh only backed feedback entries.
+         for ((texture, fbo), pass) in self
+             .common
+             .feedback_textures
+             .iter_mut()
+             .zip(self.feedback_framebuffers.iter())
+             .zip(passes.iter())
++            .take(backed_count)
+         {
+             texture.image = fbo.as_texture(pass.meta.filter, pass.meta.wrap_mode).image;
+         }
