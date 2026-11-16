@@ -15,18 +15,18 @@ UUID :: "waylandshader@man33li.github.com"
 COMPOSITOR :: "GNOME Shell"
 DESKTOP_ENVIRONMENT :: "GNOME Shell / Mutter"
 EFFECT_DESCRIPTION :: "WaylandShader GNOME extension"
-INSTALLATION_HINT :: " Install the WaylandShader GNOME extension and its native module built for this GNOME Shell version, and allow user extensions. On NixOS, a new login may be required. GNOME Shell will not be restarted."
+INSTALLATION_HINT :: " Install the WaylandShader GNOME extension and its native module built for this GNOME Shell version, and allow user extensions. After updating native libraries, a new login may be required. GNOME Shell will not be restarted."
 ACTIVATION_HINT :: "Mutation commands may enable only the waylandshader@man33li.github.com GNOME extension."
 Kind :: enum { None, Unavailable, Rejected, Protocol, Transport }
 Error :: struct { kind: Kind, message: string }
 Reply :: struct { fn: proc(data: rawptr, err: Error), data: rawptr }
 Client :: struct {
-    status: Status, has_status: bool,
+    status: Status, has_status: bool, profiles: Profiles,
     listener: rawptr, on_status: proc(rawptr, ^Status), on_transport_error: proc(rawptr, Error),
     life: ^Life,
 }
 Life :: struct { client: ^Client, bus: ^glib.DBus_Connection, cancel: ^glib.Cancellable, refs: int, generation: u64, subscriptions: [3]u32, activations: ^Activation }
-Operation :: enum { Status, Activated_Status, Mutation, Ensure, Enable, Snapshot }
+Operation :: enum { Status, Activated_Status, Mutation, Ensure, Enable, Snapshot, Profiles, Profile_Status }
 Pending :: struct { life: ^Life, generation: u64, op: Operation, allow_activation: bool, reply: Reply, activation: ^Activation }
 Activation :: struct { life: ^Life, next: ^Activation, reply: Reply, timer: u32, refs: int, done: bool }
 
@@ -96,6 +96,7 @@ close :: proc(c: ^Client) {
     for id in l.subscriptions { if id != 0 { glib.g_dbus_connection_signal_unsubscribe(l.bus, id) } }
     for l.activations != nil { activation_complete(l.activations, {}) }
     free_status(&c.status)
+    free_profiles(&c.profiles)
     c.has_status = false
     release(l)
 }
@@ -117,11 +118,11 @@ call :: proc(l: ^Life, method: cstring, args: ^glib.Variant, op: Operation, r: R
 unavailable :: proc() -> Error { return {.Unavailable, "Cannot connect to the session D-Bus or subscribe to WaylandShader status."} }
 request_status :: proc(c: ^Client, r: Reply) { if c.life == nil { respond(r, unavailable()); return }; call(c.life, "status", nil, .Status, r) }
 ensure_available :: proc(c: ^Client, allow_activation: bool, r: Reply) { if c.life == nil { respond(r, unavailable()); return }; call(c.life, "status", nil, .Ensure, r, allow_activation) }
-mutation :: proc(c: ^Client, method: cstring, args: ^glib.Variant, r: Reply) {
+mutation :: proc(c: ^Client, method: cstring, args: ^glib.Variant, r: Reply, op: Operation = .Mutation) {
     if c.life == nil { glib.g_variant_unref(args); respond(r, unavailable()); return }
-    call(c.life, method, args, .Mutation, r)
+    call(c.life, method, args, op, r)
 }
-text_mutation :: proc(c: ^Client, method, format: cstring, text: string, r: Reply, enabled := false, value: f64 = 0) {
+text_mutation :: proc(c: ^Client, method, format: cstring, text: string, r: Reply, enabled := false, value: f64 = 0, op: Operation = .Mutation) {
     arg, allocation_error := strings.clone_to_cstring(text)
     if allocation_error != nil { respond(r, {.Transport, "Out of memory"}); return }
     defer delete(arg)
@@ -135,7 +136,7 @@ text_mutation :: proc(c: ^Client, method, format: cstring, text: string, r: Repl
     case "(sb)": args = glib.g_variant_new(format, arg, b32(enabled))
     case "(sd)": args = glib.g_variant_new(format, arg, value)
     }
-    mutation(c, method, args, r)
+    mutation(c, method, args, r, op)
 }
 load_preset :: proc(c: ^Client, path: string, r: Reply) { text_mutation(c, "loadPreset", "(s)", path, r) }
 set_enabled :: proc(c: ^Client, enabled: bool, r: Reply) { mutation(c, "setEnabled", glib.g_variant_new("(b)", b32(enabled)), r) }
@@ -144,6 +145,12 @@ set_output_shader_enabled :: proc(c: ^Client, id: string, value: bool, r: Reply)
 set_output_color_enabled :: proc(c: ^Client, id: string, value: bool, r: Reply) { text_mutation(c, "setOutputColorEnabled", "(sb)", id, r, enabled=value) }
 set_output_gamma :: proc(c: ^Client, id: string, value: f64, r: Reply) { text_mutation(c, "setOutputGamma", "(sd)", id, r, value=value) }
 set_output_saturation :: proc(c: ^Client, id: string, value: f64, r: Reply) { text_mutation(c, "setOutputSaturation", "(sd)", id, r, value=value) }
+request_profiles :: proc(c: ^Client, r: Reply) { if c.life == nil { respond(r, unavailable()); return }; call(c.life, "profiles", nil, .Profiles, r) }
+save_profile :: proc(c: ^Client, name: string, r: Reply) { text_mutation(c, "saveProfile", "(s)", name, r) }
+load_profile :: proc(c: ^Client, name: string, r: Reply) { text_mutation(c, "loadProfile", "(s)", name, r) }
+load_profile_status :: proc(c: ^Client, name: string, r: Reply) { text_mutation(c, "loadProfileStatus", "(s)", name, r, op=.Profile_Status) }
+delete_profile :: proc(c: ^Client, name: string, r: Reply) { text_mutation(c, "deleteProfile", "(s)", name, r) }
+set_default_profile :: proc(c: ^Client, name: string, r: Reply) { text_mutation(c, "setDefaultProfile", "(s)", name, r) }
 type_is :: proc(v: ^glib.Variant, signature: string) -> bool { return v != nil && string(glib.g_variant_get_type_string(v)) == signature }
 boolean_reply :: proc(v: ^glib.Variant) -> Error {
     if !type_is(v, "(b)") { return {.Protocol, "GNOME Shell returned a malformed boolean reply."} }
@@ -188,13 +195,19 @@ finished :: proc "c" (source: rawptr, result: ^glib.Async_Result, data: rawptr) 
         if had_status { transport(l, e); if l.client == nil { return } }
     }
     switch p.op {
-    case .Status, .Activated_Status:
+    case .Status, .Activated_Status, .Profile_Status:
         if e.kind == .None { e = status_reply(l, value) }
         if p.op == .Activated_Status && e.kind != .None {
             e.message = fmt.tprintf("The effect was requested but its control interface is unavailable: %s", e.message)
         }
         if l.client != nil { respond(p.reply, e) }
     case .Mutation: if e.kind == .None { e = boolean_reply(value) }; respond(p.reply, e)
+    case .Profiles:
+        if e.kind == .None {
+            if !type_is(value, "(s)") { e = {.Protocol, "GNOME Shell returned a malformed profile list."} }
+            else { child := glib.g_variant_get_child_value(value, 0); defer glib.g_variant_unref(child); e = accept_profiles(l.client, string(glib.g_variant_get_string(child, nil))) }
+        }
+        respond(p.reply, e)
     case .Ensure:
         if !missing { if e.kind == .None { e = status_reply(l, value) }; if l.client != nil { respond(p.reply, e) }; return }
         if !p.allow_activation { respond(p.reply, {.Unavailable, "The WaylandShader GNOME extension is not available." + INSTALLATION_HINT + " Use the settings window or a mutation command to activate it."}); return }

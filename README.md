@@ -64,6 +64,8 @@ Application input remains with the original windows. Shader geometry changes aff
 
 ## GNOME 50 backend
 
+**PikaOS / Debian-based branch:** see [branch scope and non-Nix build notes](docs/PIKAOS.md). Profiles use standard GNOME GSettings/D-Bus, not NixOS services. The Nix installation commands below are retained upstream reference, not Debian installation instructions; this branch is not a generic `.deb` release or a declaration of full GNOME51 support.
+
 The [GNOME backend](gnome/) wraps the original stage paint with a native `ClutterEffect`, keeping the original windows and input routing. Each supported monitor has its own shader chain, history, and frame-clock-driven animation. Color-only processing does not animate an otherwise idle desktop.
 
 Build its separate package from the repository root:
@@ -90,11 +92,15 @@ waylandshader-gnomectl outputs
 waylandshader-gnomectl load /absolute/path/to/preset.slangp
 waylandshader-gnomectl output DP-1 color on
 waylandshader-gnomectl output DP-1 gamma 1.2
+waylandshader-gnomectl profile save "bsnes + VCR"
+waylandshader-gnomectl profile default "bsnes + VCR"
 ```
 
-Replace `DP-1` with an ID reported by `outputs`. The GNOME CLI supports the same commands as the KWin CLI. Read-only commands do not activate anything; the GUI and mutation commands may enable only `waylandshader@man33li.github.com`. GNOME must allow user extensions.
+Replace `DP-1` with an ID reported by `outputs`. The GNOME CLI supports the same commands as the KWin CLI, plus profiles. Read-only commands do not activate anything; the GUI and mutation commands may enable only `waylandshader@man33li.github.com`. GNOME must allow user extensions.
 
 **Browse** opens GTK 3's in-process file chooser, a modal dialog filtered to `*.slangp`, not a separate Nautilus or Dolphin process. The GNOME package includes GTK's GSettings schemas in the launcher environment. **Recent** lists the last 10 successfully loaded presets, from the GUI or CLI, by full path; status reports them as `recentPresets`. Choosing a file from either only fills the path; **Load preset** applies it. Closing the controller leaves the compositor effect running; uncheck **Enable desktop effects** to bypass it.
+
+**Profiles** (GNOME only) are named snapshots of the current preset, that preset's parameter overrides and every monitor's shader/color/gamma/saturation settings. Use the **Profile** row in the GUI, or `profiles`, `profile save|load|delete NAME`, `profile default NAME` and `profile clear-default` in the CLI. Loading a profile keeps master enablement, recent presets and other presets' overrides, and only changes monitors stored in the profile. The **default** profile is applied over the saved configuration whenever the extension starts, so session tweaks are discarded at the next login; clear the default to restore the last session instead. Profiles are stored in the GSettings keys `profiles` and `default-profile`.
 
 The extension exports `/WaylandShader` on the session service `org.gnome.Shell`, using `org.waylandshader.Effect`. Settings are stored in the extension's GSettings schema, with monitor profiles keyed by connector ID. An unreadable saved preset reports an error without taking down the controls or independent color adjustments.
 

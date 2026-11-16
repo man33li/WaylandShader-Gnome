@@ -130,3 +130,30 @@ accept_json :: proc(c: ^Client, source: string) -> Error {
     if c.on_status != nil { c.on_status(c.listener, &c.status) }
     return {}
 }
+
+Profiles :: struct { names: []string, default_name: string, json: common.JSON_Document }
+free_profiles :: proc(p: ^Profiles) { delete(p.names); common.destroy_document(&p.json); p^ = {} }
+// Reply of profiles(): {"default": name or "", "profiles": [names]}.
+accept_profiles :: proc(c: ^Client, source: string) -> Error {
+    root, parse_error := common.parse_json(source)
+    next := Profiles{json = root}
+    accepted := false
+    defer if !accepted { free_profiles(&next) }
+    object, is_object := root.value.(json.Object)
+    names, names_ok := object["profiles"].(json.Array)
+    default_name, default_ok := common.json_string_value(&next.json, object["default"])
+    if parse_error != nil || !is_object || !names_ok || !default_ok { return {.Protocol, "GNOME Shell returned a malformed profile list."} }
+    allocation_error: runtime.Allocator_Error
+    next.names, allocation_error = make([]string, len(names))
+    if allocation_error != nil { return {.Transport, "Out of memory"} }
+    for entry, i in names {
+        name, ok := common.json_string_value(&next.json, entry)
+        if !ok { return {.Protocol, "GNOME Shell returned a malformed profile list."} }
+        next.names[i] = name
+    }
+    next.default_name = default_name
+    free_profiles(&c.profiles)
+    c.profiles = next
+    accepted = true
+    return {}
+}

@@ -19,7 +19,7 @@ The owning checkout is `gnome-backend`, locally `/home/knd/AI/WaylandShader-gnom
 | Shader host | `gnome/runtime/*.odin` | Desktop OpenGL/EGL runtime, per-output chains, parameters and context restoration |
 | Control client, CLI and GUI | `gnome/controller/{client,ctl,gui}`, `gnome/common`, `gnome/glib` | GDBus client, the `waylandshader-gnomectl` command line and the GTK 3 controller, all Odin |
 | Private shader library | `shader-library.nix`, `patches/librashader-gl-lifetime.patch` | Pinned librashader 0.10.1 with private GL lifetime corrections |
-| Persistent configuration | `gnome/extension/schemas/org.gnome.shell.extensions.waylandshader.gschema.xml` | Versioned native configuration JSON in GSettings |
+| Persistent configuration | `gnome/extension/schemas/org.gnome.shell.extensions.waylandshader.gschema.xml` | Versioned native configuration JSON in GSettings, plus `profiles`/`default-profile` owned by `extension.js` |
 | Retained regressions | `gnome/tests/effect-lifecycle.js`, `gnome/tests/recent-presets.js`, `gnome/tests/parameter-bypass.js`, `gnome/runtime/gltest` | GI ownership/pending-disable, saved-history filtering, real bypass/rebuild/history behavior, and base-level sampling respectively |
 | Port checks | `gnome/tests/{native-contract.js,cli-golden.sh,hang-shell.js,iso-cli.sh,isolated-session.sh,elf-check.sh,ban-check.sh}`, `gnome/tests/golden/` | Baseline-equal native contract and CLI transcripts, disposable-Shell harness, ELF and source-ban gates |
 

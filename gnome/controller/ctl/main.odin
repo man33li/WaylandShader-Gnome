@@ -8,6 +8,7 @@ import "core:c/libc"
 import "core:encoding/json"
 import "core:fmt"
 import "core:os"
+import "core:strings"
 
 import "../../common"
 import "../client"
@@ -105,8 +106,8 @@ usage_exit :: proc(app: ^App, message: string) {
 	finish(app, 2, fmt.tprintf("%s\nUse %s --help for usage.", message, CLI_NAME))
 }
 
-print_value :: proc(app: ^App, value: json.Value) {
-	text, err := common.stringify(value, true, &app.cl.status.json)
+print_value :: proc(app: ^App, value: json.Value, document: ^common.JSON_Document = nil) {
+	text, err := common.stringify(value, true, document if document != nil else &app.cl.status.json)
 	if err != nil {
 		finish(app, 3, fmt.tprint(err.?))
 		return
@@ -119,19 +120,27 @@ print_status :: proc(app: ^App) {
 	print_value(app, app.cl.status.json.value)
 }
 
+print_profiles :: proc(app: ^App) {
+	print_value(app, app.cl.profiles.json.value, &app.cl.profiles.json)
+}
+
+load_target_matches :: proc(status: ^client.Status, target: string) -> bool {
+	return status.requested_preset == target if status.loading else status.preset == target
+}
+
 evaluate_load :: proc(app: ^App, status: ^client.Status) {
 	if app.finished || !app.load_accepted {
 		return
 	}
 	if status.loading {
-		if status.requested_preset != app.cmd.preset {
+		if !load_target_matches(status, app.cmd.preset) {
 			finish(app, 1, fmt.tprintf("Another preset load replaced this request: %s", status.requested_preset))
 		}
 		return
 	}
 	if status.error != "" {
 		finish(app, 1, fmt.tprintf("Shader load failed: %s\nPreviously loaded preset: %s", status.error, status.preset))
-	} else if status.preset != app.cmd.preset {
+	} else if !load_target_matches(status, app.cmd.preset) {
 		finish(
 			app,
 			1,
@@ -200,6 +209,9 @@ on_available :: proc(data: rawptr, err: client.Error) {
 	if read_only(cmd.kind) {
 		if cmd.kind == .Status {
 			print_status(app)
+		} else if cmd.kind == .Profiles {
+			client.request_profiles(&app.cl, {on_profiles, app})
+			return
 		} else {
 			// QJsonValue::toArray() of a missing or non-array value is an empty array
 			array, is_array := app.cl.status.json.value.(json.Object)[cmd.name].(json.Array)
@@ -208,9 +220,27 @@ on_available :: proc(data: rawptr, err: client.Error) {
 		finish(app, 0)
 		return
 	}
-	if cmd.kind == .Load {
+	if cmd.kind == .Load || (cmd.kind == .Profile && cmd.profile == .Load) {
 		app.load_in_progress = true
-		client.load_preset(&app.cl, cmd.preset, {on_load_accepted, app})
+		if cmd.kind == .Load {
+			client.load_preset(&app.cl, cmd.preset, {on_load_accepted, app})
+		} else {
+			client.load_profile_status(&app.cl, cmd.profile_name, {on_load_accepted, app})
+		}
+		return
+	}
+	if cmd.kind == .Profile {
+		profile_reply := client.Reply{on_profile_done, app}
+		#partial switch cmd.profile {
+		case .Save:
+			client.save_profile(&app.cl, cmd.profile_name, profile_reply)
+		case .Delete:
+			client.delete_profile(&app.cl, cmd.profile_name, profile_reply)
+		case .Default:
+			client.set_default_profile(&app.cl, cmd.profile_name, profile_reply)
+		case .Clear_Default:
+			client.set_default_profile(&app.cl, "", profile_reply)
+		}
 		return
 	}
 	reply := client.Reply{on_mutation_done, app}
@@ -271,9 +301,20 @@ on_load_accepted :: proc(data: rawptr, err: client.Error) {
 		fail(app, err)
 		return
 	}
-	// A status signal may arrive before the acceptance reply: query again rather than
-	// interpreting pre-request state as completion.
 	app.load_accepted = true
+	if app.cmd.kind == .Profile {
+		// This snapshot came in the same reply as profile acceptance, not a later status query.
+		// Own the target for this single CLI command: refreshing status frees its old JSON storage.
+		target := app.cl.status.requested_preset if app.cl.status.loading else app.cl.status.preset
+		app.cmd.preset = strings.clone(target)
+		// Preserve an immediate failure/completion before a later request can replace it.
+		evaluate_load(app, &app.cl.status)
+		if app.finished {
+			return
+		}
+	}
+	// A status signal may arrive before a direct-load acceptance reply: query again rather than
+	// interpreting pre-request state as completion.
 	client.request_status(&app.cl, {on_status_reply, app})
 }
 
@@ -306,5 +347,30 @@ on_mutation_status :: proc(data: rawptr, err: client.Error) {
 		return
 	}
 	print_status(app)
+	finish(app, 0)
+}
+
+on_profile_done :: proc(data: rawptr, err: client.Error) {
+	app := cast(^App)data
+	if app.finished {
+		return
+	}
+	if err.kind != .None {
+		fail(app, err)
+		return
+	}
+	client.request_profiles(&app.cl, {on_profiles, app})
+}
+
+on_profiles :: proc(data: rawptr, err: client.Error) {
+	app := cast(^App)data
+	if app.finished {
+		return
+	}
+	if err.kind != .None {
+		fail(app, err)
+		return
+	}
+	print_profiles(app)
 	finish(app, 0)
 }

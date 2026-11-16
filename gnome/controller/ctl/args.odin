@@ -25,6 +25,16 @@ Kind :: enum {
 	Enable,
 	Disable,
 	Toggle,
+	Profiles,
+	Profile,
+}
+
+Profile_Action :: enum {
+	Save,
+	Load,
+	Delete,
+	Default,
+	Clear_Default,
 }
 
 Output_Action :: enum {
@@ -46,10 +56,12 @@ Command :: struct {
 	action:        Output_Action,
 	enabled:       bool, // output shader|color
 	value:         f64, // param value, output gamma|saturation
+	profile:       Profile_Action,
+	profile_name:  string,
 }
 
 read_only :: proc(kind: Kind) -> bool {
-	return kind == .Status || kind == .Parameters || kind == .Outputs
+	return kind == .Status || kind == .Parameters || kind == .Outputs || kind == .Profiles
 }
 
 // parse returns exit == 0 with err == "" to run `cmd` (or print help when cmd.help),
@@ -159,6 +171,10 @@ parse :: proc(args: []string) -> (cmd: Command, err: string, exit: int) {
 		cmd.kind = .Disable
 	case "toggle":
 		cmd.kind = .Toggle
+	case "profiles":
+		cmd.kind = .Profiles
+	case "profile":
+		cmd.kind = .Profile
 	case:
 		return cmd, usage(fmt.tprintf("Unknown command: %s", cmd.name)), 2
 	}
@@ -170,6 +186,8 @@ parse :: proc(args: []string) -> (cmd: Command, err: string, exit: int) {
 		required = 3
 	case .Output:
 		required = 4
+	case .Profile:
+		required = 2 if len(positional) > 1 && positional[1] == "clear-default" else 3
 	}
 	if len(positional) != required {
 		return cmd, usage(fmt.tprintf("Incorrect number of arguments for %s", cmd.name)), 2
@@ -224,6 +242,27 @@ parse :: proc(args: []string) -> (cmd: Command, err: string, exit: int) {
 		case:
 			return cmd, usage(fmt.tprintf("Unknown output control: %s", action)), 2
 		}
+	case .Profile:
+		switch positional[1] {
+		case "save":
+			cmd.profile = .Save
+		case "load":
+			cmd.profile = .Load
+		case "delete":
+			cmd.profile = .Delete
+		case "default":
+			cmd.profile = .Default
+		case "clear-default":
+			cmd.profile = .Clear_Default
+		case:
+			return cmd, usage(fmt.tprintf("Unknown profile action: %s", positional[1])), 2
+		}
+		if cmd.profile != .Clear_Default {
+			if strings.trim_space(positional[2]) == "" {
+				return cmd, usage("profile requires a nonempty profile name."), 2
+			}
+			cmd.profile_name = positional[2]
+		}
 	}
 	return cmd, "", 0
 }
@@ -246,6 +285,12 @@ help_text :: proc(argv0: string) -> string {
 		"                                 Set monitor saturation (%g–%g; 1 is neutral)\n" +
 		"  enable | disable               Set master desktop-effect enablement\n" +
 		"  toggle                         Invert master desktop-effect enablement\n" +
+		"  profiles                       Print saved profile names and the default as JSON\n" +
+		"  profile save NAME              Save the preset, its parameters and monitor settings\n" +
+		"  profile load NAME              Apply a saved profile and wait for compilation\n" +
+		"  profile delete NAME            Delete a saved profile\n" +
+		"  profile default NAME           Apply this profile at every login\n" +
+		"  profile clear-default          Restore the last session at login instead\n" +
 		"\n" +
 		"Monitor selectors match an exact id first, otherwise a unique exact name.\n" +
 		"Master disable bypasses both presets and color adjustments on all monitors.\n" +

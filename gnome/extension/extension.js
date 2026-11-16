@@ -17,6 +17,12 @@ const XML = `<node>
     <method name="setOutputColorEnabled"><arg type="s" direction="in"/><arg type="b" direction="in"/><arg type="b" direction="out"/></method>
     <method name="setOutputGamma"><arg type="s" direction="in"/><arg type="d" direction="in"/><arg type="b" direction="out"/></method>
     <method name="setOutputSaturation"><arg type="s" direction="in"/><arg type="d" direction="in"/><arg type="b" direction="out"/></method>
+    <method name="profiles"><arg type="s" direction="out"/></method>
+    <method name="saveProfile"><arg type="s" direction="in"/><arg type="b" direction="out"/></method>
+    <method name="loadProfile"><arg type="s" direction="in"/><arg type="b" direction="out"/></method>
+    <method name="loadProfileStatus"><arg type="s" direction="in"/><arg type="s" direction="out"/></method>
+    <method name="deleteProfile"><arg type="s" direction="in"/><arg type="b" direction="out"/></method>
+    <method name="setDefaultProfile"><arg type="s" direction="in"/><arg type="b" direction="out"/></method>
     <signal name="statusChanged"><arg type="s"/></signal>
   </interface>
 </node>`;
@@ -57,7 +63,19 @@ export default class WaylandShaderExtension extends Extension {
             this._attached = true;
             this._updateOutputs();
             const saved = this._settings.get_string('configuration');
-            if (saved)
+            let restored = false;
+            const preferred = this._settings.get_string('default-profile');
+            const stored = this._readProfiles();
+            const profile = Object.hasOwn(stored, preferred) ? stored[preferred] : undefined;
+            if (profile) {
+                try {
+                    this._effect.import_settings(this._withProfile(saved, profile));
+                    restored = true;
+                } catch (error) {
+                    console.error(`WaylandShader: could not apply default profile ${preferred}`, error);
+                }
+            }
+            if (!restored && saved)
                 this._effect.import_settings(saved);
             this._settingsLoaded = true;
             this._dbus = Gio.DBusExportedObject.wrapJSObject(XML, this);
@@ -188,6 +206,98 @@ export default class WaylandShaderExtension extends Extension {
 
     setOutputSaturationAsync(parameters, invocation) {
         this._mutate('set_output_saturation', parameters, invocation);
+    }
+
+    // Profiles: {name: {preset, parameters: {name: value}, outputs: {id: settings}}} in GSettings key `profiles`.
+    _readProfiles() {
+        try {
+            const profiles = JSON.parse(this._settings.get_string('profiles') || '{}');
+            return Object.assign(Object.create(null),
+                profiles && typeof profiles === 'object' && !Array.isArray(profiles) ? profiles : {});
+        } catch (error) {
+            console.error('WaylandShader: ignoring malformed saved profiles', error);
+            return Object.create(null);
+        }
+    }
+
+    // Overlay a profile on a v1 configuration, keeping enablement, recents and other presets' overrides.
+    _withProfile(configuration, profile) {
+        const base = configuration ? JSON.parse(configuration) : {};
+        base.version = 1;
+        base.preset = profile.preset ?? '';
+        base.parameters = {...base.parameters};
+        if (base.preset)
+            base.parameters[base.preset] = profile.parameters ?? {};
+        base.outputs = {...base.outputs, ...profile.outputs};
+        return JSON.stringify(base);
+    }
+
+    _profileCall(invocation, name, action, allowEmpty = false, replyType = '(b)') {
+        if (this._closing || !this._effect) {
+            invocation.return_dbus_error('org.waylandshader.Error.Unavailable', 'The GNOME effect is shutting down.');
+            return;
+        }
+        try {
+            if (typeof name !== 'string' || (name.trim() === '' && !(allowEmpty && name === '')))
+                throw new Error('Profile names must be nonempty.');
+            const result = action(this._readProfiles());
+            this._onStatus(this._effect.get_status());
+            invocation.return_value(new GLib.Variant(replyType, [replyType === '(s)' ? result : true]));
+        } catch (error) {
+            invocation.return_dbus_error('org.waylandshader.Error.Rejected', error.message ?? String(error));
+        }
+    }
+
+    profiles() {
+        const preferred = this._settings.get_string('default-profile');
+        const names = Object.keys(this._readProfiles()).sort();
+        return JSON.stringify({default: names.includes(preferred) ? preferred : '', profiles: names});
+    }
+
+    saveProfileAsync([name], invocation) {
+        this._profileCall(invocation, name, profiles => {
+            const current = JSON.parse(this._effect.export_settings());
+            const preset = current.preset ?? '';
+            profiles[name] = {preset, parameters: current.parameters?.[preset] ?? {}, outputs: current.outputs ?? {}};
+            this._settings.set_string('profiles', JSON.stringify(profiles));
+        });
+    }
+
+    _importProfile(profiles, name) {
+        if (!Object.hasOwn(profiles, name))
+            throw new Error(`Unknown profile: ${name}`);
+        this._effect.import_settings(this._withProfile(this._effect.export_settings(), profiles[name]));
+        return this._effect.get_status();
+    }
+
+    loadProfileAsync([name], invocation) {
+        this._profileCall(invocation, name, profiles => this._importProfile(profiles, name));
+    }
+
+    // Return the accepted, canonical target in the same dispatch, before another load can replace it.
+    // Keep the original boolean method for existing GUI/clients.
+    loadProfileStatusAsync([name], invocation) {
+        this._profileCall(invocation, name, profiles => this._importProfile(profiles, name), false, '(s)');
+    }
+
+    deleteProfileAsync([name], invocation) {
+        this._profileCall(invocation, name, profiles => {
+            if (!Object.hasOwn(profiles, name))
+                throw new Error(`Unknown profile: ${name}`);
+            delete profiles[name];
+            this._settings.set_string('profiles', JSON.stringify(profiles));
+            if (this._settings.get_string('default-profile') === name)
+                this._settings.set_string('default-profile', '');
+        });
+    }
+
+    // An empty name clears the default.
+    setDefaultProfileAsync([name], invocation) {
+        this._profileCall(invocation, name, profiles => {
+            if (name !== '' && !Object.hasOwn(profiles, name))
+                throw new Error(`Unknown profile: ${name}`);
+            this._settings.set_string('default-profile', name);
+        }, true);
     }
 
     _cleanup() {
