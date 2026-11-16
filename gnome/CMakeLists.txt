@@ -61,7 +61,7 @@ foreach(dir IN LISTS ODIN_LIBRARY_DIRS)
 endforeach()
 if(WAYLANDSHADER_EXPERIMENTAL_GNOME51)
     # The private shader DSO must be beside the module, never an absolute test-directory RPATH.
-    string(APPEND ODIN_LDFLAGS " -Wl,-rpath,'$ORIGIN'")
+    string(APPEND ODIN_LDFLAGS " -Wl,-rpath,$ORIGIN")
     list(JOIN NATIVE_LIBS_LIBRARY_DIRS ":" GIR_NATIVE_PATH)
     set(GIR_LOADER_PATH "${CMAKE_CURRENT_BINARY_DIR}:${LIBRASHADER_LIBRARY_DIR}:${GIR_NATIVE_PATH}")
     set(GIR_TYPELIB_PATH "${MUTTER_TYPELIB_DIR}")
