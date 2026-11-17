@@ -1,288 +1,184 @@
-# WaylandShader
+# WaylandShader for PikaOS GNOME
 
-Native RetroArch Slang shader effects for the Wayland desktop, with per-monitor shader selection, gamma, and saturation controls.
+Apply Slang shader presets to your desktop, with per-monitor shader/color controls, a GTK controller, a CLI, and named profiles with an optional login default.
 
-WaylandShader processes the desktop **inside the compositor**. It is not a Wine application, a screen-capture viewer, or an overlay window. This checkout includes separate **KDE Plasma / KWin** and **GNOME Shell / Mutter** backends.
+**This branch is the PikaOS GNOME 51 application.** It contains the Odin application, extension, required shader-library patches and application tests—not KDE/niri backends, NixOS packaging, agent instructions or development-session archives. No Nix installation is required. Other GNOME major versions need a matching port; do not bypass Shell version checks.
 
-[Detailed guide](WaylandShader-Guide.txt) · [Project roadmap](TODO.md) · [Project handbook](PROJECT-HANDBOOK.md) · Backend chapters: [KDE](docs/KDE.md), [GNOME](docs/GNOME.md), [niri](docs/NIRI.md)
+The native module runs inside GNOME Shell. The GNOME51 path remains experimental: prior isolated checks and controller tests are not general GPU/HDR/rendering acceptance. Only load trusted presets and test expensive shaders outside your working desktop first. This is source code, not a prebuilt `.deb` or a binary release.
 
-## Current status
+## Install on PikaOS
 
-**Version 0.1.0: native KWin 6.6 and GNOME 50 backends. The default build remains KWin.**
+### 1. Check your desktop
 
-| Desktop / compositor | Status |
-| --- | --- |
-| KDE Plasma / KWin 6.6 | Implemented, with native GUI, CLI, per-monitor controls, and persistent settings |
-| niri | Development continues separately on the `niri-backend` branch and the CachyOS/niri test system |
-| GNOME Shell / Mutter 50 | Implemented in `gnome/`, with a native stage effect, GUI, CLI, and persistent per-monitor controls |
-| COSMIC | Planned; requires separate native integration |
+Run in a GNOME terminal:
 
-The KWin implementation has passed real OpenGL regressions and isolated, two-output native compositor checks. Broader physical-monitor validation, HDR/wide-gamut behavior, physical rotation, and latency/power measurements remain on the [roadmap](TODO.md).
-
-## Features
-
-- Load real `.slangp` presets through librashader, including multipass shaders, lookup textures, mipmaps, feedback, and previous-frame history.
-- Choose which monitors receive the preset. Each selected output has its own filter chain, frame counter, and history.
-- Adjust **gamma and saturation independently per monitor**, with a separate color-adjustment toggle. Color adjustments work without a preset or with that monitor's shader processing disabled.
-- Use a native settings window (Qt on KDE, GTK 3 on GNOME) or a JSON-printing CLI backed by asynchronous D-Bus calls.
-- Edit declared shader parameters at runtime. The preset and its parameters are shared across selected monitors; monitor selection and color settings are independent.
-- Persist the preset, parameter overrides, master enablement, and monitor profiles: KWin output UUIDs or GNOME connector IDs.
-- Compile replacement presets on a worker thread while retaining the working preset. A failed load does not replace it.
-- Handle output resizing, fractional scaling, and output removal/reconnection.
-
-## Tech stack
-
-| Layer | Technology |
-| --- | --- |
-| Application and effect code | KWin: C++20. GNOME: [Odin](https://odin-lang.org/) (native effect, shader runtime, D-Bus client, CLI and GUI) plus a small GJS extension |
-| Desktop integration | KWin 6.6 native effect API, or GNOME 50 / Mutter ABI 18 with Clutter/Cogl and a GJS extension |
-| Settings UI and control | KWin: Qt 6.10+ Core, Gui, Widgets, and DBus; the KWin build also uses Qt Concurrent/private development headers. GNOME: GTK 3 and GDBus (GtkBuilder layout) |
-| GPU rendering | Desktop OpenGL/EGL and compositor color-managed render targets; KWin uses libepoxy, GNOME uses Odin's `vendor:OpenGL` loaded through EGL |
-| Shader runtime | [librashader](https://github.com/SnowflakePowered/librashader) 0.10.1, a Rust runtime consumed through its C API |
-| Build system | CMake 3.25+, Extra CMake Modules 6.22+, Ninja, and pkg-config |
-| Packaging and development environment | Nix / NixOS: [default.nix](default.nix) for KWin; [gnome/default.nix](gnome/default.nix) for GNOME |
-
-**Compatibility matters:** both native effect APIs are version-sensitive. Build using the compositor package set installed on the system. KWin 6.7+ and GNOME releases outside major version 50 are rejected by their respective builds.
-
-The Nix package applies a [librashader resource-lifetime and temporal-buffer patch](patches/librashader-gl-lifetime.patch). It installs a private `libwaylandshader-rashader.so.2` rather than replacing the system's librashader. The patch is restricted to **librashader 0.10.1**; an unpatched system library is not a drop-in build dependency.
-
-## How it works
-
-The default KWin path:
-
-```text
-KWin desktop composition
-    -> per-output sRGB intermediate
-    -> optional Slang preset through librashader
-    -> optional per-monitor gamma and saturation
-    -> color-managed presentation into KWin's render target
+```sh
+gnome-shell --version
 ```
 
-There is no PipeWire capture stream, portal permission, capture feedback loop, or CPU readback in either rendering path. Private shared EGL contexts isolate librashader's GL state from the compositor, and GPU fences synchronize shared textures.
+These instructions require **GNOME Shell 51** and the matching **Mutter 51 development SDK** from your PikaOS repositories. Stop if the major version differs. They target x86-64 PikaOS; other architectures/toolchains have not been validated here.
 
-Application input remains with the original windows. Shader geometry changes affect pixels, not mouse hit-testing.
+### 2. Install build prerequisites
 
-## GNOME 50 backend
+Review the package list before installing:
 
-**PikaOS / Debian-based branch:** see [branch scope and non-Nix build notes](docs/PIKAOS.md). Profiles use standard GNOME GSettings/D-Bus, not NixOS services. The Nix installation commands below are retained upstream reference, not Debian installation instructions; this branch is not a generic `.deb` release or a declaration of full GNOME51 support.
-
-The [GNOME backend](gnome/) wraps the original stage paint with a native `ClutterEffect`, keeping the original windows and input routing. Each supported monitor has its own shader chain, history, and frame-clock-driven animation. Color-only processing does not animate an otherwise idle desktop.
-
-Build its separate package from the repository root:
-
-```bash
-nix-build gnome/default.nix
+```sh
+sudo apt update
+sudo apt install build-essential cmake ninja-build pkg-config git patch patchelf \
+  clang libclang-dev libegl-dev libepoxy-dev libgtk-3-dev libgraphene-1.0-dev \
+  libglib2.0-dev gobject-introspection libgirepository-1.0-dev libmutter-51-dev python3
 ```
 
-Building does **not** install or enable the extension. On NixOS/GLF-OS, add the GNOME package using the system configuration's matching `pkgs`:
+You also need **Odin**, a current **stable Rust/Cargo toolchain**, and Python 3 on your `PATH`. Install Odin using its [official installation instructions](https://odin-lang.org/docs/install/) and Rust using its [official toolchain instructions](https://www.rust-lang.org/tools/install). The library build below explicitly enables its stable-Rust path. Build the versioned dependency, not a system-wide replacement.
 
-```nix
-environment.systemPackages = [
-  (import /absolute/path/to/WaylandShader-gnome/gnome/default.nix { inherit pkgs; })
-];
+```sh
+odin version
+rustc --version
+cargo --version
+pkg-config --modversion libmutter-51 mutter-clutter-51 mutter-cogl-51 mutter-mtk-51
+g-ir-scanner --version
+g-ir-compiler --version
 ```
 
-Use your normal system rebuild workflow. After installation or a native-module update, save your work and start a new **GNOME** login; do not restart the live Wayland compositor. The KWin package and its binary names are unchanged.
+If a package or SDK component is unavailable, resolve that with your PikaOS repositories before continuing. Do not substitute a different Mutter major.
 
-On GLF-OS, `glf-update` builds and selects the next boot generation; it does not switch the running system. Reboot to activate that generation, or explicitly run `nixos-rebuild switch` after reviewing the configuration. Keep separate non-flake inputs for the KDE and GNOME checkouts, and select the matching package using `glf.environment.type`. Refresh the GNOME input after source changes, just as for the KWin input below.
+### 3. Get this branch
 
-```bash
-waylandshader-gnome-controller
-waylandshader-gnomectl outputs
-waylandshader-gnomectl load /absolute/path/to/preset.slangp
-waylandshader-gnomectl output DP-1 color on
-waylandshader-gnomectl output DP-1 gamma 1.2
-waylandshader-gnomectl profile save "bsnes + VCR"
-waylandshader-gnomectl profile default "bsnes + VCR"
+```sh
+set -eu
+git clone --branch pikaOS-DebianBased --single-branch \
+  https://github.com/man33li/WaylandShader-Gnome.git
+cd WaylandShader-Gnome
+APP="$PWD"
+BUILD="$APP/build-pikaos"
+mkdir -p "$BUILD/private/lib"
 ```
 
-Replace `DP-1` with an ID reported by `outputs`. The GNOME CLI supports the same commands as the KWin CLI, plus profiles. Read-only commands do not activate anything; the GUI and mutation commands may enable only `waylandshader@man33li.github.com`. GNOME must allow user extensions.
+Keep this terminal open so the variables remain set. Use a clean build directory for a fresh source build; the dependency clone and patch steps below are intended to run once in that directory, not to be reapplied to an existing patched checkout.
 
-**Browse** opens GTK 3's in-process file chooser, a modal dialog filtered to `*.slangp`, not a separate Nautilus or Dolphin process. The GNOME package includes GTK's GSettings schemas in the launcher environment. **Recent** lists the last 10 successfully loaded presets, from the GUI or CLI, by full path; status reports them as `recentPresets`. Choosing a file from either only fills the path; **Load preset** applies it. Closing the controller leaves the compositor effect running; uncheck **Enable desktop effects** to bypass it.
+### 4. Build the private shader library
 
-**Profiles** (GNOME only) are named snapshots of the current preset, that preset's parameter overrides and every monitor's shader/color/gamma/saturation settings. Use the **Profile** row in the GUI, or `profiles`, `profile save|load|delete NAME`, `profile default NAME` and `profile clear-default` in the CLI. Loading a profile keeps master enablement, recent presets and other presets' overrides, and only changes monitors stored in the profile. The **default** profile is applied over the saved configuration whenever the extension starts, so session tweaks are discarded at the next login; clear the default to restore the last session instead. Profiles are stored in the GSettings keys `profiles` and `default-profile`.
+Use **librashader 0.10.1** with **both patches in this order**. A stock library, a renamed file without its private SONAME, or another version is not equivalent.
 
-The extension exports `/WaylandShader` on the session service `org.gnome.Shell`, using `org.waylandshader.Effect`. Settings are stored in the extension's GSettings schema, with monitor profiles keyed by connector ID. An unreadable saved preset reports an error without taking down the controls or independent color adjustments.
+```sh
+git clone --branch v0.10.1 --depth 1 \
+  https://github.com/SnowflakePowered/librashader.git "$BUILD/librashader"
+patch --batch --forward --fuzz=0 -p1 -d "$BUILD/librashader" \
+  -i "$APP/patches/librashader-gl-lifetime.patch"
+patch --batch --forward --fuzz=0 -p1 -d "$BUILD/librashader" \
+  -i "$APP/patches/librashader-gl-dead-final-pair.patch"
 
-Master bypass releases GPU resources and temporal history, but keeps the loaded preset's parameter definitions. Known parameters remain editable while bypassed; their validated values are saved and applied when rendering is enabled again. An in-progress preset compilation still rejects parameter edits.
+CARGO_TARGET_DIR="$BUILD/librashader-target" CARGO_BUILD_JOBS=2 \
+  cargo rustc --locked --release \
+    --manifest-path "$BUILD/librashader/Cargo.toml" \
+    -p librashader-capi --lib --no-default-features \
+    --features runtime-opengl,stable -- \
+    -C link-arg=-Wl,-soname,libwaylandshader-rashader.so.2
 
-This backend requires **desktop OpenGL EGL**, not GLES. Unmappable, tiled, or ambiguous shared-view outputs are reported and passed through without disabling supported outputs. GNOME requests software cursor rendering and inhibits direct scanout while processing is active.
-
-The FP16 sRGB intermediate carries the view's HDR mastering headroom rather than implicitly tone-mapping to SDR. This does not guarantee HDR-safe behavior from arbitrary presets; physical HDR/wide-gamut displays still need validation.
-
-## Build and install (KWin)
-
-### Build the Nix package
-
-From the repository root:
-
-```bash
-nix-build
+install -m 755 "$BUILD/librashader-target/release/liblibrashader_capi.so" \
+  "$BUILD/private/lib/libwaylandshader-rashader.so.2"
+patchelf --set-soname libwaylandshader-rashader.so.2 \
+  "$BUILD/private/lib/libwaylandshader-rashader.so.2"
+ln -s libwaylandshader-rashader.so.2 \
+  "$BUILD/private/lib/libwaylandshader-rashader.so"
+readelf -d "$BUILD/private/lib/libwaylandshader-rashader.so.2" | grep SONAME
 ```
 
-The `result` symlink contains the KWin plugin, `waylandshader-controller`, `waylandshaderctl`, and the detailed guide. **Building alone does not install or activate the plugin in your desktop session.**
+The final line must show `libwaylandshader-rashader.so.2`. No system library is overwritten. Cargo downloads the pinned release's locked dependencies; allow time, disk space and RAM for that build.
 
-`default.nix` and `shell.nix` default to `<nixpkgs>`. Supply the matching `pkgs` when your system uses a different package set. Nix is the provided packaging path; standalone packaging for other distributions is not included.
+### 5. Build and stage the application
 
-### Install on NixOS
+The repository-root CMake entry point selects the PikaOS GNOME51 backend. Do not use upstream KWin or Nix build commands.
 
-Import the package using your system configuration's existing `pkgs`. For a non-flake configuration, add:
-
-```nix
-environment.systemPackages = [
-  (import /absolute/path/to/WaylandShader/default.nix { inherit pkgs; })
-];
+```sh
+cmake -S "$APP" -B "$BUILD/app" -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="$HOME/.local" \
+  -DCMAKE_INSTALL_LIBDIR=lib \
+  -DLIBRASHADER_INCLUDE_DIR="$BUILD/librashader/include" \
+  -DLIBRASHADER_LIBRARY="$BUILD/private/lib/libwaylandshader-rashader.so.2"
+cmake --build "$BUILD/app" --parallel 2
+STAGE="$BUILD/stage"
+DESTDIR="$STAGE" cmake --install "$BUILD/app"
 ```
 
-For a flake-based configuration, declare the checkout as a **non-flake input** in your system flake:
+Staging does **not** modify your installed extension or running desktop. Inspect the staged prefix at `$STAGE$HOME/.local`. It must include:
 
-```nix
-inputs.waylandshader = {
-  url = "path:/absolute/path/to/WaylandShader";
-  flake = false;
-};
+- `bin/waylandshader-gnome-controller` and `bin/waylandshader-gnomectl`;
+- `share/applications/org.waylandshader.GnomeController.desktop`;
+- `share/gnome-shell/extensions/waylandshader@man33li.github.com/extension.js` and GNOME51 `metadata.json`;
+- that extension's `schemas/gschemas.compiled`;
+- its `native/` directory containing the module, private `libwaylandshader-rashader.so.2`, GIR and typelib.
+
+The private library is installed next to the module, whose relative `$ORIGIN` search path resolves it. No global `LD_LIBRARY_PATH` setting is required. Use this complete staged set rather than mixing files from different builds.
+
+### 6. Publish the staged files while GNOME is logged out
+
+**Do not run `cmake --install` directly over an active native extension.** It can overwrite library bytes mapped by Shell. This simple source-install route is not the rename-based updater used for some prior personal packages.
+
+If this extension is already installed, disable it in the GNOME Extensions app first and leave it disabled if any installation step fails. Save your work, log out of GNOME, switch to a text console (for example **Ctrl+Alt+F3**), and log in as your normal user. Re-enter the checkout and restore these variables, adjusting the path if you cloned elsewhere:
+
+```sh
+set -eu
+APP="$HOME/WaylandShader-Gnome"
+STAGE="$APP/build-pikaos/stage"
+PREFIX="$HOME/.local"
+UUID=waylandshader@man33li.github.com
+if pgrep -u "$(id -u)" -x gnome-shell >/dev/null; then
+  echo 'GNOME Shell is still running for this user; do not install yet.'
+  exit 1
+fi
+test -d "$STAGE$PREFIX/share/gnome-shell/extensions/$UUID/native" || exit 1
+mkdir -p "$PREFIX"
+BACKUP="$HOME/waylandshader-backup-$(date +%Y%m%d-%H%M%S)"
+mkdir -m 700 "$BACKUP"
+for rel in bin/waylandshader-gnome-controller bin/waylandshader-gnomectl \
+  share/applications/org.waylandshader.GnomeController.desktop \
+  "share/gnome-shell/extensions/$UUID"; do
+  if [ -e "$PREFIX/$rel" ]; then
+    mkdir -p "$BACKUP/$(dirname "$rel")"
+    cp -a "$PREFIX/$rel" "$BACKUP/$rel" || exit 1
+  fi
+done
+cp -a "$STAGE$PREFIX/." "$PREFIX/"
 ```
 
-Add `waylandshader` to your flake's `outputs` arguments and pass it to the NixOS module, for example through `specialArgs = { inherit waylandshader; };`. The module can then install it with:
+The example backs up only the application's existing paths, not all of your user-local data. Use only a known, user-owned installation layout; stop and resolve unexpected symlinks, ownership or destination conflicts before copying. Do not use `sudo` for this user-local installation. Resolve any duplicate system-wide copy of the same extension with its package manager rather than layering unknown installations. Do not enable the extension if the build or copy failed. Restore the backup only while GNOME is likewise logged out.
 
-```nix
-{ pkgs, waylandshader, ... }:
-{
-  environment.systemPackages = [
-    (import "${waylandshader}/default.nix" { inherit pkgs; })
-  ];
-}
+The text-console example assumes `~/WaylandShader-Gnome`; if you chose another checkout or install prefix, use the same paths as in the build. For an automatic/transactional update or distribution-wide install, a separately tested package is needed; this guide does not claim one.
+
+### 7. Log back into GNOME and use it
+
+Start a normal GNOME login, then:
+
+```sh
+gnome-extensions enable waylandshader@man33li.github.com
+"$HOME/.local/bin/waylandshader-gnome-controller"
 ```
 
-Rebuild and switch using your normal NixOS system command, then **save your work, log out of Plasma, and log back in**. This lets KWin discover and load the installed plugin. Do not replace or restart the live Wayland compositor to test it.
+The controller's master enable switch controls desktop processing. A CLI mutation may enable this extension; read-only status commands do not.
 
-After changing a local checkout used as a flake input, refresh that input before rebuilding. For a system flake at `/etc/nixos`:
-
-```bash
-sudo nix flake update waylandshader --flake /etc/nixos
+```sh
+"$HOME/.local/bin/waylandshader-gnomectl" status
+"$HOME/.local/bin/waylandshader-gnomectl" outputs
+"$HOME/.local/bin/waylandshader-gnomectl" load /absolute/path/to/preset.slangp
+"$HOME/.local/bin/waylandshader-gnomectl" profile save "My desktop"
+"$HOME/.local/bin/waylandshader-gnomectl" profile default "My desktop"
+"$HOME/.local/bin/waylandshader-gnomectl" profile clear-default
 ```
 
-This refreshes only the named input; follow it with your normal system rebuild/switch command.
+Presets and referenced shader/LUT assets are user supplied. Profile names are exact keys; the GUI and CLI preserve surrounding whitespace and reject blank names. Disabling the master switch bypasses both shader and color processing; per-monitor controls preserve other outputs' settings.
 
-## Usage (KWin)
+## Checks and troubleshooting
 
-### Settings application
+- If the extension is missing, check `gnome-extensions info waylandshader@man33li.github.com`, confirm metadata says `51`, and use a fresh login after native updates. Never globally disable version validation.
+- For native errors inspect `journalctl --user -b` and verify that the module, private DSO and typelib came from the same staged build. Do not restart the working Wayland compositor as a test.
+- Run `python3 gnome/tests/pikaos-packaging.py` to check README shell syntax, target metadata and the actual CMake install/schema rules against disposable dummy artifacts. This neither builds nor loads the native module.
+- App tests and shader fixtures remain in `gnome/tests/` and `tests/fixtures/`. With Node installed, `node gnome/tests/profiles.mjs` exercises actual extension methods using mocked GI/Shell boundaries. It does not test live IPC or native rendering.
+- `-DWAYLANDSHADER_BUILD_TESTS=ON` registers additional Odin, GI, GTK and GL checks. These need extra test/runtime prerequisites and isolated sessions; do not run a compositor test against your normal desktop bus. A skipped/missing test is not a pass.
 
-Launch **WaylandShader** from Plasma's application menu or run:
-
-```bash
-waylandshader-controller
-```
-
-1. Choose a `.slangp` preset and load it, or use color adjustments without a preset.
-2. Enable **desktop effects** with the master checkbox.
-3. Choose a monitor in the **Monitor** selector.
-4. Toggle **Apply preset on this monitor** and **Enable color adjustments** independently.
-5. Adjust the monitor's gamma/saturation or the preset's shared parameters.
-
-The master toggle bypasses both shader and color processing without discarding settings.
-
-| Control | Range | Meaning |
-| --- | --- | --- |
-| Gamma | `0.1`–`5.0` | `1.0` is neutral; higher values brighten, lower values darken |
-| Saturation | `0.0`–`2.0` | `0.0` is grayscale; `1.0` is neutral |
-
-Color adjustments run after the preset and before KWin's output color conversion. They are software SDR adjustments, not ICC calibration or hardware gamma-ramp controls.
-
-Presets are **not bundled**. The [libretro Slang shader collection](https://github.com/libretro/slang-shaders) is one source. Keep each preset's shader files, includes, and lookup textures in their original relative directory layout.
-
-### Command line
-
-```bash
-waylandshaderctl load /absolute/path/to/preset.slangp
-waylandshaderctl enable
-waylandshaderctl status
-waylandshaderctl outputs
-
-waylandshaderctl output DP-1 shader off
-waylandshaderctl output DP-1 color on
-waylandshaderctl output DP-1 gamma 1.1
-waylandshaderctl output DP-1 saturation 0.8
-
-waylandshaderctl parameters
-waylandshaderctl param PARAMETER_NAME 0.5
-waylandshaderctl disable
-```
-
-Replace `DP-1` with an ID or unique exact name returned by `outputs`. Replace `PARAMETER_NAME` and its value with a parameter and bounds returned by `parameters`.
-
-`status`, `outputs`, and `parameters` are read-only and do not load a missing effect. Mutation commands may load the installed WaylandShader effect. Loading a preset preserves master enablement; use `enable` when needed. See `waylandshaderctl --help` and the [guide](WaylandShader-Guide.txt) for timeout, exit-code, and status-schema details.
-
-Settings are stored under `$XDG_CONFIG_HOME`, normally `~/.config`: `waylandshaderrc` holds the project settings, and `kwinrc` holds the plugin enablement preference.
-
-## Development and verification
-
-Load: two outputs (1920×1080 and 2560×1440) at 60 Hz with a temporal Slang preset; zero heap allocations per frame in the compositor paint path; gnome-shell CPU and GPU time no higher than the C++ original measured in [benchmark.md](docs/waterfall/05-maintenance/benchmark.md) (≈7.9 % of one core, ≈67 ms GPU per second).
-
-```bash
-nix-shell
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DCMAKE_INSTALL_PREFIX="$PWD/build/install" \
-  -DWAYLANDSHADER_BUILD_TESTS=ON
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-```
-
-The optional [runtime tests](tests/shader_runtime_test.cpp) execute real OpenGL rendering. They cover multipass/LUT/mipmap results, independent output histories, feedback/history resets, live parameter changes, shared-context state restoration, and an OpenGL 3.3 fallback. Mesa surfaceless EGL is required; its absence is reported as a skip. These tests do not load a plugin into your desktop.
-
-Recorded verification includes a successful Nix package build and **3/3 passing CTest checks**. Separate native checks used an isolated two-output KWin 6.6.6 session on Mesa with an AMD Radeon RX 6800 XT. They exercised real GUI input, per-monitor RGB transformations, restart/hotplug persistence, monitor rearrangement, and rejection of broken replacement presets. See the [detailed verification record](WaylandShader-Guide.txt).
-
-GNOME verification used isolated GNOME Shell/Mutter **50.4** sessions beside KDE, including native Wayland GUI input and two independent views at **1280×800/60 Hz** and **800×600/75 Hz**. Actual post-paint framebuffer checks covered identity and parameterized Slang rendering, independent gamma/saturation, master bypass, small redraws without feedback, unsupported-output isolation, and a synthetic PQ/HDR identity round trip. Cold activation and preset-restoration races were reproduced and corrected. The Nix package also runs the retained GJS ownership/pending-load lifecycle regression.
-
-Live GNOME 50.4 checks on an AMD Radeon RX 6800 XT exercised the controller's preset loading, parameter editing, primary-monitor color adjustment, and master bypass. Direct KMS scanout confirmed the primary monitor's shader/color result; the secondary monitor's settings were left unchanged. On this system, GNOME monitor screencasts captured the unfiltered scene, so they were useful for inspecting the GUI but **not** for proving the final native effect.
-
-For GNOME development (Odin 2026-05 or newer):
-
-```bash
-export B="$HOME/.cache/waylandshader/build-gnome"
-nix-shell gnome/shell.nix --run 'cmake -S gnome -B "$B" -G Ninja -DWAYLANDSHADER_BUILD_TESTS=ON && cmake --build "$B" --parallel'
-nix-shell gnome/shell.nix --run 'ctest --test-dir "$B" --output-on-failure'
-```
-
-The CTest list covers the unchanged GJS lifecycle and recent-preset regressions, the Odin unit tests (`gnome_common_units`, `gnome_native_units`, `gnome_client_units`, `gnome_ctl_units`, `gnome_gui_units`), the real-GL shader runtime tests (`gnome_shader_runtime_gl`, `_gl33`), the native contract, `gnome_cli_golden` (CLI help, usage errors and exit codes against transcripts recorded from the original C++ CLI, run on a private `dbus-run-session`), and the ELF and source-ban checks.
-
-Tests that need a running Shell never touch your desktop session. [gnome/tests/isolated-session.sh](gnome/tests/isolated-session.sh) starts a disposable headless GNOME Shell on a private D-Bus and runs the command against it:
-
-```bash
-nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh "$R" -- sh -c "gjs -m gnome/tests/parameter-bypass.js \"\$WS_PRIVATE_BUS\""'
-nix-shell gnome/shell.nix --run 'gnome/tests/isolated-session.sh "$R" -- gnome/tests/iso-cli.sh "$R/bin/waylandshader-gnomectl"'
-```
-
-Here `$R` is the result of `nix-build gnome/default.nix -o "$R"`. The [bypass-parameter regression](gnome/tests/parameter-bypass.js) loads a real Slang preset, edits it while bypassed, rejects invalid and unknown parameters without changing the saved value, and verifies the value survives re-enabling and GPU-runtime reconstruction. [iso-cli.sh](gnome/tests/iso-cli.sh) drives every CLI command against the isolated Shell. Neither is part of CTest because they control a running compositor.
-
-C++ sources use clang-format's **WebKit** style; Odin sources build with `-vet -strict-style`. When reporting a rendering problem, include the compositor version, GPU/driver, preset and relevant settings, reproduction steps, and status output from the matching backend's CLI.
-
-### Source layout
-
-| Path | Contents |
-| --- | --- |
-| [src/effect.cpp](src/effect.cpp) | KWin integration, per-output processing, persistence, and D-Bus service |
-| [gnome/](gnome/) | GNOME stage effect and shader runtime (Odin), Shell extension (GJS), D-Bus client, CLI and GTK 3 controller (`gnome/controller/`), tests, and separate packaging |
-| [src/shader_runtime.cpp](src/shader_runtime.cpp) | librashader runtime and shared EGL context handling |
-| [src/controller_main.cpp](src/controller_main.cpp) | Native Qt settings application |
-| [src/controller_client.cpp](src/controller_client.cpp) / [src/ctl_main.cpp](src/ctl_main.cpp) | Asynchronous control client and CLI |
-| [tests/](tests/) | Real-GL regressions and shader fixtures |
-| [patches/](patches/) | Private librashader dependency patch |
-
-## Limitations and safety
-
-- Native backends here target **KWin 6.6** and **GNOME 50** on Wayland, with separate packages. niri development is on its own branch; COSMIC is not included.
-- Processing applies to whole selected outputs, not individual windows or selected regions. Different presets per monitor are not supported.
-- KWin's shader input is SDR sRGB. GNOME preserves HDR headroom in its working color state, but physical HDR/wide-gamut correctness, arbitrary preset compatibility, and physical monitor rotation remain unvalidated.
-- Curvature and other geometry effects do not remap application input coordinates. Prefer non-warping presets for precise desktop interaction.
-- A cursor drawn separately from the scene is not necessarily shaded.
-- Slang processing continuously repaints selected outputs for temporal effects, including otherwise idle desktops. Color-only processing does not request continuous animation. Processing adds GPU work and can prevent direct scanout; latency, power, VRR behavior, and universal preset compatibility are not guaranteed.
-- Rendering runs inside the compositor. Native module or driver faults can affect the session, and expensive presets can make it slow. Test unfamiliar presets or backend changes in an isolated session before daily use.
-
-## Roadmap
-
-See [TODO.md](TODO.md) for installation checks, physical-display validation, and remaining native backends. niri development continues separately on CachyOS; GNOME deployment and hardware checks target GLF-OS. Each compositor requires its own native integration.
+The new PikaOS packaging path is source-reviewed and fixture-checked, not freshly end-to-end built or deployed on every PikaOS installation. A successful source push is not installation or rendering acceptance.
 
 ## License
 
-A project license has not yet been declared, and no `LICENSE` file is currently included. Third-party dependencies and external shader presets retain their respective upstream licenses.
+[MIT](LICENSE).

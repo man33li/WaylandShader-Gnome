@@ -1,7 +1,5 @@
 /build/
-/result
-/result-*
+/build-pikaos/
 /compile_commands.json
-/.law/
-/gnome/runtime/presetcheck/.law/
-/gnome/native/.law/
+# Keep local tooling state out of the application branch.
+**/.law/

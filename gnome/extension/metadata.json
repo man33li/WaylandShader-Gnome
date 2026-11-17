@@ -2,9 +2,9 @@
   "uuid": "waylandshader@man33li.github.com",
   "name": "WaylandShader",
   "description": "Native per-monitor RetroArch Slang presets, gamma and saturation for GNOME Shell.",
-  "shell-version": ["50"],
+  "shell-version": ["51"],
   "session-modes": ["user", "unlock-dialog"],
   "settings-schema": "org.gnome.shell.extensions.waylandshader",
-  "url": "https://github.com/man33li/Wayland-Shader-KDE/tree/gnome-backend",
+  "url": "https://github.com/man33li/WaylandShader-Gnome/tree/pikaOS-DebianBased",
   "version": 1
 }

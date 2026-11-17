@@ -4,12 +4,15 @@ project(WaylandShaderGNOME VERSION 0.1.0 LANGUAGES C)
 include(GNUInstallDirs)
 find_program(ODIN odin REQUIRED)
 find_package(PkgConfig REQUIRED)
-option(WAYLANDSHADER_EXPERIMENTAL_GNOME51 "Build the unvalidated GNOME 51 port for isolated checks only" OFF)
+option(WAYLANDSHADER_EXPERIMENTAL_GNOME51 "Build the experimental PikaOS GNOME 51 backend" ON)
+if(NOT WAYLANDSHADER_EXPERIMENTAL_GNOME51)
+    message(FATAL_ERROR "This PikaOS branch ships GNOME 51 metadata and requires its matching native backend.")
+endif()
 if(WAYLANDSHADER_EXPERIMENTAL_GNOME51)
     set(MUTTER_API 51)
     set(MUTTER_MAJOR 51)
     set(MUTTER_NEXT_MAJOR 52)
-    message(STATUS "Experimental GNOME 51 native module only: rendering/deployment NOT validated; extension metadata remains GNOME 50.")
+    message(STATUS "Experimental PikaOS GNOME 51 backend: matching SDK required; general rendering/HDR acceptance remains limited.")
 else()
     set(MUTTER_API 18)
     set(MUTTER_MAJOR 50)
@@ -51,7 +54,7 @@ if(WAYLANDSHADER_EXPERIMENTAL_GNOME51)
 endif()
 set(ODIN_LIBRARY_DIRS ${NATIVE_LIBS_LIBRARY_DIRS} ${GTK3_LIBRARY_DIRS} "${LIBRASHADER_LIBRARY_DIR}")
 list(REMOVE_DUPLICATES ODIN_LIBRARY_DIRS)
-# Odin uses -l:/absolute/path for vendor archives; retain its root search through Nix wrappers.
+# Odin uses -l:/absolute/path for vendor archives; retain the root linker search.
 set(ODIN_LDFLAGS "-pthread -Wl,--library-path=/")
 foreach(dir IN LISTS ODIN_LIBRARY_DIRS)
     string(APPEND ODIN_LDFLAGS " -L${dir}")
@@ -188,6 +191,10 @@ add_custom_command(
 add_custom_target(gnome_schemas ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/schemas/gschemas.compiled")
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libwaylandshader-gnome.so" DESTINATION "${EXTENSION_DIR}/native")
+# Copy the actual DSO, not a build-directory symlink, beside the module's $ORIGIN.
+get_filename_component(PRIVATE_RASHADER_DSO "${LIBRASHADER_LIBRARY}" REALPATH)
+install(FILES "${PRIVATE_RASHADER_DSO}" DESTINATION "${EXTENSION_DIR}/native"
+    RENAME libwaylandshader-rashader.so.2)
 install(FILES ${GIR_FILE} ${TYPELIB_FILE} DESTINATION "${EXTENSION_DIR}/native")
 install(FILES extension/metadata.json extension/extension.js DESTINATION "${EXTENSION_DIR}")
 install(FILES extension/schemas/org.gnome.shell.extensions.waylandshader.gschema.xml
